@@ -8,6 +8,7 @@ from setuptools.command.test import test as TestCommand
 
 version = "0.0.1.dev1"
 install_require = [
+    'juju'
 ]
 
 tests_require = [
@@ -71,6 +72,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
+            'current-apps = zaza.model:main',
             'tempest-config = zaza.tempest_config:main',
         ]
     },
