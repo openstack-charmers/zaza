@@ -20,12 +20,6 @@ async def deployed(filter=None):
 
 
 def main():
-    # logging.basicConfig(level=logging.INFO)
-
-    # # If you want to see everything sent over the wire, set this to DEBUG.
-    # ws_logger = logging.getLogger('websockets.protocol')
-    # ws_logger.setLevel(logging.INFO)
-
     # Run the deploy coroutine in an asyncio event loop, using a helper
     # that abstracts loop creation and teardown.
     print("Current applications: {}".format( ", ".join(loop.run(deployed()))))
