@@ -8,7 +8,9 @@ from setuptools.command.test import test as TestCommand
 
 version = "0.0.1.dev1"
 install_require = [
-    'juju'
+    'juju',
+    'juju-wait',
+    'hvac'
 ]
 
 tests_require = [
@@ -72,6 +74,8 @@ setup(
     ],
     entry_points={
         'console_scripts': [
+            'functest-run-tests = zaza.functests.deploy:run_tests',
+            'functest-bundle-deploy = zaza.functests.deploy:deploy',
             'current-apps = zaza.model:main',
             'tempest-config = zaza.tempest_config:main',
         ]
