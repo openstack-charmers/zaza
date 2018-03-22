@@ -33,7 +33,9 @@ def add_model(model_name):
 def get_test_class(class_str):
     """Get the test class represented by the given string
 
-    :param class_str: str Class to be returned
+    :param class_str: str Class to be returned eg
+         get_test_class('zaza.charms_tests.svc.TestSVCClass1') returns
+         zaza.charms_tests.svc.TestSVCClass1
     """
     test_module_name = '.'.join(class_str.split('.')[:-1])
     test_class_name = class_str.split('.')[-1]
@@ -43,7 +45,8 @@ def get_test_class(class_str):
 def run_test_list(tests):
     """Run the tests as defined in the list of test classes in series.
 
-    :param tests: [TestClass1, TestClass2, ...] List of tests classes to run
+    :param tests: ['zaza.charms_tests.svc.TestSVCClass1', ...] List of test
+                                                               class strings
     """
     for _testcase in tests:
         testcase = get_test_class(_testcase)
