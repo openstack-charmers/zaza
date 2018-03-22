@@ -16,8 +16,10 @@ DEFAULT_TEST_CONFIG = "./tests/tests.yaml"
 def deploy_bundle(bundle, model):
     """Deploy the given bundle file in the specified model
 
-    :param bundle: str Path to bundle file
-    :param model: str Name of model to deploy bundle in
+    :param bundle: Path to bundle file
+    :type bundle: str
+    :param model: Name of model to deploy bundle in
+    :type model: str
     """
     logging.info("Deploying bundle {}".format(bundle))
     subprocess.check_call(['juju', 'deploy', '-m', model, bundle])
@@ -25,7 +27,8 @@ def deploy_bundle(bundle, model):
 def add_model(model_name):
     """Add a model with the given name
 
-    :param model: str Name of model to add
+    :param model: Name of model to add
+    :type bundle: str
     """
     logging.info("Adding model {}".format(model_name))
     subprocess.check_call(['juju', 'add-model', model_name])
@@ -33,9 +36,13 @@ def add_model(model_name):
 def get_test_class(class_str):
     """Get the test class represented by the given string
 
-    :param class_str: str Class to be returned eg
-         get_test_class('zaza.charms_tests.svc.TestSVCClass1') returns
-         zaza.charms_tests.svc.TestSVCClass1
+       For example, get_test_class('zaza.charms_tests.svc.TestSVCClass1')
+       returns zaza.charms_tests.svc.TestSVCClass1
+
+    :param class_str: Class to be returned
+    :type class_str: str
+    :returns: Test class
+    :rtype: class
     """
     test_module_name = '.'.join(class_str.split('.')[:-1])
     test_class_name = class_str.split('.')[-1]
@@ -45,8 +52,9 @@ def get_test_class(class_str):
 def run_test_list(tests):
     """Run the tests as defined in the list of test classes in series.
 
-    :param tests: ['zaza.charms_tests.svc.TestSVCClass1', ...] List of test
-                                                               class strings
+    :param tests: List of test class strings
+    :type tests: ['zaza.charms_tests.svc.TestSVCClass1', ...]
+    :raises: AssertionError if test run fails
     """
     for _testcase in tests:
         testcase = get_test_class(_testcase)
@@ -56,7 +64,6 @@ def run_test_list(tests):
 
 def deploy():
     """Deploy the bundles and run the tests as defined by the charms tests.yaml
-
     """
     test_config = get_test_config()
     for t in test_config['gate_bundles']:
@@ -73,6 +80,8 @@ def deploy():
 def get_test_config():
     """Read the yaml test config file and return the resulting config
 
+    :returns: Config dictionary
+    :rtype: dict
     """
     with open(DEFAULT_TEST_CONFIG, 'r') as stream:
         return yaml.load(stream)
