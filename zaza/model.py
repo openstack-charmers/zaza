@@ -22,7 +22,7 @@ async def deployed(filter=None):
 def main():
     # Run the deploy coroutine in an asyncio event loop, using a helper
     # that abstracts loop creation and teardown.
-    print("Current applications: {}".format( ", ".join(loop.run(deployed()))))
+    print("Current applications: {}".format(", ".join(loop.run(deployed()))))
 
 
 if __name__ == '__main__':
