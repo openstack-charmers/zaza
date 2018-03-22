@@ -1,5 +1,4 @@
 import argparse
-import zaza
 
 
 def parser(args=None):
