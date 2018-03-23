@@ -1,0 +1,9 @@
+sudo: false
+language: python
+dist: xenial
+python:
+  - "3.6"
+install: pip install tox-travis
+script:
+  - tox -c tox.ini -e pep8
+  - tox -c tox.ini -e py36
