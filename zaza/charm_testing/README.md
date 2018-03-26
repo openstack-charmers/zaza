@@ -1,15 +1,15 @@
-# Enabling Charm Tests with zaza
+# Enabling Charm Functional Tests with Zaza
 
-The end-to-end tests of a charm are divided into distinct pjases. Each phase
-can be run in isolation and tests chared between charms.
+The end-to-end tests of a charm are divided into distinct phases. Each phase
+can be run in isolation and tests shared between charms.
 
 # Running a suite of deployments and tests
 
 **functest-run-suite** will read the charms tests.yaml and execute the
 deployments and tests outlined there. However, each phase can be run
-independantly.
+independently.
 
-## Phases
+## Charm Test Phases
 
 Charms should ship with bundles that deploy the charm with different
 application versions, topologies or config options.  functest-run-suite will
@@ -92,8 +92,8 @@ optional arguments:
 
 ### 5) Collect
 
-Collect artifacts useful for debugging any failures or infor useful for trend
-anaylsis like deprecation warning or deployment time.
+Collect artifacts useful for debugging any failures or useful for trend
+analysis like deprecation warning or deployment time.
 
 
 ### 6) Destroy
