@@ -1,7 +1,6 @@
 import argparse
 import logging
 import subprocess
-import sys
 
 import juju_wait
 
@@ -25,10 +24,10 @@ def main():
     """Deploy bundle"""
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m','--model',
+    parser.add_argument('-m', '--model',
                         help='Model to deploy to',
                         required=True)
-    parser.add_argument('-b','--bundle',
+    parser.add_argument('-b', '--bundle',
                         help='Bundle name (excluding file ext)',
                         required=True)
     parser.add_argument('--no-wait', dest='wait',

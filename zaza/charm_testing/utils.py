@@ -4,6 +4,7 @@ import yaml
 BUNDLE_DIR = "./tests/bundles/"
 DEFAULT_TEST_CONFIG = "./tests/tests.yaml"
 
+
 def get_charm_config():
     """Read the yaml test config file and return the resulting config
 
@@ -12,6 +13,7 @@ def get_charm_config():
     """
     with open(DEFAULT_TEST_CONFIG, 'r') as stream:
         return yaml.load(stream)
+
 
 def get_class(class_str):
     """Get the class represented by the given string
@@ -28,4 +30,3 @@ def get_class(class_str):
     class_name = class_str.split('.')[-1]
     module = importlib.import_module(module_name)
     return getattr(module, class_name)
-
