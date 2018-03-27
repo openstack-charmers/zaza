@@ -75,12 +75,12 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'functest-run-suite = zaza.charm_testing.func_test_runner:main',
-            'functest-deploy = zaza.charm_testing.deploy:main',
-            'functest-configure = zaza.charm_testing.configure:main',
-            'functest-destroy = zaza.charm_testing.destroy:main',
-            'functest-prepare = zaza.charm_testing.prepare:main',
-            'functest-test = zaza.charm_testing.test:main',
+            'functest-run-suite = zaza.charm_lifecycle.func_test_runner:main',
+            'functest-deploy = zaza.charm_lifecycle.deploy:main',
+            'functest-configure = zaza.charm_lifecycle.configure:main',
+            'functest-destroy = zaza.charm_lifecycle.destroy:main',
+            'functest-prepare = zaza.charm_lifecycle.prepare:main',
+            'functest-test = zaza.charm_lifecycle.test:main',
             'current-apps = zaza.model:main',
             'tempest-config = zaza.tempest_config:main',
         ]
