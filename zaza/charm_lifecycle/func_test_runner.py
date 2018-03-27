@@ -11,7 +11,7 @@ import zaza.charm_lifecycle.test as test
 
 def generate_model_name(charm_name, bundle_name):
     timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    return '{}{}{}'.format('charm_name', bundle_name, timestamp)
+    return '{}{}{}'.format(charm_name, bundle_name, timestamp)
 
 
 def func_test_runner():
