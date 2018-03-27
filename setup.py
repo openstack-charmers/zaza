@@ -8,7 +8,10 @@ from setuptools.command.test import test as TestCommand
 
 version = "0.0.1.dev1"
 install_require = [
-    'juju'
+    'hvac',
+    'juju',
+    'juju-wait',
+    'PyYAML',
 ]
 
 tests_require = [
@@ -72,6 +75,12 @@ setup(
     ],
     entry_points={
         'console_scripts': [
+            'functest-run-suite = zaza.charm_lifecycle.func_test_runner:main',
+            'functest-deploy = zaza.charm_lifecycle.deploy:main',
+            'functest-configure = zaza.charm_lifecycle.configure:main',
+            'functest-destroy = zaza.charm_lifecycle.destroy:main',
+            'functest-prepare = zaza.charm_lifecycle.prepare:main',
+            'functest-test = zaza.charm_lifecycle.test:main',
             'current-apps = zaza.model:main',
             'tempest-config = zaza.tempest_config:main',
         ]

@@ -1,6 +1,3 @@
-import logging
-import sys
-
 from juju import loop
 from juju.model import Model
 
