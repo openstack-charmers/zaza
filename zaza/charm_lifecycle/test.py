@@ -1,8 +1,9 @@
 import argparse
 import logging
 import unittest
+import sys
 
-import zaza.charm_testing.utils as utils
+import zaza.charm_lifecycle.utils as utils
 
 
 def run_test_list(tests):
@@ -24,14 +25,25 @@ def test(tests):
     run_test_list(tests)
 
 
-def main():
-    """Run the tests defined by the command line args or if none were provided
-       read the tests from the charms tests.yaml config file"""
-    logging.basicConfig(level=logging.INFO)
+def parse_args(args):
+    """Parse command line arguments
+
+    :param args: List of configure functions functions
+    :type list: [str1, str2,...] List of command line arguments
+    :returns: Parsed arguments
+    :rtype: Namespace
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('-t', '--tests', nargs='+',
                         help='Space sperated list of test classes',
                         required=False)
-    args = parser.parse_args()
+    return parser.parse_args(args)
+
+
+def main():
+    """Run the tests defined by the command line args or if none were provided
+       read the tests from the charms tests.yaml config file"""
+    logging.basicConfig(level=logging.INFO)
+    args = parse_args(sys.argv[1:])
     tests = args.tests or utils.get_charm_config()['tests']
     test(tests)

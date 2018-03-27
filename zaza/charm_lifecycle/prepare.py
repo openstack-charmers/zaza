@@ -1,6 +1,7 @@
 import argparse
 import logging
 import subprocess
+import sys
 
 
 def add_model(model_name):
@@ -22,11 +23,22 @@ def prepare(model_name):
     add_model(model_name)
 
 
+def parse_args(args):
+    """Parse command line arguments
+
+    :param args: List of configure functions functions
+    :type list: [str1, str2,...] List of command line arguments
+    :returns: Parsed arguments
+    :rtype: Namespace
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--model-name', help='Name of model to remove',
+                        required=True)
+    return parser.parse_args(args)
+
+
 def main():
     """Add a new model"""
     logging.basicConfig(level=logging.INFO)
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--model-name', help='Name of new model',
-                        required=True)
-    args = parser.parse_args()
+    args = parse_args(sys.argv[1:])
     prepare(args.model_name)

@@ -8,9 +8,10 @@ from setuptools.command.test import test as TestCommand
 
 version = "0.0.1.dev1"
 install_require = [
+    'hvac',
     'juju',
     'juju-wait',
-    'hvac'
+    'PyYAML',
 ]
 
 tests_require = [

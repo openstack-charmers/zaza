@@ -5,13 +5,17 @@ BUNDLE_DIR = "./tests/bundles/"
 DEFAULT_TEST_CONFIG = "./tests/tests.yaml"
 
 
-def get_charm_config():
+def get_charm_config(yaml_file=None):
     """Read the yaml test config file and return the resulting config
 
+    :param yaml_file: File to be read
+    :type yaml_file: str
     :returns: Config dictionary
     :rtype: dict
     """
-    with open(DEFAULT_TEST_CONFIG, 'r') as stream:
+    if not yaml_file:
+        yaml_file = DEFAULT_TEST_CONFIG
+    with open(yaml_file, 'r') as stream:
         return yaml.load(stream)
 
 

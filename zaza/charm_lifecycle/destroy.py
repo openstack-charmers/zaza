@@ -1,6 +1,7 @@
 import argparse
 import logging
 import subprocess
+import sys
 
 
 def destroy_model(model_name):
@@ -13,7 +14,7 @@ def destroy_model(model_name):
     subprocess.check_call(['juju', 'destroy-model', '--yes', model_name])
 
 
-def clean_up(model_name):
+def destroy(model_name):
     """Run all steps to cleaup after a test run
 
     :param model: Name of model to remove
@@ -22,11 +23,22 @@ def clean_up(model_name):
     destroy_model(model_name)
 
 
-def main():
-    """Cleanup after test run"""
-    logging.basicConfig(level=logging.INFO)
+def parse_args(args):
+    """Parse command line arguments
+
+    :param args: List of configure functions functions
+    :type list: [str1, str2,...] List of command line arguments
+    :returns: Parsed arguments
+    :rtype: Namespace
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--model-name', help='Name of model to remove',
                         required=True)
-    args = parser.parse_args()
-    clean_up(args.model_name)
+    return parser.parse_args(args)
+
+
+def main():
+    """Cleanup after test run"""
+    logging.basicConfig(level=logging.INFO)
+    args = parse_args(sys.argv[1:])
+    destroy(args.model_name)
