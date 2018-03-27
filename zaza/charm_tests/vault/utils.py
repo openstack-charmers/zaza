@@ -1,18 +1,12 @@
 #!/usr/bin/env python3
 
-import asyncio
 import hvac
-import logging
-import os
 import requests
-import time
 import tempfile
-import unittest
+import time
 import urllib3
-import uuid
 import yaml
 
-import zaza.charm_tests.test_utils as test_utils
 import zaza.model
 
 AUTH_FILE = "vault_tests.yaml"
@@ -26,6 +20,7 @@ def get_client(vault_url):
     """
     return hvac.Client(url=vault_url)
 
+
 def init_vault(client, shares=1, threshold=1):
     """Initialise vault
 
@@ -35,6 +30,7 @@ def init_vault(client, shares=1, threshold=1):
     :returns: hvac.Client
     """
     return client.initialize(shares, threshold)
+
 
 def get_clients(units=None):
     """Create a list of clients, one per vault server
@@ -49,6 +45,7 @@ def get_clients(units=None):
         vault_url = 'http://{}:8200'.format(unit)
         clients.append((unit, get_client(vault_url)))
     return clients
+
 
 def is_initialized(client):
     """Check if vault is initialized
@@ -72,6 +69,7 @@ def is_initialized(client):
         raise Exception("Cannot connect")
     return initialized
 
+
 def get_credentails():
     unit = zaza.model.get_first_unit('vault')
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -81,13 +79,15 @@ def get_credentails():
             creds = yaml.load(stream)
     return creds
 
+
 def store_credentails(creds):
     unit = zaza.model.get_first_unit('vault')
     with tempfile.NamedTemporaryFile(mode='w') as fp:
         fp.write(yaml.dump(creds))
         fp.flush()
         zaza.model.scp_to_unit(unit, fp.name, '~/{}'.format(AUTH_FILE))
-        
+
+
 def get_credentails_from_file(auth_file):
     """Read the vault credentials from the auth_file
 
@@ -98,6 +98,7 @@ def get_credentails_from_file(auth_file):
         vault_creds = yaml.load(stream)
     return vault_creds
 
+
 def write_credentails(auth_file, vault_creds):
     """Write the vault credentials to the auth_file
 
@@ -105,6 +106,7 @@ def write_credentails(auth_file, vault_creds):
     """
     with open(auth_file, 'w') as outfile:
         yaml.dump(vault_creds, outfile, default_flow_style=False)
+
 
 def unseal_all(clients, key):
     """Unseal all the vaults with the given clients with the provided key
@@ -115,6 +117,7 @@ def unseal_all(clients, key):
     for (addr, client) in clients:
         if client.is_sealed():
             client.unseal(key)
+
 
 def auth_all(clients, token):
     """Authenticate all the given clients with the provided token

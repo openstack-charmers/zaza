@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
 
 import hvac
-import logging
-import os
-import requests
 import time
 import unittest
-import urllib3
 import uuid
-import yaml
 
 import zaza.charm_tests.test_utils as test_utils
 import zaza.charm_tests.vault.utils as vault_utils
@@ -18,18 +13,6 @@ class VaultTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-#        vault_utils = VaultUtils()
-#        cls.clients = vault_utils.get_clients()
-#        unseal_client = cls.clients[0]
-#        initialized = vault_utils.is_initialized(unseal_client)
-#        # The credentials are written to a file to allow the tests to be re-run
-#        # this is mainly useful for manually working on the tests.
-#        auth_file = "/tmp/vault_tests.yaml"
-#        if initialized:
-#            vault_creds = vault_utils.get_credentails_from_file(auth_file)
-#        else:
-#            vault_creds = vault_utils.init_vault(unseal_client[1])
-#            vault_utils.write_credentails(auth_file, vault_creds)
         cls.clients = vault_utils.get_clients()
         vault_creds = vault_utils.get_credentails()
         vault_utils.unseal_all(cls.clients, vault_creds['keys'][0])
