@@ -1,3 +1,4 @@
+import asyncio
 import argparse
 import logging
 import sys
@@ -16,11 +17,12 @@ def run_configure_list(functions):
         utils.get_class(func)()
 
 
-def configure(functions):
+def configure(model_name, functions):
     """Run all post-deployment configuration steps
 
     :param functions: List of configure functions functions
     :type tests: ['zaza.charms_tests.svc.setup', ...]"""
+    utils.set_juju_model(model_name)
     run_configure_list(functions)
 
 
@@ -36,6 +38,8 @@ def parse_args(args):
     parser.add_argument('-c', '--configfuncs', nargs='+',
                         help='Space sperated list of config functions',
                         required=False)
+    parser.add_argument('-m', '--model-name', help='Name of model to remove',
+                        required=True)
     return parser.parse_args(args)
 
 
@@ -46,4 +50,5 @@ def main():
     logging.basicConfig(level=logging.INFO)
     args = parse_args(sys.argv[1:])
     funcs = args.configfuncs or utils.get_charm_config()['configure']
-    configure(funcs)
+    configure(args.model_name, funcs)
+    asyncio.get_event_loop().close()
