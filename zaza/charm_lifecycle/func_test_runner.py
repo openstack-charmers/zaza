@@ -27,9 +27,9 @@ def func_test_runner():
             os.path.join(utils.BUNDLE_DIR, '{}.yaml'.format(t)),
             model_name)
         # Configure
-        configure.configure(test_config['configure'])
+        configure.configure(model_name, test_config['configure'])
         # Test
-        test.test(test_config['tests'])
+        test.test(model_name, test_config['tests'])
         # Destroy
         destroy.destroy(model_name)
 

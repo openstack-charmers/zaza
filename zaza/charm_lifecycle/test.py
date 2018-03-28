@@ -1,3 +1,4 @@
+import asyncio
 import argparse
 import logging
 import unittest
@@ -20,8 +21,9 @@ def run_test_list(tests):
         assert test_result.wasSuccessful(), "Test run failed"
 
 
-def test(tests):
+def test(model_name, tests):
     """Run all steps to execute tests against the model"""
+    utils.set_juju_model(model_name)
     run_test_list(tests)
 
 
@@ -37,6 +39,8 @@ def parse_args(args):
     parser.add_argument('-t', '--tests', nargs='+',
                         help='Space sperated list of test classes',
                         required=False)
+    parser.add_argument('-m', '--model-name', help='Name of model to remove',
+                        required=True)
     return parser.parse_args(args)
 
 
@@ -46,4 +50,5 @@ def main():
     logging.basicConfig(level=logging.INFO)
     args = parse_args(sys.argv[1:])
     tests = args.tests or utils.get_charm_config()['tests']
-    test(tests)
+    test(args.model_name, tests)
+    asyncio.get_event_loop().close()

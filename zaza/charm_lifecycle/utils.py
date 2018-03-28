@@ -1,4 +1,5 @@
 import importlib
+import os
 import yaml
 
 BUNDLE_DIR = "./tests/bundles/"
@@ -34,3 +35,21 @@ def get_class(class_str):
     class_name = class_str.split('.')[-1]
     module = importlib.import_module(module_name)
     return getattr(module, class_name)
+
+
+def set_juju_model(model_name):
+    """Point environment at the given model
+
+    :param model_name: Model to point environment at
+    :type model_name: str
+    """
+    os.environ["JUJU_MODEL"] = model_name
+
+
+def get_juju_model():
+    """Retrieve current model from environment
+
+    :returns: In focus model name
+    :rtype: str
+    """
+    return os.environ["JUJU_MODEL"]
