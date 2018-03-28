@@ -1,4 +1,6 @@
+import asyncio
 import datetime
+import logging
 import os
 
 import zaza.charm_lifecycle.configure as configure
@@ -35,4 +37,6 @@ def func_test_runner():
 
 
 def main():
+    logging.basicConfig(level=logging.INFO)
     func_test_runner()
+    asyncio.get_event_loop().close()
