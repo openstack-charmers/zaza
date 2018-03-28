@@ -7,6 +7,7 @@ import time
 import urllib3
 import yaml
 
+import zaza.charm_lifecycle.utils as utils
 import zaza.model
 
 AUTH_FILE = "vault_tests.yaml"
@@ -39,7 +40,7 @@ def get_clients(units=None):
     :returns: [hvac.Client, ...] List of clients
     """
     if not units:
-        units = zaza.model.get_app_ips('vault')
+        units = zaza.model.get_app_ips(utils.get_juju_model(), 'vault')
     clients = []
     for unit in units:
         vault_url = 'http://{}:8200'.format(unit)
@@ -71,21 +72,29 @@ def is_initialized(client):
 
 
 def get_credentails():
-    unit = zaza.model.get_first_unit('vault')
+    unit = zaza.model.get_first_unit_name(utils.get_juju_model(), 'vault')
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmp_file = '{}/{}'.format(tmpdirname, AUTH_FILE)
-        zaza.model.scp_from_unit(unit, '~/{}'.format(AUTH_FILE), tmp_file)
+        zaza.model.scp_from_unit(
+            unit,
+            utils.get_juju_model(),
+            '~/{}'.format(AUTH_FILE),
+            tmp_file)
         with open(tmp_file, 'r') as stream:
             creds = yaml.load(stream)
     return creds
 
 
 def store_credentails(creds):
-    unit = zaza.model.get_first_unit('vault')
+    unit = zaza.model.get_first_unit_name(utils.get_juju_model(), 'vault')
     with tempfile.NamedTemporaryFile(mode='w') as fp:
         fp.write(yaml.dump(creds))
         fp.flush()
-        zaza.model.scp_to_unit(unit, fp.name, '~/{}'.format(AUTH_FILE))
+        zaza.model.scp_to_unit(
+            unit,
+            utils.get_juju_model(),
+            fp.name,
+            '~/{}'.format(AUTH_FILE))
 
 
 def get_credentails_from_file(auth_file):
