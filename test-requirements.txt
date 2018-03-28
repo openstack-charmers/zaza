@@ -1,3 +1,4 @@
+juju
 juju_wait
 PyYAML
 flake8>=2.2.4,<=3.5.0
