@@ -72,7 +72,7 @@ async def run_in_model(model_name, f, add_model_arg=False, awaitable=True):
 
 def scp_to_unit(unit_name, model_name, source, destination, user='ubuntu',
                 proxy=False, scp_opts=''):
-    """Transfer files from to unit_name in model_name.
+    """Transfer files to unit_name in model_name.
 
     :param unit_name: Name of unit to scp to
     :type unit_name: str
@@ -97,6 +97,42 @@ def scp_to_unit(unit_name, model_name, source, destination, user='ubuntu',
     scp_func = functools.partial(
         _scp_to_unit,
         unit_name,
+        source,
+        destination,
+        user=user,
+        proxy=proxy,
+        scp_opts=scp_opts)
+    loop.run(
+        run_in_model(model_name, scp_func, add_model_arg=True, awaitable=True))
+
+
+def scp_to_all_units(application_name, model_name, source, destination,
+                     user='ubuntu', proxy=False, scp_opts=''):
+    """Transfer files from to all units of an application
+
+    :param application_name: Name of application to scp file to
+    :type unit_name: str
+    :param model_name: Name of model unit is in
+    :type model_name: str
+    :param source: Local path of file(s) to transfer
+    :type source: str
+    :param destination: Remote destination of transferred files
+    :type source: str
+    :param user: Remote username
+    :type source: str
+    :param proxy: Proxy through the Juju API server
+    :type proxy: bool
+    :param scp_opts: Additional options to the scp command
+    :type scp_opts: str
+    """
+    async def _scp_to_all_units(application_name, source, destination, user,
+                                proxy, scp_opts, model):
+        for unit in model.applications[application_name].units:
+            await unit.scp_to(source, destination, user=user, proxy=proxy,
+                              scp_opts=scp_opts)
+    scp_func = functools.partial(
+        _scp_to_all_units,
+        application_name,
         source,
         destination,
         user=user,

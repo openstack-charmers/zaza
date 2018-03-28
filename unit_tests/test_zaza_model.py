@@ -9,6 +9,9 @@ class TestModel(ut_utils.BaseTestCase):
 
     def setUp(self):
         super(TestModel, self).setUp()
+
+        async def _scp_to(source, destination, user, proxy, scp_opts):
+            return
         self.unit1 = mock.MagicMock()
         self.unit1.public_address = 'ip1'
         self.unit1.name = 'app/2'
@@ -19,6 +22,8 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.name = 'app/4'
         self.unit2.entity_id = 'app/4'
         self.unit2.machine = 'machine7'
+        self.unit1.scp_to.side_effect = _scp_to
+        self.unit2.scp_to.side_effect = _scp_to
         self.units = [self.unit1, self.unit2]
         _units = mock.MagicMock()
         _units.units = self.units
@@ -88,6 +93,15 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model.return_value = self.Model_mock
         model.scp_to_unit('app/1', 'modelname', '/tmp/src', '/tmp/dest')
         unit_mock.scp_to.assert_called_once_with(
+            '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
+
+    def test_scp_to_all_units(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        model.scp_to_all_units('app', 'modelname', '/tmp/src', '/tmp/dest')
+        self.unit1.scp_to.assert_called_once_with(
+            '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
+        self.unit2.scp_to.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
 
     def test_scp_from_unit(self):
