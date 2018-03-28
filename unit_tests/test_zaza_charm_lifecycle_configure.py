@@ -19,9 +19,11 @@ class TestCharmLifecycleConfigure(ut_utils.BaseTestCase):
         self.patch_object(lc_configure, 'run_configure_list')
         mock1 = mock.MagicMock()
         mock2 = mock.MagicMock()
-        lc_configure.configure([mock1, mock2])
+        lc_configure.configure('modelname', [mock1, mock2])
         self.run_configure_list.assert_called_once_with([mock1, mock2])
 
     def test_parser(self):
-        args = lc_configure.parse_args(['-c', 'my.func1', 'my.func2'])
+        args = lc_configure.parse_args(
+            ['-m', 'modelname', '-c', 'my.func1', 'my.func2'])
         self.assertEqual(args.configfuncs, ['my.func1', 'my.func2'])
+        self.assertEqual(args.model_name, 'modelname')

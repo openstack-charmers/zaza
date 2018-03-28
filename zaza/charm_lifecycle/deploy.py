@@ -60,4 +60,4 @@ def main():
     """Deploy bundle"""
     logging.basicConfig(level=logging.INFO)
     args = parse_args(sys.argv[1:])
-    deploy_bundle(args.bundle, args.model, wait=args.wait)
+    deploy(args.bundle, args.model, wait=args.wait)

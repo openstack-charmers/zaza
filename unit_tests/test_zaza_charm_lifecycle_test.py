@@ -30,7 +30,9 @@ class TestCharmLifecycleTest(ut_utils.BaseTestCase):
             ['test_class1', 'test_class2'])
 
     def test_parser(self):
-        args = lc_test.parse_args(['-t', 'my.test_class1', 'my.test_class2'])
+        args = lc_test.parse_args(
+            ['-m', 'modelname', '-t', 'my.test_class1', 'my.test_class2'])
         self.assertEqual(
             args.tests,
             ['my.test_class1', 'my.test_class2'])
+        self.assertEqual(args.model_name, 'modelname')

@@ -1,4 +1,6 @@
+import asyncio
 import datetime
+import logging
 import os
 
 import zaza.charm_lifecycle.configure as configure
@@ -27,12 +29,14 @@ def func_test_runner():
             os.path.join(utils.BUNDLE_DIR, '{}.yaml'.format(t)),
             model_name)
         # Configure
-        configure.configure(test_config['configure'])
+        configure.configure(model_name, test_config['configure'])
         # Test
-        test.test(test_config['tests'])
+        test.test(model_name, test_config['tests'])
         # Destroy
         destroy.destroy(model_name)
 
 
 def main():
+    logging.basicConfig(level=logging.INFO)
     func_test_runner()
+    asyncio.get_event_loop().close()

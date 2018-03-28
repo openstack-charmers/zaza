@@ -32,17 +32,17 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             mock.call('./tests/bundles/bundle1.yaml', 'newmodel'),
             mock.call('./tests/bundles/bundle2.yaml', 'newmodel')]
         configure_calls = [
-            mock.call([
+            mock.call('newmodel', [
                 'zaza.charm_tests.mycharm.setup.basic_setup'
                 'zaza.charm_tests.othercharm.setup.setup']),
-            mock.call([
+            mock.call('newmodel', [
                 'zaza.charm_tests.mycharm.setup.basic_setup'
                 'zaza.charm_tests.othercharm.setup.setup'])]
         test_calls = [
-            mock.call([
+            mock.call('newmodel', [
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
                 'zaza.charm_tests.mycharm.tests.ComplexTest']),
-            mock.call([
+            mock.call('newmodel', [
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
                 'zaza.charm_tests.mycharm.tests.ComplexTest'])]
         destroy_calls = [
