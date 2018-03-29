@@ -682,7 +682,7 @@ def create_address_scope(neutron_client, project_id, name, ip_version=4):
             }
         }
         address_scope = neutron_client.create_address_scope(
-                address_scope_info)['address_scope']
+            address_scope_info)['address_scope']
         logging.info('New address scope created: %s', (address_scope['id']))
     else:
         logging.warning('Address scope {} already exists.'.format(name))
@@ -706,7 +706,7 @@ def create_subnetpool(neutron_client, project_id, name, subnetpool_prefix,
             }
         }
         subnetpool = neutron_client.create_subnetpool(
-                subnetpool_msg)['subnetpool']
+            subnetpool_msg)['subnetpool']
     else:
         logging.warning('Network %s already exists.', name)
         subnetpool = subnetpools['subnetpools'][0]
@@ -732,7 +732,7 @@ def create_bgp_speaker(neutron_client, local_as=12345, ip_version=4,
             }
         }
         bgp_speaker = neutron_client.create_bgp_speaker(
-                bgp_speaker_msg)['bgp_speaker']
+            bgp_speaker_msg)['bgp_speaker']
     else:
         logging.warning('BGP Speaker %s already exists.', name)
         bgp_speaker = bgp_speakers['bgp_speakers'][0]
@@ -1362,8 +1362,7 @@ def delete_designate_dns_domain(designate_client, domain_name):
     @param domain_name: str Name of domain to lookup
     @raises AssertionError: if domain deletion fails
     """
-    dns_zone_id = get_designate_domain_objects(designate_client, domain_name)
-    old_doms = get_designate_domain_objects(designate_client, domain_name)
+    old_doms = get_designate_domain_objects_v1(designate_client, domain_name)
     for old_dom in old_doms:
         logging.info("Deleting old domain {}".format(old_dom.id))
         designate_client.domains.delete(old_dom.id)

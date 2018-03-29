@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-import asyncio
-import six
 import logging
 import os
 import shutil
@@ -8,6 +6,7 @@ import subprocess
 import time
 import yaml
 import six
+import juju_wait
 from collections import Counter
 
 from . import kiki
@@ -220,7 +219,8 @@ def is_crm_clustered(service):
 def unit_sorted(units):
     """Return a sorted list of unit names."""
     return sorted(
-        units, lambda a, b: cmp(int(a.split('/')[-1]), int(b.split('/')[-1])))
+        units, lambda a, b: (int(a.split('/')[-1] > int(b.split('/')[-1]))) -
+                            (int(a.split('/')[-1] < int(b.split('/')[-1]))))
 
 
 def add_unit(service, unit_num=None):
@@ -251,13 +251,13 @@ def juju_set(service, option, wait=None):
 
 def juju_get_config_keys(service):
     service_config = model.get_application_config(
-            lifecycle_utils.get_juju_model(), service)
+        lifecycle_utils.get_juju_model(), service)
     return list(service_config.keys())
 
 
 def juju_get(service, option):
     service_config = model.get_application_config(
-            lifecycle_utils.get_juju_model(), service)
+        lifecycle_utils.get_juju_model(), service)
     try:
         return service_config.get(option).get('value')
     except AttributeError:
@@ -354,7 +354,7 @@ def get_undercloud_auth():
             'OS_AUTH_URL': os.environ.get('OS_AUTH_URL'),
             'OS_TENANT_NAME': os.environ.get('OS_TENANT_NAME'),
             'OS_USERNAME': os.environ.get('OS_USERNAME'),
-            'OS_PASSWORD':  os.environ.get('OS_PASSWORD'),
+            'OS_PASSWORD': os.environ.get('OS_PASSWORD'),
             'OS_REGION_NAME': os.environ.get('OS_REGION_NAME'),
             'API_VERSION': 2,
         }
@@ -401,7 +401,8 @@ def get_auth_url(juju_status=None):
         return juju_get('keystone', 'vip')
     if not juju_status:
         juju_status = get_juju_status()
-    unit = (next(iter(juju_status[kiki.applications()]['keystone']['units'].values())))
+    unit = (next(iter(
+        juju_status[kiki.applications()]['keystone']['units'].values())))
     return unit['public-address']
 
 
@@ -656,7 +657,7 @@ exec 2>&1
 
 # Run the script.
 '/var/lib/juju/tools/machine-{machine_id}/jujud' machine --data-dir '/var/lib/juju' --machine-id {machine_id} --debug
-"""  # nopep8
+"""  # noqa
 
 SYSTEMD_JUJU_UNIT_AGENT_SCRIPT = """#!/usr/bin/env bash
 
@@ -669,7 +670,7 @@ exec 2>&1
 
 # Run the script.
 '/var/lib/juju/tools/unit-{application_name}-{application_number}/jujud' unit --data-dir '/var/lib/juju' --unit-name {application} --debug
-"""  # nopep8
+"""  # noqa
 
 SYSTEMD_JUJU_MACHINE_INIT_FILE = """[Unit]
 Description=juju agent for machine-{name}
@@ -734,7 +735,7 @@ def upstart_to_systemd(machine_number):
             ('/var/lib/juju/init/jujud-machine-{machine_id}/'
              'jujud-machine-{machine_id}.service').format(
                  machine_id=machine_number
-              ), '/etc/systemd/system/'],
+            ), '/etc/systemd/system/'],
         base_command + [
             'sudo', 'ln', '-s',
             ('/var/lib/juju/init/jujud-machine-{machine_id}/'
@@ -742,8 +743,7 @@ def upstart_to_systemd(machine_number):
                 machine_id=machine_number),
             ('/etc/systemd/system/multi-user.target.wants/'
                 'jujud-machine-{machine_id}.service').format(
-                    machine_id=machine_number
-                )
+                    machine_id=machine_number)
         ]
     ]
     commands += units_upstart_to_systemd_commands(machine_number)
