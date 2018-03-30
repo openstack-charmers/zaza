@@ -1,0 +1,3 @@
+
+class MissingOSAthenticationException(Exception):
+    pass
