@@ -243,6 +243,23 @@ def get_app_ips(model_name, application_name):
     return [u.public_address for u in get_units(model_name, application_name)]
 
 
+def get_application_config(model_name, application_name):
+    """Return application configuration
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+
+    :returns: Dictionary of configuration
+    :rtype: dict
+    """
+    async def _get_config(application_name, model):
+        return await model.applications[application_name].get_config()
+    f = functools.partial(_get_config, application_name)
+    return loop.run(run_in_model(model_name, f, add_model_arg=True))
+
+
 def main():
     # Run the deploy coroutine in an asyncio event loop, using a helper
     # that abstracts loop creation and teardown.
