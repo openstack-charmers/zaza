@@ -6,7 +6,6 @@ from .os_versions import (
     PACKAGE_CODENAMES,
 )
 
-from keystoneclient.v2_0 import client as keystoneclient_v2
 from keystoneclient.v3 import client as keystoneclient_v3
 from keystoneauth1 import session
 from keystoneauth1.identity import (
@@ -28,7 +27,7 @@ from zaza import model
 from zaza.charm_lifecycle import utils as lifecycle_utils
 from zaza.utilities import (
     exceptions,
-    test_utils,
+    _local_utils,
 )
 
 CHARM_TYPES = {
@@ -76,14 +75,17 @@ UPGRADE_SERVICES = [
 
 
 # Openstack Client helpers
-def get_nova_creds(cloud_creds):
-    auth = get_ks_creds(cloud_creds)
-    if cloud_creds.get('OS_PROJECT_ID'):
-        auth['project_id'] = cloud_creds.get('OS_PROJECT_ID')
-    return auth
-
-
 def get_ks_creds(cloud_creds, scope='PROJECT'):
+    """Return the credentials for authenticating against keystone
+
+    :param cloud_creds: Openstack RC environment credentials
+    :type cloud_creds: dict
+    :param scope: Authentication scope: PROJECT or DOMAIN
+    :type scope: string
+    :returns: Credentials dictionary
+    :rtype: dict
+    """
+
     if cloud_creds.get('API_VERSION', 2) == 2:
         auth = {
             'username': cloud_creds['OS_USERNAME'],
@@ -113,30 +115,45 @@ def get_ks_creds(cloud_creds, scope='PROJECT'):
     return auth
 
 
-def get_nova_client(novarc_creds, insecure=True):
-    nova_creds = get_nova_creds(novarc_creds)
-    nova_creds['insecure'] = insecure
-    nova_creds['version'] = 2
-    return novaclient_client.Client(**nova_creds)
-
-
 def get_nova_session_client(session):
+    """Return novaclient authenticated by keystone session
+
+    :param session: Keystone session object
+    :type session: keystoneauth1.session.Session object
+    :returns: Authenticated novaclient
+    :rtype: novaclient.Client object
+    """
+
     return novaclient_client.Client(2, session=session)
 
 
-def get_neutron_client(novarc_creds, insecure=True):
-    neutron_creds = get_ks_creds(novarc_creds)
-    neutron_creds['insecure'] = insecure
-    return neutronclient.Client(**neutron_creds)
-
-
 def get_neutron_session_client(session):
+    """Return neutronclient authenticated by keystone session
+
+    :param session: Keystone session object
+    :type session: keystoneauth1.session.Session object
+    :returns: Authenticated neutronclient
+    :rtype: neutronclient.Client object
+    """
+
     return neutronclient.Client(session=session)
 
 
-def get_keystone_session(novarc_creds, insecure=True, scope='PROJECT'):
-    keystone_creds = get_ks_creds(novarc_creds, scope=scope)
-    if novarc_creds.get('API_VERSION', 2) == 2:
+def get_keystone_session(opentackrc_creds, insecure=True, scope='PROJECT'):
+    """Return keystone session
+
+    :param openstackrc_creds: Openstack RC credentials
+    :type openstackrc_creds: dict
+    :param insecure: Allow insecure HTTPS connections
+    :type insecure: boolean
+    :param scope: Authentication scope: PROJECT or DOMAIN
+    :type scope: string
+    :returns: Keystone session object
+    :rtype: keystoneauth1.session.Session object
+    """
+
+    keystone_creds = get_ks_creds(opentackrc_creds, scope=scope)
+    if opentackrc_creds.get('API_VERSION', 2) == 2:
         auth = v2.Password(**keystone_creds)
     else:
         auth = v3.Password(**keystone_creds)
@@ -144,42 +161,85 @@ def get_keystone_session(novarc_creds, insecure=True, scope='PROJECT'):
 
 
 def get_keystone_session_client(session):
+    """Return keystoneclient authenticated by keystone session
+
+    :param session: Keystone session object
+    :type session: keystoneauth1.session.Session object
+    :returns: Authenticated keystoneclient
+    :rtype: keystoneclient.v3.Client object
+    """
+
     return keystoneclient_v3.Client(session=session)
 
 
-def get_keystone_client(novarc_creds, insecure=True):
-    keystone_creds = get_ks_creds(novarc_creds)
-    if novarc_creds.get('API_VERSION', 2) == 2:
+def get_keystone_client(opentackrc_creds, insecure=True):
+    """Return authenticated keystoneclient and set auth_ref for service_catalog
+
+    :param openstackrc_creds: Openstack RC credentials
+    :type openstackrc_creds: dict
+    :param insecure: Allow insecure HTTPS connections
+    :type insecure: boolean
+    :returns: Authenticated keystoneclient
+    :rtype: keystoneclient.v3.Client object
+    """
+
+    session = get_keystone_session(opentackrc_creds, insecure)
+    client = get_keystone_session_client(session)
+    keystone_creds = get_ks_creds(opentackrc_creds)
+    if opentackrc_creds.get('API_VERSION', 2) == 2:
         auth = v2.Password(**keystone_creds)
-        sess = session.Session(auth=auth, verify=True)
-        client = keystoneclient_v2.Client(session=sess)
     else:
         auth = v3.Password(**keystone_creds)
-        sess = get_keystone_session(novarc_creds, insecure)
-        client = keystoneclient_v3.Client(session=sess)
     # This populates the client.service_catalog
-    client.auth_ref = auth.get_access(sess)
+    client.auth_ref = auth.get_access(session)
     return client
 
 
 def get_project_id(ks_client, project_name, api_version=2, domain_name=None):
+    """Return project ID
+
+    :param ks_client: Authenticated keystoneclient
+    :type ks_client: keystoneclient.v3.Client object
+    :param project_name: Name of the project
+    :type project_name: string
+    :param api_version: API version number
+    :type api_version: int
+    :param domain_name: Name of the domain
+    :type domain_name: string or None
+    :returns: Project ID
+    :rtype: string or None
+    """
+
     domain_id = None
     if domain_name:
         domain_id = ks_client.domains.list(name=domain_name)[0].id
     all_projects = ks_client.projects.list(domain=domain_id)
-    for t in all_projects:
-        if t._info['name'] == project_name:
-            return t._info['id']
+    for p in all_projects:
+        if p._info['name'] == project_name:
+            return p._info['id']
     return None
 
 
 # Neutron Helpers
 def get_gateway_uuids():
-    return test_utils.get_machine_uuids_for_application('neutron-gateway')
+    """Return machine uuids for neutron-gateway(s)
+
+    :returns: List of uuids
+    :rtype: list
+    """
+
+    return _local_utils.get_machine_uuids_for_application('neutron-gateway')
 
 
 def get_ovs_uuids():
-    return test_utils.get_machine_uuids_for_application('neutron-openvswitch')
+    """Return machine uuids for neutron-openvswitch(s)
+
+    :returns: List of uuids
+    :rtype: list
+    """
+
+    return (_local_utils
+            .get_machine_uuids_for_application('neutron-openvswitch'))
 
 
 BRIDGE_MAPPINGS = 'bridge-mappings'
@@ -187,14 +247,21 @@ NEW_STYLE_NETWORKING = 'physnet1:br-ex'
 
 
 def deprecated_external_networking(dvr_mode=False):
-    '''Determine whether deprecated external network mode is in use'''
+    """Determine whether deprecated external network mode is in use
+
+    :param dvr_mode: Using DVR mode or not
+    :type dvr_mode: boolean
+    :returns: True or False
+    :rtype: boolean
+    """
+
     bridge_mappings = None
     if dvr_mode:
-        bridge_mappings = juju_get('neutron-openvswitch',
-                                   BRIDGE_MAPPINGS)
+        bridge_mappings = get_application_config_option('neutron-openvswitch',
+                                                        BRIDGE_MAPPINGS)
     else:
-        bridge_mappings = juju_get('neutron-gateway',
-                                   BRIDGE_MAPPINGS)
+        bridge_mappings = get_application_config_option('neutron-gateway',
+                                                        BRIDGE_MAPPINGS)
 
     if bridge_mappings == NEW_STYLE_NETWORKING:
         return False
@@ -202,11 +269,29 @@ def deprecated_external_networking(dvr_mode=False):
 
 
 def get_net_uuid(neutron_client, net_name):
+    """Determine whether deprecated external network mode is in use
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param net_name: Network name
+    :type net_name: string
+    :returns: Network ID
+    :rtype: string
+    """
+
     network = neutron_client.list_networks(name=net_name)['networks'][0]
     return network['id']
 
 
 def get_admin_net(neutron_client):
+    """Return admin netowrk
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :returns: Admin network object
+    :rtype: dict
+    """
+
     for net in neutron_client.list_networks()['networks']:
         if net['name'].endswith('_admin_net'):
             return net
@@ -214,6 +299,20 @@ def get_admin_net(neutron_client):
 
 def configure_gateway_ext_port(novaclient, neutronclient,
                                dvr_mode=None, net_id=None):
+    """Configure the neturong-gateway external port
+
+    :param novaclient: Authenticated novaclient
+    :type novaclient: novaclient.Client object
+    :param neutronclient: Authenticated neutronclient
+    :type neutronclient: neutronclient.Client object
+    :param dvr_mode: Using DVR mode or not
+    :type dvr_mode: boolean
+    :param net_id: Network ID
+    :type net_id: string
+    :returns: Nothing: This fucntion is executed for its sideffect
+    :rtype: None
+    """
+
     if dvr_mode:
         uuids = get_ovs_uuids()
     else:
@@ -270,7 +369,8 @@ def configure_gateway_ext_port(novaclient, neutronclient,
     if ext_br_macs:
         logging.info('Setting {} on {} external port to {}'.format(
             config_key, application_name, ext_br_macs_str))
-        current_data_port = juju_get(application_name, config_key)
+        current_data_port = get_application_config_option(application_name,
+                                                          config_key)
         if current_data_port == ext_br_macs_str:
             logging.info('Config already set to value')
             return
@@ -282,6 +382,24 @@ def configure_gateway_ext_port(novaclient, neutronclient,
 
 def create_project_network(neutron_client, project_id, net_name='private',
                            shared=False, network_type='gre', domain=None):
+    """Create the project network
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param project_id: Project ID
+    :type project_id: string
+    :param net_name: Network name
+    :type net_name: string
+    :param shared: The network should be shared between projects
+    :type shared: boolean
+    :param net_type: Network type: GRE, VXLAN, local, VLAN
+    :type net_type: string
+    :param domain_name: Name of the domain
+    :type domain_name: string or None
+    :returns: Network object
+    :rtype: dict
+    """
+
     networks = neutron_client.list_networks(name=net_name)
     if len(networks['networks']) == 0:
         logging.info('Creating network: %s',
@@ -305,6 +423,20 @@ def create_project_network(neutron_client, project_id, net_name='private',
 
 def create_external_network(neutron_client, project_id, dvr_mode,
                             net_name='ext_net'):
+    """Create the external network
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param project_id: Project ID
+    :type project_id: string
+    :param dvr_mode: Using DVR mode or not
+    :type dvr_mode: boolean
+    :param net_name: Network name
+    :type net_name: string
+    :returns: Network object
+    :rtype: dict
+    """
+
     networks = neutron_client.list_networks(name=net_name)
     if len(networks['networks']) == 0:
         logging.info('Configuring external network')
@@ -331,6 +463,32 @@ def create_external_network(neutron_client, project_id, dvr_mode,
 def create_project_subnet(neutron_client, project_id, network, cidr, dhcp=True,
                           subnet_name='private_subnet', domain=None,
                           subnetpool=None, ip_version=4, prefix_len=24):
+    """Create the project subnet
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param project_id: Project ID
+    :type project_id: string
+    :param network: Network object
+    :type network: dict
+    :param cidr: Network CIDR
+    :type cidr: string
+    :param dhcp: Run DHCP on this subnet
+    :type dhcp: boolean
+    :param subnet_name: Subnet name
+    :type subnet_name: string
+    :param domain_name: Name of the domain
+    :type domain_name: string or None
+    :param subnet_pool: Subnetpool object
+    :type subnet_pool: dict or None
+    :param ip_version: IP version: 4 or 6
+    :type ip_version: int
+    :param prefix_len: Prefix lenghths of subnets derived from subnet pools
+    :type prefix_len: int
+    :returns: Subnet object
+    :rtype: dict
+    """
+
     # Create subnet
     subnets = neutron_client.list_subnets(name=subnet_name)
     if len(subnets['subnets']) == 0:
@@ -356,10 +514,32 @@ def create_project_subnet(neutron_client, project_id, network, cidr, dhcp=True,
     return subnet
 
 
-def create_external_subnet(neutron_client, tenant_id, network,
+def create_external_subnet(neutron_client, project_id, network,
                            default_gateway=None, cidr=None,
                            start_floating_ip=None, end_floating_ip=None,
                            subnet_name='ext_net_subnet'):
+    """Create the external subnet
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param project_id: Project ID
+    :type project_id: string
+    :param network: Network object
+    :type network: dict
+    :param default_gateway: Deafault gateway IP address
+    :type default_gateway: string
+    :param cidr: Network CIDR
+    :type cidr: string
+    :param start_floating_ip: Start of floating IP range: IP address
+    :type start_floating_ip: string or None
+    :param end_floating_ip: End of floating IP range: IP address
+    :type end_floating_ip: string or None
+    :param subnet_name: Subnet name
+    :type subnet_name: string
+    :returns: Subnet object
+    :rtype: dict
+    """
+
     subnets = neutron_client.list_subnets(name=subnet_name)
     if len(subnets['subnets']) == 0:
         subnet_msg = {
@@ -367,7 +547,7 @@ def create_external_subnet(neutron_client, tenant_id, network,
             'network_id': network['id'],
             'enable_dhcp': False,
             'ip_version': 4,
-            'tenant_id': tenant_id
+            'tenant_id': project_id
         }
 
         if default_gateway:
@@ -391,6 +571,18 @@ def create_external_subnet(neutron_client, tenant_id, network,
 
 
 def update_subnet_dns(neutron_client, subnet, dns_servers):
+    """Update subnet DNS servers
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param subnet: Subnet object
+    :type subnet: dict
+    :param dns_servers: Comma separted list of IP addresses
+    :type project_id: string
+    :returns: Nothing: This fucntion is executed for its sideffect
+    :rtype: None
+    """
+
     msg = {
         'subnet': {
             'dns_nameservers': dns_servers.split(',')
@@ -401,14 +593,24 @@ def update_subnet_dns(neutron_client, subnet, dns_servers):
     neutron_client.update_subnet(subnet['id'], msg)
 
 
-def create_provider_router(neutron_client, tenant_id):
+def create_provider_router(neutron_client, project_id):
+    """Create the provider router
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param project_id: Project ID
+    :type project_id: string
+    :returns: Router object
+    :rtype: dict
+    """
+
     routers = neutron_client.list_routers(name='provider-router')
     if len(routers['routers']) == 0:
         logging.info('Creating provider router for external network access')
         router_info = {
             'router': {
                 'name': 'provider-router',
-                'tenant_id': tenant_id
+                'tenant_id': project_id
             }
         }
         router = neutron_client.create_router(router_info)['router']
@@ -420,6 +622,18 @@ def create_provider_router(neutron_client, tenant_id):
 
 
 def plug_extnet_into_router(neutron_client, router, network):
+    """Add external interface to virtual router
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param router: Router object
+    :type router: dict
+    :param network: Network object
+    :type network: dict
+    :returns: Nothing: This fucntion is executed for its sideffect
+    :rtype: None
+    """
+
     ports = neutron_client.list_ports(device_owner='network:router_gateway',
                                       network_id=network['id'])
     if len(ports['ports']) == 0:
@@ -433,6 +647,20 @@ def plug_extnet_into_router(neutron_client, router, network):
 
 
 def plug_subnet_into_router(neutron_client, router, network, subnet):
+    """Add subnet interface to virtual router
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param router: Router object
+    :type router: dict
+    :param network: Network object
+    :type network: dict
+    :param subnet: Subnet object
+    :type subnet: dict
+    :returns: Nothing: This fucntion is executed for its sideffect
+    :rtype: None
+    """
+
     routers = neutron_client.list_routers(name=router)
     if len(routers['routers']) == 0:
         logging.error('Unable to locate provider router %s', router)
@@ -454,9 +682,18 @@ def plug_subnet_into_router(neutron_client, router, network, subnet):
 def create_address_scope(neutron_client, project_id, name, ip_version=4):
     """Create address scope
 
-    :param ip_version: integer 4 or 6
-    :param name: strint name for the address scope
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param project_id: Project ID
+    :type project_id: string
+    :param name: Address scope name
+    :type name: string
+    :param ip_version: IP version: 4 or 6
+    :type ip_version: int
+    :returns: Address scope object
+    :rtype: dict
     """
+
     address_scopes = neutron_client.list_address_scopes(name=name)
     if len(address_scopes['address_scopes']) == 0:
         logging.info('Creating {} address scope'.format(name))
@@ -478,7 +715,25 @@ def create_address_scope(neutron_client, project_id, name, ip_version=4):
 
 
 def create_subnetpool(neutron_client, project_id, name, subnetpool_prefix,
-                      address_scope, shared=True, domain=None):
+                      address_scope, shared=True):
+    """Create subnet pool
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param project_id: Project ID
+    :type project_id: string
+    :param name: Subnet pool name
+    :type name: string
+    :param subnetpool_prefix: CIDR network
+    :type subnetpool_prefix: string
+    :param address_scope: Address scope object
+    :type address_scope: dict
+    :param shared: The subnet pool should be shared between projects
+    :type shared: boolean
+    :returns: Subnetpool object
+    :rtype: dict
+    """
+
     subnetpools = neutron_client.list_subnetpools(name=name)
     if len(subnetpools['subnetpools']) == 0:
         logging.info('Creating subnetpool: %s',
@@ -502,12 +757,20 @@ def create_subnetpool(neutron_client, project_id, name, subnetpool_prefix,
 
 def create_bgp_speaker(neutron_client, local_as=12345, ip_version=4,
                        name='bgp-speaker'):
-    """Create BGP Speaker
+    """Create BGP speaker
 
-    @param neutron_client: Instance of neutronclient.v2.Client
-    @param local_as: int Local Autonomous System Number
-    @returns dict BGP Speaker object
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param local_as: Autonomous system number of the OpenStack cloud
+    :type local_as: int
+    :param remote_as: Autonomous system number of the BGP peer
+    :type local_as: int
+    :param name: BGP speaker name
+    :type name: string
+    :returns: BGP speaker object
+    :rtype: dict
     """
+
     bgp_speakers = neutron_client.list_bgp_speakers(name=name)
     if len(bgp_speakers['bgp_speakers']) == 0:
         logging.info('Creating BGP Speaker')
@@ -529,11 +792,16 @@ def create_bgp_speaker(neutron_client, local_as=12345, ip_version=4,
 def add_network_to_bgp_speaker(neutron_client, bgp_speaker, network_name):
     """Advertise network on BGP Speaker
 
-    @param neutron_client: Instance of neutronclient.v2.Client
-    @param bgp_speaker: dict BGP Speaker object
-    @param network_name: str Name of network to advertise
-    @returns None
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param bpg_speaker: BGP speaker object
+    :type bgp_speaker: dict
+    :param network_name: Name of network to advertise
+    :type network_name: string
+    :returns: Nothing: This fucntion is executed for its sideffect
+    :rtype: None
     """
+
     network_id = get_net_uuid(neutron_client, network_name)
     # There is no direct way to determine which networks have already
     # been advertised. For example list_route_advertised_from_bgp_speaker shows
@@ -550,16 +818,20 @@ def add_network_to_bgp_speaker(neutron_client, bgp_speaker, network_name):
 
 def create_bgp_peer(neutron_client, peer_application_name='quagga',
                     remote_as=10000, auth_type='none'):
-    """Create BGP Peer
+    """Create BGP peer
 
-    @param neutron_client: Instance of neutronclient.v2.Client
-    @param peer_application_name: str Name of juju application to find peer IP
-                                  Default: 'quagga'
-    @param remote_as: int Remote Autonomous System Number
-    @param auth_type: str BGP authentication type.
-                      Default: 'none'
-    @returns dict BGP Peer object
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param peer_application_name: Application name of the BGP peer
+    :type peer_application_name: string
+    :param remote_as: Autonomous system number of the BGP peer
+    :type local_as: int
+    :param auth_type: BGP authentication type
+    :type auth_type: string or None
+    :returns: BGP peer object
+    :rtype: dict
     """
+
     peer_unit = model.get_units(
         lifecycle_utils.get_juju_model(), peer_application_name)[0]
     peer_ip = peer_unit.public_address
@@ -582,13 +854,18 @@ def create_bgp_peer(neutron_client, peer_application_name='quagga',
 
 
 def add_peer_to_bgp_speaker(neutron_client, bgp_speaker, bgp_peer):
-    """Setup BGP peering relationship with BGP Peer and BGP Speaker
+    """Add BGP peer relationship to BGP speaker
 
-    @param neutron_client: Instance of neutronclient.v2.Client
-    @param bgp_speaker: dict BGP Speaker object
-    @param bgp_peer: dict BGP Peer object
-    @returns None
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param bpg_speaker: BGP speaker object
+    :type bgp_speaker: dict
+    :param bpg_peer: BGP peer object
+    :type bgp_peer: dict
+    :returns: Nothing: This fucntion is executed for its sideffect
+    :rtype: None
     """
+
     # Handle the expected exception if the peer is already on the
     # speaker
     try:
@@ -601,13 +878,83 @@ def add_peer_to_bgp_speaker(neutron_client, bgp_speaker, bgp_peer):
                         .format(bgp_peer['name']))
 
 
+def add_neutron_secgroup_rules(neutron_client, project_id):
+    """Add neutron security group rules
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param project_id: Project ID
+    :type project_id: string
+    :returns: Nothing: This fucntion is executed for its sideffect
+    :rtype: None
+    """
+
+    secgroup = None
+    for group in neutron_client.list_security_groups().get('security_groups'):
+        if (group.get('name') == 'default' and
+            (group.get('project_id') == project_id or
+                (group.get('tenant_id') == project_id))):
+            secgroup = group
+    if not secgroup:
+        raise Exception("Failed to find default security group")
+    # Using presence of a 22 rule to indicate whether secgroup rules
+    # have been added
+    port_rules = [rule['port_range_min'] for rule in
+                  secgroup.get('security_group_rules')]
+    protocol_rules = [rule['protocol'] for rule in
+                      secgroup.get('security_group_rules')]
+    if 22 in port_rules:
+        logging.warn('Security group rules for ssh already added')
+    else:
+        logging.info('Adding ssh security group rule')
+        neutron_client.create_security_group_rule(
+            {'security_group_rule':
+                {'security_group_id': secgroup.get('id'),
+                 'protocol': 'tcp',
+                 'port_range_min': 22,
+                 'port_range_max': 22,
+                 'direction': 'ingress',
+                 }
+             })
+
+    if 'icmp' in protocol_rules:
+        logging.warn('Security group rules for ping already added')
+    else:
+        logging.info('Adding ping security group rule')
+        neutron_client.create_security_group_rule(
+            {'security_group_rule':
+                {'security_group_id': secgroup.get('id'),
+                 'protocol': 'icmp',
+                 'direction': 'ingress',
+                 }
+             })
+
+
+# Codename and package versions
 def get_swift_codename(version):
-    '''Determine OpenStack codename that corresponds to swift version.'''
+    """Determine OpenStack codename that corresponds to swift version
+
+    :param version: Version of Swift
+    :type version: string
+    :returns: Codename for swift
+    :rtype: string
+    """
+
     codenames = [k for k, v in six.iteritems(SWIFT_CODENAMES) if version in v]
     return codenames[0]
 
 
 def get_os_code_info(package, pkg_version):
+    """Determine OpenStack codename that corresponds to package version
+
+    :param package: Package name
+    :type package: string
+    :param pkg_version: Package version
+    :type pkg_version: string
+    :returns: Codename for package
+    :rtype: string
+    """
+
     # {'code_num': entry, 'code_name': OPENSTACK_CODENAMES[entry]}
     # Remove epoch if it exists
     if ':' in pkg_version:
@@ -636,46 +983,52 @@ def get_os_code_info(package, pkg_version):
             return OPENSTACK_CODENAMES[vers]
 
 
-def get_current_os_versions(deployed_services):
+def get_current_os_versions(deployed_applications):
+    """Determine OpenStack codename of deployed applications
+
+    :param deployed_applications: List of deployed applications
+    :type deployed_applications: list
+    :returns: List of aplication to codenames dictionaries
+    :rtype: list
+    """
+
     versions = {}
-    for service in UPGRADE_SERVICES:
-        if service['name'] not in deployed_services:
+    for application in UPGRADE_SERVICES:
+        if application['name'] not in deployed_applications:
             continue
 
-        version = test_utils.get_pkg_version(service['name'],
-                                             service['type']['pkg'])
-        versions[service['name']] = get_os_code_info(service['type']['pkg'],
-                                                     version)
+        version = _local_utils.get_pkg_version(application['name'],
+                                               application['type']['pkg'])
+        versions[application['name']] = (
+            get_os_code_info(application['type']['pkg'], version))
     return versions
 
 
-def get_lowest_os_version(current_versions):
-    lowest_version = 'zebra'
-    for svc in current_versions.keys():
-        if current_versions[svc] < lowest_version:
-            lowest_version = current_versions[svc]
-    return lowest_version
-
-
-def juju_get_config_keys(application):
-    logging.warn("Deprecated function: juju_get_config_keys. Use "
-                 "get_application_config_keys")
-    return get_application_config_keys(application)
-
-
 def get_application_config_keys(application):
+    """Return application configuration keys
+
+    :param application: Name of application
+    :type application: string
+    :returns: List of aplication configuration keys
+    :rtype: list
+    """
+
     application_config = model.get_application_config(
         lifecycle_utils.get_juju_model(), application)
     return list(application_config.keys())
 
 
-def juju_get(application, option):
-    logging.warn("Deprecated function: juju_get. Use "
-                 "get_application_config_option")
-    return get_application_config_option(application, option)
-
-
 def get_application_config_option(application, option):
+    """Return application configuration
+
+    :param application: Name of application
+    :type application: string
+    :param option: Specific configuration option
+    :type option: string
+    :returns: Value of configuration option
+    :rtype: Configuration option value type
+    """
+
     application_config = model.get_application_config(
         lifecycle_utils.get_juju_model(), application)
     try:
@@ -685,12 +1038,11 @@ def get_application_config_option(application, option):
 
 
 def get_undercloud_auth():
-    """ Get the undercloud OpenStack authentication settings from the
+    """Get the undercloud OpenStack authentication settings from the
     environment.
 
-    @raises MissingOSAthenticationException if one or more settings are
-            missing.
-    @returns Dictionary of authentication settings
+    :returns: Dictionary of authentication settings
+    :rtype: dict
     """
 
     os_auth_url = os.environ.get('OS_AUTH_URL')
@@ -755,30 +1107,33 @@ def get_undercloud_auth():
 
 # Openstack Client helpers
 def get_keystone_ip():
-    if juju_get('keystone', 'vip'):
-        return juju_get('keystone', 'vip')
+    if get_application_config_option('keystone', 'vip'):
+        return get_application_config_option('keystone', 'vip')
     unit = model.get_units(
         lifecycle_utils.get_juju_model(), 'keystone')[0]
     return unit.public_address
 
 
-def get_auth_url():
-    logging.warn("Deprecated function: get_auth_url. Use get_keystone_ip")
-    return get_keystone_ip()
-
-
 def get_overcloud_auth():
-    if juju_get('keystone', 'use-https').lower() == 'yes':
+    """Get the overcloud OpenStack authentication settings from the
+    environment.
+
+    :returns: Dictionary of authentication settings
+    :rtype: dict
+    """
+
+    if get_application_config_option('keystone', 'use-https').lower() == 'yes':
         transport = 'https'
         port = 35357
     else:
         transport = 'http'
         port = 5000
-    address = get_auth_url()
+    address = get_keystone_ip()
 
     os_version = get_current_os_versions('keystone')['keystone']
 
-    api_version = juju_get('keystone', 'preferred-api-version')
+    api_version = get_application_config_option('keystone',
+                                                'preferred-api-version')
     if os_version >= 'queens':
         api_version = 3
     elif api_version is None:
