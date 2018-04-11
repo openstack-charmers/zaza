@@ -1,7 +1,9 @@
+import argparse
 import asyncio
 import datetime
 import logging
 import os
+import sys
 
 import zaza.charm_lifecycle.configure as configure
 import zaza.charm_lifecycle.destroy as destroy
@@ -16,8 +18,11 @@ def generate_model_name(charm_name, bundle_name):
     return '{}{}{}'.format(charm_name, bundle_name, timestamp)
 
 
-def func_test_runner():
+def func_test_runner(keep_model=False):
     """Deploy the bundles and run the tests as defined by the charms tests.yaml
+
+    :param keep_model: Whether to destroy model at end of run
+    :type keep_model: boolean
     """
     test_config = utils.get_charm_config()
     for t in test_config['gate_bundles']:
@@ -32,11 +37,29 @@ def func_test_runner():
         configure.configure(model_name, test_config['configure'])
         # Test
         test.test(model_name, test_config['tests'])
-        # Destroy
-        destroy.destroy(model_name)
+        if not keep_model:
+            # Destroy
+            destroy.destroy(model_name)
+
+
+def parse_args(args):
+    """Parse command line arguments
+
+    :param args: List of configure functions functions
+    :type list: [str1, str2,...] List of command line arguments
+    :returns: Parsed arguments
+    :rtype: Namespace
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--keep-model', dest='keep_model',
+                        help='Keep model at the end of the run',
+                        action='store_true')
+    parser.set_defaults(keep_model=False)
+    return parser.parse_args(args)
 
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    func_test_runner()
+    args = parse_args(sys.argv[1:])
+    func_test_runner(keep_model=args.keep_model)
     asyncio.get_event_loop().close()
