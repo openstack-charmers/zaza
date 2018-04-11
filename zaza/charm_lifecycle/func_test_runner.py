@@ -25,6 +25,7 @@ def func_test_runner(keep_model=False):
     :type keep_model: boolean
     """
     test_config = utils.get_charm_config()
+    last_test = test_config['gate_bundles'][-1]
     for t in test_config['gate_bundles']:
         model_name = generate_model_name(test_config['charm_name'], t)
         # Prepare
@@ -37,8 +38,13 @@ def func_test_runner(keep_model=False):
         configure.configure(model_name, test_config['configure'])
         # Test
         test.test(model_name, test_config['tests'])
-        if not keep_model:
-            # Destroy
+        # Destroy
+        # Keep the model from the last run if keep_model is true, this is to
+        # maintian compat with osci and should change when the zaza collect
+        # functions take over from osci for artifact collection.
+        if keep_model and t == last_test:
+            pass
+        else:
             destroy.destroy(model_name)
 
 
