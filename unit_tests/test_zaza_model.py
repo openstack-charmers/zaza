@@ -12,6 +12,25 @@ class TestModel(ut_utils.BaseTestCase):
 
         async def _scp_to(source, destination, user, proxy, scp_opts):
             return
+
+        async def _run(command, timeout=None):
+            return self.action
+
+        self.action = mock.MagicMock()
+        self.action.data = {
+            'model-uuid': '1a035018-71ff-473e-8aab-d1a8d6b6cda7',
+            'id': 'e26ffb69-6626-4e93-8840-07f7e041e99d',
+            'receiver': 'glance/0',
+            'name': 'juju-run',
+            'parameters': {
+                'command': 'somecommand someargument', 'timeout': 0},
+            'status': 'completed',
+            'message': '',
+            'results': {'Code': '0', 'Stderr': '', 'Stdout': 'RESULT'},
+            'enqueued': '2018-04-11T23:13:42Z',
+            'started': '2018-04-11T23:13:42Z',
+            'completed': '2018-04-11T23:13:43Z'}
+
         self.unit1 = mock.MagicMock()
         self.unit1.public_address = 'ip1'
         self.unit1.name = 'app/2'
@@ -22,6 +41,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.name = 'app/4'
         self.unit2.entity_id = 'app/4'
         self.unit2.machine = 'machine7'
+        self.unit1.run.side_effect = _run
         self.unit1.scp_to.side_effect = _scp_to
         self.unit2.scp_to.side_effect = _scp_to
         self.units = [self.unit1, self.unit2]
@@ -144,3 +164,14 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_units')
         self.get_units.return_value = self.units
         self.assertEqual(model.get_app_ips('model', 'app'), ['ip1', 'ip2'])
+
+    def test_run_on_unit(self):
+        expected = {'Code': '0', 'Stderr': '', 'Stdout': 'RESULT'}
+        self.cmd = cmd = 'somecommand someargument'
+        self.patch_object(model, 'Model')
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = self.unit1
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.run_on_unit('app/2', 'modelname', cmd),
+                         expected)
+        self.unit1.run.assert_called_once_with(cmd, timeout=None)
