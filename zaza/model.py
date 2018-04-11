@@ -1,5 +1,3 @@
-import functools
-
 from juju import loop
 from juju.model import Model
 
@@ -39,45 +37,38 @@ def get_unit_from_name(unit_name, model):
     return unit
 
 
-async def run_in_model(model_name, f, add_model_arg=False, awaitable=True):
-    """Run the given function in the model matching the model_name
+class RunInModel:
+    """Conext manager for executing code inside a libjuju model
 
-    :param model_name: Name of model to run function in
-    :type model_name: str
-    :param f: Function to run with given moel in focus
-    :type f: functools.partial
-    :param add_model_arg: Whether to add kwarg pointing at model to the given
-                          function before running it
-    :type add_model_arg: boolean
-    :param awaitable: Whether f is awaitable
-    :type awaitable: boolean
-    :returns: Output of f
-    :rtype: Unknown, depends on the passed in function
+       Example of using RunInModel:
+
+           async with RunInModel(model_name) as model:
+               output = await some_function(model=model)
     """
-    model = Model()
-    await model.connect_model(model_name)
-    output = None
-    try:
-        if add_model_arg:
-            f.keywords.update(model=model)
-        if awaitable:
-            output = await f()
-        else:
-            output = f()
-    finally:
-        # Disconnect from the api server and cleanup.
-        await model.disconnect()
-        return output
+    def __init__(self, model_name):
+        """Create instance of RunInModel
+
+        :param model_name: Name of model to connect to
+        :type model_name: str"""
+        self.model_name = model_name
+
+    async def __aenter__(self):
+        self.model = Model()
+        await self.model.connect_model(self.model_name)
+        return self.model
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.model.disconnect()
 
 
-def scp_to_unit(unit_name, model_name, source, destination, user='ubuntu',
+def scp_to_unit(model_name, unit_name, source, destination, user='ubuntu',
                 proxy=False, scp_opts=''):
     """Transfer files to unit_name in model_name.
 
-    :param unit_name: Name of unit to scp to
-    :type unit_name: str
     :param model_name: Name of model unit is in
     :type model_name: str
+    :param unit_name: Name of unit to scp to
+    :type unit_name: str
     :param source: Local path of file(s) to transfer
     :type source: str
     :param destination: Remote destination of transferred files
@@ -89,31 +80,25 @@ def scp_to_unit(unit_name, model_name, source, destination, user='ubuntu',
     :param scp_opts: Additional options to the scp command
     :type scp_opts: str
     """
-    async def _scp_to_unit(unit_name, source, destination, user, proxy,
-                           scp_opts, model):
-        unit = get_unit_from_name(unit_name, model)
-        await unit.scp_to(source, destination, user=user, proxy=proxy,
-                          scp_opts=scp_opts)
-    scp_func = functools.partial(
-        _scp_to_unit,
-        unit_name,
-        source,
-        destination,
-        user=user,
-        proxy=proxy,
-        scp_opts=scp_opts)
-    loop.run(
-        run_in_model(model_name, scp_func, add_model_arg=True, awaitable=True))
+    async def _scp_to_unit(model_name, unit_name, source, destination, user,
+                           proxy, scp_opts):
+        async with RunInModel(model_name) as model:
+            unit = get_unit_from_name(unit_name, model)
+            print(unit)
+            await unit.scp_to(source, destination, user=user, proxy=proxy,
+                              scp_opts=scp_opts)
+    loop.run(_scp_to_unit(model_name, unit_name, source, destination,
+                          user=user, proxy=proxy, scp_opts=scp_opts))
 
 
-def scp_to_all_units(application_name, model_name, source, destination,
+def scp_to_all_units(model_name, application_name, source, destination,
                      user='ubuntu', proxy=False, scp_opts=''):
     """Transfer files from to all units of an application
 
-    :param application_name: Name of application to scp file to
-    :type unit_name: str
     :param model_name: Name of model unit is in
     :type model_name: str
+    :param application_name: Name of application to scp file to
+    :type unit_name: str
     :param source: Local path of file(s) to transfer
     :type source: str
     :param destination: Remote destination of transferred files
@@ -125,31 +110,25 @@ def scp_to_all_units(application_name, model_name, source, destination,
     :param scp_opts: Additional options to the scp command
     :type scp_opts: str
     """
-    async def _scp_to_all_units(application_name, source, destination, user,
-                                proxy, scp_opts, model):
-        for unit in model.applications[application_name].units:
-            await unit.scp_to(source, destination, user=user, proxy=proxy,
-                              scp_opts=scp_opts)
-    scp_func = functools.partial(
-        _scp_to_all_units,
-        application_name,
-        source,
-        destination,
-        user=user,
-        proxy=proxy,
-        scp_opts=scp_opts)
-    loop.run(
-        run_in_model(model_name, scp_func, add_model_arg=True, awaitable=True))
+    async def _scp_to_all_units(model_name, application_name, source,
+                                destination, user, proxy, scp_opts):
+        async with RunInModel(model_name) as model:
+            for unit in model.applications[application_name].units:
+                await unit.scp_to(source, destination, user=user, proxy=proxy,
+                                  scp_opts=scp_opts)
+    loop.run(_scp_to_all_units(model_name, application_name, source,
+                               destination, user=user, proxy=proxy,
+                               scp_opts=scp_opts))
 
 
-def scp_from_unit(unit_name, model_name, source, destination, user='ubuntu',
+def scp_from_unit(model_name, unit_name, source, destination, user='ubuntu',
                   proxy=False, scp_opts=''):
     """Transfer files from to unit_name in model_name.
 
-    :param unit_name: Name of unit to scp from
-    :type unit_name: str
     :param model_name: Name of model unit is in
     :type model_name: str
+    :param unit_name: Name of unit to scp from
+    :type unit_name: str
     :param source: Remote path of file(s) to transfer
     :type source: str
     :param destination: Local destination of transferred files
@@ -161,41 +140,30 @@ def scp_from_unit(unit_name, model_name, source, destination, user='ubuntu',
     :param scp_opts: Additional options to the scp command
     :type scp_opts: str
     """
-    async def _scp_from_unit(unit_name, source, destination, user, proxy,
-                             scp_opts, model):
-        unit = get_unit_from_name(unit_name, model)
-        await unit.scp_from(source, destination, user=user, proxy=proxy,
-                            scp_opts=scp_opts)
-    scp_func = functools.partial(
-        _scp_from_unit,
-        unit_name,
-        source,
-        destination,
-        user=user,
-        proxy=proxy,
-        scp_opts=scp_opts)
-    loop.run(
-        run_in_model(model_name, scp_func, add_model_arg=True, awaitable=True))
+    async def _scp_from_unit(model_name, unit_name, source, destination, user,
+                             proxy, scp_opts):
+        async with RunInModel(model_name) as model:
+            unit = get_unit_from_name(unit_name, model)
+            await unit.scp_from(source, destination, user=user, proxy=proxy,
+                                scp_opts=scp_opts)
+    loop.run(_scp_from_unit(model_name, unit_name, source, destination,
+             user=user, proxy=proxy, scp_opts=scp_opts))
 
 
-def run_on_unit(unit, model_name, command):
+def run_on_unit(model_name, unit, command):
     """Juju run on unit
 
-    :param unit: Unit object
-    :type unit: object
     :param model_name: Name of model unit is in
     :type model_name: str
+    :param unit: Unit object
+    :type unit: object
     :param command: Command to execute
     :type command: str
     """
-    async def _run_on_unit(unit, command):
-        return await unit.run(command)
-    run_func = functools.partial(
-        _run_on_unit,
-        unit,
-        command)
-    loop.run(
-        run_in_model(model_name, run_func, add_model_arg=True, awaitable=True))
+    async def _run_on_unit(model_name, unit, command):
+        async with RunInModel(model_name):
+            await unit.run(command)
+    loop.run(_run_on_unit(model_name, unit, command))
 
 
 def get_application(model_name, application_name):
@@ -209,10 +177,10 @@ def get_application(model_name, application_name):
     :returns: Appliction object
     :rtype: object
     """
-    async def _get_application(application_name, model):
-        return model.applications[application_name]
-    f = functools.partial(_get_application, application_name)
-    return loop.run(run_in_model(model_name, f, add_model_arg=True))
+    async def _get_application(model_name, application_name):
+        async with RunInModel(model_name) as model:
+            return model.applications[application_name]
+    return loop.run(_get_application(model_name, application_name))
 
 
 def get_units(model_name, application_name):
@@ -226,10 +194,10 @@ def get_units(model_name, application_name):
     :returns: List of juju units
     :rtype: [juju.unit.Unit, juju.unit.Unit,...]
     """
-    async def _get_units(application_name, model):
-        return model.applications[application_name].units
-    f = functools.partial(_get_units, application_name)
-    return loop.run(run_in_model(model_name, f, add_model_arg=True))
+    async def _get_units(model_name, application_name):
+        async with RunInModel(model_name) as model:
+            return model.applications[application_name].units
+    return loop.run(_get_units(model_name, application_name))
 
 
 def get_machines(model_name, application_name):
@@ -243,13 +211,13 @@ def get_machines(model_name, application_name):
     :returns: List of juju machines
     :rtype: [juju.machine.Machine, juju.machine.Machine,...]
     """
-    async def _get_machines(application_name, model):
-        machines = []
-        for unit in model.applications[application_name].units:
-            machines.append(unit.machine)
-        return machines
-    f = functools.partial(_get_machines, application_name)
-    return loop.run(run_in_model(model_name, f, add_model_arg=True))
+    async def _get_machines(model_name, application_name):
+        async with RunInModel(model_name) as model:
+            machines = []
+            for unit in model.applications[application_name].units:
+                machines.append(unit.machine)
+            return machines
+    return loop.run(_get_machines(model_name, application_name))
 
 
 def get_first_unit_name(model_name, application_name):
@@ -291,10 +259,10 @@ def get_application_config(model_name, application_name):
     :returns: Dictionary of configuration
     :rtype: dict
     """
-    async def _get_config(application_name, model):
-        return await model.applications[application_name].get_config()
-    f = functools.partial(_get_config, application_name)
-    return loop.run(run_in_model(model_name, f, add_model_arg=True))
+    async def _get_config(model_name, application_name):
+        async with RunInModel(model_name) as model:
+            return await model.applications[application_name].get_config()
+    return loop.run(_get_config(model_name, application_name))
 
 
 def set_application_config(model_name, application_name, configuration):
@@ -304,16 +272,16 @@ def set_application_config(model_name, application_name, configuration):
     :type model_name: str
     :param application_name: Name of application
     :type application_name: str
-    :param key: Dictionary of configuration setting(s)
-    :type key: dict
+    :param configuration: Dictionary of configuration setting(s)
+    :type configuration: dict
     :returns: None
     :rtype: None
     """
-    async def _set_config(application_name, model, configuration):
-        return await (model.applications[application_name]
-                      .set_config(configuration))
-    f = functools.partial(_set_config, application_name, configuration)
-    return loop.run(run_in_model(model_name, f, add_model_arg=True))
+    async def _set_config(model_name, application_name, configuration):
+        async with RunInModel(model_name) as model:
+            return await (model.applications[application_name]
+                          .set_config(configuration))
+    return loop.run(_set_config(model_name, application_name, configuration))
 
 
 def get_status(model_name):
@@ -325,10 +293,10 @@ def get_status(model_name):
     :returns: dictionary of juju status
     :rtype: dict
     """
-    async def _get_status(model):
-        return await model.get_status()
-    f = functools.partial(_get_status)
-    return loop.run(run_in_model(model_name, f, add_model_arg=True))
+    async def _get_status(model_name):
+        async with RunInModel(model_name) as model:
+            return await model.get_status()
+    return loop.run(_get_status(model_name))
 
 
 def main():
