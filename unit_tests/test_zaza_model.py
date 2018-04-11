@@ -65,9 +65,9 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model.return_value = self.Model_mock
 
         async def _wrapper():
-            async with model.RunInModel('modelname'):
-                return
-        loop.run(_wrapper())
+            async with model.RunInModel('modelname') as mymodel:
+                return mymodel
+        self.assertEqual(loop.run(_wrapper()), self.Model_mock)
         self.Model_mock.connect_model.assert_called_once_with('modelname')
         self.Model_mock.disconnect.assert_called_once_with()
 
