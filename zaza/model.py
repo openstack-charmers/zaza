@@ -178,6 +178,43 @@ def scp_from_unit(unit_name, model_name, source, destination, user='ubuntu',
         run_in_model(model_name, scp_func, add_model_arg=True, awaitable=True))
 
 
+def run_on_unit(unit, model_name, command):
+    """Juju run on unit
+
+    :param unit: Unit object
+    :type unit: object
+    :param model_name: Name of model unit is in
+    :type model_name: str
+    :param command: Command to execute
+    :type command: str
+    """
+    async def _run_on_unit(unit, command):
+        return await unit.run(command)
+    run_func = functools.partial(
+        _run_on_unit,
+        unit,
+        command)
+    loop.run(
+        run_in_model(model_name, run_func, add_model_arg=True, awaitable=True))
+
+
+def get_application(model_name, application_name):
+    """Return an application object
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application to retrieve units for
+    :type application_name: str
+
+    :returns: Appliction object
+    :rtype: object
+    """
+    async def _get_application(application_name, model):
+        return model.applications[application_name]
+    f = functools.partial(_get_application, application_name)
+    return loop.run(run_in_model(model_name, f, add_model_arg=True))
+
+
 def get_units(model_name, application_name):
     """Return all the units of a given application
 
@@ -241,6 +278,57 @@ def get_app_ips(model_name, application_name):
     :rtype: [str, str,...]
     """
     return [u.public_address for u in get_units(model_name, application_name)]
+
+
+def get_application_config(model_name, application_name):
+    """Return application configuration
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+
+    :returns: Dictionary of configuration
+    :rtype: dict
+    """
+    async def _get_config(application_name, model):
+        return await model.applications[application_name].get_config()
+    f = functools.partial(_get_config, application_name)
+    return loop.run(run_in_model(model_name, f, add_model_arg=True))
+
+
+def set_application_config(model_name, application_name, configuration):
+    """Set application configuration
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    :param key: Dictionary of configuration setting(s)
+    :type key: dict
+    :returns: None
+    :rtype: None
+    """
+    async def _set_config(application_name, model, configuration):
+        return await (model.applications[application_name]
+                      .set_config(configuration))
+    f = functools.partial(_set_config, application_name, configuration)
+    return loop.run(run_in_model(model_name, f, add_model_arg=True))
+
+
+def get_status(model_name):
+    """Return full status
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+
+    :returns: dictionary of juju status
+    :rtype: dict
+    """
+    async def _get_status(model):
+        return await model.get_status()
+    f = functools.partial(_get_status)
+    return loop.run(run_in_model(model_name, f, add_model_arg=True))
 
 
 def main():

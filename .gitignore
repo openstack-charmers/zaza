@@ -1,2 +1,6 @@
 .tox
 *.pyc
+build/
+dist/
+.local
+zaza.egg-info/
