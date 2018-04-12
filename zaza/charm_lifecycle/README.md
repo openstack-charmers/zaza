@@ -117,10 +117,15 @@ optional arguments:
  * tox.ini should include a target like:
 
 ```
-[testenv:func35]
-  basepython = python3
-  commands =
-    functest-run-suite
+[testenv:func3]
+basepython = python3
+commands =
+    functest-run-suite --keep-model
+
+[testenv:func3-smoke]
+basepython = python3
+commands =
+    functest-run-suite --keep-model --smoke
 ```
 
  * Bundles which are to be used for the tests:
@@ -144,6 +149,8 @@ gate_bundles:
   - base-bionic
 dev_bundles:
   - base-xenial-ha
+smoke_bundles:
+  - base-bionic
 ```
 
 # Adding tests to zaza
