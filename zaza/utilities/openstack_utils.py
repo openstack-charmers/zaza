@@ -142,8 +142,8 @@ def get_neutron_session_client(session):
 def get_keystone_session(opentackrc_creds, insecure=True, scope='PROJECT'):
     """Return keystone session
 
-    :param openstackrc_creds: Openstack RC credentials
-    :type openstackrc_creds: dict
+    :param openrc_creds: Openstack RC credentials
+    :type openrc_creds: dict
     :param insecure: Allow insecure HTTPS connections
     :type insecure: boolean
     :param scope: Authentication scope: PROJECT or DOMAIN
@@ -175,8 +175,8 @@ def get_keystone_session_client(session):
 def get_keystone_client(opentackrc_creds, insecure=True):
     """Return authenticated keystoneclient and set auth_ref for service_catalog
 
-    :param openstackrc_creds: Openstack RC credentials
-    :type openstackrc_creds: dict
+    :param openrc_creds: Openstack RC credentials
+    :type openrc_creds: dict
     :param insecure: Allow insecure HTTPS connections
     :type insecure: boolean
     :returns: Authenticated keystoneclient
