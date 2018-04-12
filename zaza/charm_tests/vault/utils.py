@@ -76,8 +76,8 @@ def get_credentails():
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmp_file = '{}/{}'.format(tmpdirname, AUTH_FILE)
         zaza.model.scp_from_unit(
-            unit,
             utils.get_juju_model(),
+            unit,
             '~/{}'.format(AUTH_FILE),
             tmp_file)
         with open(tmp_file, 'r') as stream:
@@ -91,8 +91,8 @@ def store_credentails(creds):
         fp.write(yaml.dump(creds))
         fp.flush()
         zaza.model.scp_to_unit(
-            unit,
             utils.get_juju_model(),
+            unit,
             fp.name,
             '~/{}'.format(AUTH_FILE))
 

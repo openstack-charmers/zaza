@@ -1,4 +1,3 @@
-import functools
 import mock
 import zaza.model as model
 import unit_tests.utils as ut_utils
@@ -12,6 +11,16 @@ class TestModel(ut_utils.BaseTestCase):
 
         async def _scp_to(source, destination, user, proxy, scp_opts):
             return
+
+        async def _scp_from(source, destination, user, proxy, scp_opts):
+            return
+
+        async def _get_config():
+            return {'debug': 'maybe'}
+
+        async def _set_config(config):
+            return config
+
         self.unit1 = mock.MagicMock()
         self.unit1.public_address = 'ip1'
         self.unit1.name = 'app/2'
@@ -24,12 +33,16 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.machine = 'machine7'
         self.unit1.scp_to.side_effect = _scp_to
         self.unit2.scp_to.side_effect = _scp_to
+        self.unit1.scp_from.side_effect = _scp_from
+        self.unit2.scp_from.side_effect = _scp_from
         self.units = [self.unit1, self.unit2]
-        _units = mock.MagicMock()
-        _units.units = self.units
+        self._app_mock = mock.MagicMock()
+        self._app_mock.units = self.units
+        self._app_mock.get_config = _get_config
+        self._app_mock.set_config = _set_config
         self.mymodel = mock.MagicMock()
         self.mymodel.applications = {
-            'app': _units
+            'app': self._app_mock
         }
         self.Model_mock = mock.MagicMock()
 
@@ -38,67 +51,39 @@ class TestModel(ut_utils.BaseTestCase):
 
         async def _disconnect():
             return
+
+        async def _get_status():
+            return {'current-status'}
+
         self.Model_mock.connect_model.side_effect = _connect_model
         self.Model_mock.disconnect.side_effect = _disconnect
         self.Model_mock.applications = self.mymodel.applications
+        self.Model_mock.get_status.side_effect = _get_status
 
-    def test_run_in_model(self):
+    def test_RunInModel(self):
         self.patch_object(model, 'Model')
-
-        async def _test_func(arg):
-            return arg * 2
         self.Model.return_value = self.Model_mock
-        func = functools.partial(_test_func, 'hello')
-        out = loop.run(
-            model.run_in_model(
-                'mymodel',
-                func,
-                awaitable=True))
-        self.assertEqual(out, 'hellohello')
 
-    def test_run_in_model_not_awaitable(self):
-        self.patch_object(model, 'Model')
-
-        def _test_func(arg):
-            return arg * 3
-        self.Model.return_value = self.Model_mock
-        func = functools.partial(_test_func, 'hello')
-        out = loop.run(
-            model.run_in_model(
-                'mymodel',
-                func,
-                awaitable=False))
-        self.assertEqual(out, 'hellohellohello')
-
-    def test_run_in_model_add_model_arg(self):
-        self.patch_object(model, 'Model')
-
-        def _test_func(arg, model):
-            return model
-        self.Model.return_value = self.Model_mock
-        func = functools.partial(_test_func, 'hello')
-        out = loop.run(
-            model.run_in_model(
-                'mymodel',
-                func,
-                add_model_arg=True,
-                awaitable=False))
-        self.assertEqual(out, self.Model_mock)
+        async def _wrapper():
+            async with model.RunInModel('modelname') as mymodel:
+                return mymodel
+        self.assertEqual(loop.run(_wrapper()), self.Model_mock)
+        self.Model_mock.connect_model.assert_called_once_with('modelname')
+        self.Model_mock.disconnect.assert_called_once_with()
 
     def test_scp_to_unit(self):
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
-        unit_mock = mock.MagicMock()
-        self.get_unit_from_name.return_value = unit_mock
+        self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        model.scp_to_unit('app/1', 'modelname', '/tmp/src', '/tmp/dest')
-        unit_mock.scp_to.assert_called_once_with(
+        model.scp_to_unit('modelname', 'app/1', '/tmp/src', '/tmp/dest')
+        self.unit1.scp_to.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
 
     def test_scp_to_all_units(self):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        model.scp_to_all_units('app', 'modelname', '/tmp/src', '/tmp/dest')
+        model.scp_to_all_units('modelname', 'app', '/tmp/src', '/tmp/dest')
         self.unit1.scp_to.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
         self.unit2.scp_to.assert_called_once_with(
@@ -107,12 +92,19 @@ class TestModel(ut_utils.BaseTestCase):
     def test_scp_from_unit(self):
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
-        unit_mock = mock.MagicMock()
-        self.get_unit_from_name.return_value = unit_mock
+        self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        model.scp_from_unit('app/1', 'modelname', '/tmp/src', '/tmp/dest')
-        unit_mock.scp_from.assert_called_once_with(
+        model.scp_from_unit('modelname', 'app/1', '/tmp/src', '/tmp/dest')
+        self.unit1.scp_from.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
+
+    def test_get_application(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(
+            model.get_application('modelname', 'app'),
+            self._app_mock
+        )
 
     def test_get_units(self):
         self.patch_object(model, 'Model')
@@ -144,3 +136,24 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_units')
         self.get_units.return_value = self.units
         self.assertEqual(model.get_app_ips('model', 'app'), ['ip1', 'ip2'])
+
+    def test_get_application_config(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(
+            model.get_application_config('modelname', 'app'),
+            {'debug': 'maybe'})
+
+    def test_set_application_config(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.set_application_config(
+            'modelname', 'app', {'debug': 'probably'}),
+            {'debug': 'probably'})
+
+    def test_get_status(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(
+            model.get_status('modelname'),
+            {'current-status'})
