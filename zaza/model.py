@@ -326,10 +326,11 @@ def set_application_config(model_name, application_name, configuration):
     :returns: None
     :rtype: None
     """
-    async def _set_config(application_name, model, configuration):
+    async def _set_config(application_name, model, configuration={}):
         return await (model.applications[application_name]
                       .set_config(configuration))
-    f = functools.partial(_set_config, application_name, configuration)
+    f = functools.partial(_set_config, application_name,
+                          configuration=configuration)
     return loop.run(run_in_model(model_name, f, add_model_arg=True))
 
 
