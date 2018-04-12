@@ -5,6 +5,8 @@ import sys
 
 import juju_wait
 
+import zaza.charm_lifecycle.utils as utils
+
 
 def deploy_bundle(bundle, model):
     """Deploy the given bundle file in the specified model
@@ -31,6 +33,7 @@ def deploy(bundle, model, wait=True):
     deploy_bundle(bundle, model)
     if wait:
         logging.info("Waiting for environment to settle")
+        utils.set_juju_model(model)
         juju_wait.wait()
 
 
