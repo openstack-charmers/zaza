@@ -6,6 +6,12 @@ import unit_tests.utils as ut_utils
 
 class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
 
+    def test_parser(self):
+        args = lc_func_test_runner.parse_args(['--keep-model'])
+        self.assertTrue(args.keep_model)
+        args = lc_func_test_runner.parse_args([])
+        self.assertFalse(args.keep_model)
+
     def test_func_test_runner(self):
         self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
         self.patch_object(lc_func_test_runner, 'generate_model_name')
