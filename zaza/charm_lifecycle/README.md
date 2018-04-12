@@ -117,12 +117,12 @@ optional arguments:
  * tox.ini should include a target like:
 
 ```
-[testenv:func3]
+[testenv:func]
 basepython = python3
 commands =
     functest-run-suite --keep-model
 
-[testenv:func3-smoke]
+[testenv:func-smoke]
 basepython = python3
 commands =
     functest-run-suite --keep-model --smoke
