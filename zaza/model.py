@@ -321,12 +321,12 @@ def set_application_config(model_name, application_name, configuration):
     :type model_name: str
     :param application_name: Name of application
     :type application_name: str
-    :param key: Dictionary of configuration setting(s)
-    :type key: dict
+    :param configuration: Dictionary of configuration setting(s)
+    :type configuration: dict
     :returns: None
     :rtype: None
     """
-    async def _set_config(application_name, model, configuration={}):
+    async def _set_config(application_name, model, configuration=None):
         return await (model.applications[application_name]
                       .set_config(configuration))
     f = functools.partial(_set_config, application_name,
