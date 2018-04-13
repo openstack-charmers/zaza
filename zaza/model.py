@@ -178,23 +178,40 @@ def scp_from_unit(unit_name, model_name, source, destination, user='ubuntu',
         run_in_model(model_name, scp_func, add_model_arg=True, awaitable=True))
 
 
-def run_on_unit(unit, model_name, command):
+def run_on_unit(unit_name, model_name, command, timeout=None):
     """Juju run on unit
 
-    :param unit: Unit object
-    :type unit: object
+    :param unit_name: Name of unit to match
+    :type unit: str
     :param model_name: Name of model unit is in
     :type model_name: str
     :param command: Command to execute
     :type command: str
+    :param timeout: DISABLED due to Issue #225
+                    https://github.com/juju/python-libjuju/issues/225
+    :type timeout: int
+    :returns: action.data['results'] {'Code': '', 'Stderr': '', 'Stdout': ''}
+    :rtype: dict
     """
-    async def _run_on_unit(unit, command):
-        return await unit.run(command)
+
+    # Disabling timeout due to Issue #225
+    # https://github.com/juju/python-libjuju/issues/225
+    if timeout:
+        timeout = None
+
+    async def _run_on_unit(unit_name, command, model, timeout=None):
+        unit = get_unit_from_name(unit_name, model)
+        action = await unit.run(command, timeout=timeout)
+        if action.data.get('results'):
+            return action.data.get('results')
+        else:
+            return {}
     run_func = functools.partial(
         _run_on_unit,
-        unit,
-        command)
-    loop.run(
+        unit_name,
+        command,
+        timeout=timeout)
+    return loop.run(
         run_in_model(model_name, run_func, add_model_arg=True, awaitable=True))
 
 
@@ -304,15 +321,16 @@ def set_application_config(model_name, application_name, configuration):
     :type model_name: str
     :param application_name: Name of application
     :type application_name: str
-    :param key: Dictionary of configuration setting(s)
-    :type key: dict
+    :param configuration: Dictionary of configuration setting(s)
+    :type configuration: dict
     :returns: None
     :rtype: None
     """
-    async def _set_config(application_name, model, configuration):
+    async def _set_config(application_name, model, configuration=None):
         return await (model.applications[application_name]
                       .set_config(configuration))
-    f = functools.partial(_set_config, application_name, configuration)
+    f = functools.partial(_set_config, application_name,
+                          configuration=configuration)
     return loop.run(run_in_model(model_name, f, add_model_arg=True))
 
 

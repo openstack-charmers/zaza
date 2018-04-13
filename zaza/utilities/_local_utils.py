@@ -156,7 +156,7 @@ def parse_arg(options, arg, multiargs=False):
         return getattr(options, arg)
 
 
-def remote_run(unit, remote_cmd=None, timeout=None, fatal=None):
+def remote_run(unit, remote_cmd, timeout=None, fatal=None):
     """Run command on unit and return the output
 
     NOTE: This function is pre-deprecated. As soon as libjuju unit.run is able
@@ -165,31 +165,26 @@ def remote_run(unit, remote_cmd=None, timeout=None, fatal=None):
     :param remote_cmd: Command to execute on unit
     :type remote_cmd: string
     :param timeout: Timeout value for the command
-    :type arg: string
+    :type arg: int
     :param fatal: Command failure condidered fatal or not
     :type fatal: boolean
     :returns: Juju run output
     :rtype: string
     """
-
-    logging.warn("Deprecate as soon as possible. Use model.run_on_unit() as "
-                 "soon as libjuju unit.run returns output.")
     if fatal is None:
         fatal = True
-    cmd = ['juju', 'run', '--unit', unit]
-    if timeout:
-        cmd.extend(['--timeout', str(timeout)])
-    if remote_cmd:
-        cmd.append(remote_cmd)
-    else:
-        cmd.append('uname -a')
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    output = p.communicate()
-    if six.PY3:
-        output = (output[0].decode('utf-8'), output[1])
-    if p.returncode != 0 and fatal:
-        raise Exception('Error running remote command')
-    return output
+    result = model.run_on_unit(unit,
+                               lifecycle_utils.get_juju_model(),
+                               remote_cmd,
+                               timeout=timeout)
+    if result:
+        if int(result.get('Code')) == 0:
+            return result.get('Stdout')
+        else:
+            if fatal:
+                raise Exception('Error running remote command: {}'
+                                .format(result.get('Stderr')))
+            return result.get('Stderr')
 
 
 def get_pkg_version(application, pkg):
@@ -209,7 +204,7 @@ def get_pkg_version(application, pkg):
     for unit in units:
         cmd = 'dpkg -l | grep {}'.format(pkg)
         out = remote_run(unit.entity_id, cmd)
-        versions.append(out[0].split()[2])
+        versions.append(out.split('\n')[0].split()[2])
     if len(set(versions)) != 1:
         raise Exception('Unexpected output from pkg version check')
     return versions[0]
