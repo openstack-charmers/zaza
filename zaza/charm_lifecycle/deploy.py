@@ -12,7 +12,14 @@ import zaza.charm_lifecycle.utils as utils
 
 DEFAULT_OVERLAY_TEMPLATE_DIR = 'tests/bundles/overlays'
 DEFAULT_OVERLAYS = ['local-charm-overlay.yaml']
-VALID_ENVIRONMENT_KEY_PREFIXES = ['OS_']
+VALID_ENVIRONMENT_KEY_PREFIXES = [
+    'FIP_RANGE',
+    'GATEWAY',
+    'NAME_SERVER',
+    'NET_ID',
+    'OS_',
+    'VIP_RANGE',
+]
 
 
 def is_valid_env_key(key):

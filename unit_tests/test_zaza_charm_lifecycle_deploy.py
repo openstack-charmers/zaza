@@ -9,6 +9,11 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
 
     def test_is_valid_env_key(self):
         self.assertTrue(lc_deploy.is_valid_env_key('OS_VIP04'))
+        self.assertTrue(lc_deploy.is_valid_env_key('FIP_RANGE'))
+        self.assertTrue(lc_deploy.is_valid_env_key('GATEWAY'))
+        self.assertTrue(lc_deploy.is_valid_env_key('NAME_SERVER'))
+        self.assertTrue(lc_deploy.is_valid_env_key('NET_ID'))
+        self.assertTrue(lc_deploy.is_valid_env_key('VIP_RANGE'))
         self.assertFalse(lc_deploy.is_valid_env_key('AMULET_OS_VIP'))
         self.assertFalse(lc_deploy.is_valid_env_key('ZAZA_TEMPLATE_VIP00'))
         self.assertFalse(lc_deploy.is_valid_env_key('PATH'))
