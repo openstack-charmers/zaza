@@ -41,9 +41,17 @@ the bundle.
 
 In addition to the specified bundle the overlay template directory will be
 searched for a corresponding template (\<bundle\_name\>.j2). If one is found
-then the overlay will be rendered using environment variables starting with
-OS\_ as a context. The rendered overlay will be used on
-top of the specified bundle at deploy time.
+then the overlay will be rendered using environment variables a specific set
+of environment variables as conext. Currently these are:
+
+ * FIP\_RANGE
+ * GATEWAY
+ * NAME\_SERVER
+ * NET\_ID
+ * OS\_\*
+ * VIP\_RANGE
+
+The rendered overlay will be used on top of the specified bundle at deploy time.
 
 To run manually:
 
