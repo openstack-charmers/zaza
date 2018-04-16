@@ -1,5 +1,6 @@
 import asyncio
 import argparse
+import collections
 import logging
 import unittest
 import sys
@@ -36,10 +37,21 @@ def run_test_list(charm_name, tests):
     :type tests: ['zaza.charms_tests.svc.TestSVCClass1', ...]
     :raises: AssertionError if test run fails
     """
-    for _testcase in tests:
-        testcase = utils.get_class(_testcase)
+    for test in tests:
+        if type(test) is collections.OrderedDict:
+            # when test is specified as a mapping in the yaml we get the name
+            # from the single outer key in the dict
+            class_name = next(iter(test.keys()))
+            # the datastructure deserialized from the mappings children is
+            # passed on as argument to the test
+            class_args = test.get(class_name)
+        else:
+            class_name = test
+            class_args = None
+
+        testcase = utils.get_class(class_name)
         loader = ZazaTestLoader()
-        suite = loader.loadTestsFromTestCase(testcase, charm_name, None)
+        suite = loader.loadTestsFromTestCase(testcase, charm_name, class_args)
         test_result = unittest.TextTestRunner(verbosity=2).run(suite)
         assert test_result.wasSuccessful(), "Test run failed"
 

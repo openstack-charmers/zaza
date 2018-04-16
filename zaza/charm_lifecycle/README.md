@@ -162,6 +162,7 @@ tests/bundles/overlays/xenial-ha-mysql.yaml.j2
 ```
 charm_name: vault
 tests:
+  - zaza.charm_tests.generic.actions
   - zaza.charm_tests.vault.VaultTest
 configure:
   - zaza.charm_tests.vault.setup.basic_setup
