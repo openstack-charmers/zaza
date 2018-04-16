@@ -377,7 +377,7 @@ def configure_gateway_ext_port(novaclient, neutronclient,
         model.set_application_config(
             lifecycle_utils.get_juju_model(), application_name,
             configuration={config_key: ext_br_macs_str})
-        juju_wait.wait(wait_for_workload=True)
+        juju_wait.wait()
 
 
 def create_project_network(neutron_client, project_id, net_name='private',
@@ -928,6 +928,75 @@ def add_neutron_secgroup_rules(neutron_client, project_id):
                  'direction': 'ingress',
                  }
              })
+
+
+def create_port(neutron_client, name, network_name):
+    """Create port on network
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param name: Port name
+    :type name: string
+    :param network_name: Network name the port is on
+    :type network_name: string
+    :returns: Port object
+    :rtype: dict
+    """
+
+    ports = neutron_client.list_ports(name=name)
+    if len(ports['ports']) == 0:
+        logging.info('Creating port: {}'.format(name))
+        network_id = get_net_uuid(neutron_client, network_name)
+        port_msg = {
+            'port': {
+                'name': name,
+                'network_id': network_id,
+            }
+        }
+        port = neutron_client.create_port(port_msg)['port']
+    else:
+        logging.debug('Port {} already exists.'.format(name))
+        port = ports['ports'][0]
+
+    return port
+
+
+def create_floating_ip(neutron_client, network_name, port=None):
+    """Create floating IP on network and optionally associate to a port
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param network_name: Name of external netowrk for FIPs
+    :type network_name: string
+    :param port: Port object
+    :type port: dict
+    :returns: Floating IP object
+    :rtype: dict
+    """
+
+    floatingips = neutron_client.list_floatingips()
+    if len(floatingips['floatingips']) > 0:
+        if port:
+            for floatingip in floatingips['floatingips']:
+                if floatingip.get('port_id') == port['id']:
+                    logging.debug('Floating IP with port, {}, already'
+                                  'exists.'.format(port['name']))
+                    return floatingip
+        logging.warning('A floating IP already exists but ports do not match '
+                        'Potentially creating more than one.')
+
+    logging.info('Creating floatingip')
+    network_id = get_net_uuid(neutron_client, network_name)
+    floatingip_msg = {
+        'floatingip': {
+            'floating_network_id': network_id,
+        }
+    }
+    if port:
+        floatingip_msg['floatingip']['port_id'] = port['id']
+    floatingip = neutron_client.create_floatingip(
+        floatingip_msg)['floatingip']
+    return floatingip
 
 
 # Codename and package versions
