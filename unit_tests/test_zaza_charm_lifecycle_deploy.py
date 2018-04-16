@@ -8,19 +8,21 @@ import unit_tests.utils as ut_utils
 class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
 
     def test_is_valid_env_key(self):
-        self.assertTrue(lc_deploy.is_valid_env_key('AMULET_OS_VIP'))
-        self.assertTrue(lc_deploy.is_valid_env_key('ZAZA_TEMPLATE_VIP00'))
+        self.assertTrue(lc_deploy.is_valid_env_key('OS_VIP04'))
+        self.assertFalse(lc_deploy.is_valid_env_key('AMULET_OS_VIP'))
+        self.assertFalse(lc_deploy.is_valid_env_key('ZAZA_TEMPLATE_VIP00'))
         self.assertFalse(lc_deploy.is_valid_env_key('PATH'))
 
     def test_get_template_context_from_env(self):
         self.patch_object(lc_deploy.os, 'environ')
         self.environ.items.return_value = [
             ('AMULET_OS_VIP', '10.10.0.2'),
+            ('OS_VIP04', '10.10.0.2'),
             ('ZAZA_TEMPLATE_VIP00', '20.3.4.5'),
             ('PATH', 'aa')]
         self.assertEqual(
             lc_deploy.get_template_context_from_env(),
-            {'AMULET_OS_VIP': '10.10.0.2', 'ZAZA_TEMPLATE_VIP00': '20.3.4.5'}
+            {'OS_VIP04': '10.10.0.2'}
         )
 
     def test_get_overlay_template_dir(self):

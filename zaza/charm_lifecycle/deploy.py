@@ -12,7 +12,7 @@ import zaza.charm_lifecycle.utils as utils
 
 DEFAULT_OVERLAY_TEMPLATE_DIR = 'tests/bundles/overlays'
 DEFAULT_OVERLAYS = ['local-charm-overlay.yaml']
-VALID_ENVIRONMENT_KEY_PREFIXES = ['AMULET', 'ZAZA_TEMPLATE']
+VALID_ENVIRONMENT_KEY_PREFIXES = ['OS_']
 
 
 def is_valid_env_key(key):
