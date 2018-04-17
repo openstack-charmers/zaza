@@ -18,7 +18,7 @@ def generate_model_name(charm_name, bundle_name):
     return '{}{}{}'.format(charm_name, bundle_name, timestamp)
 
 
-def func_test_runner(keep_model=False, smoke=False):
+def func_test_runner(keep_model=False, smoke=False, bundle=None):
     """Deploy the bundles and run the tests as defined by the charms tests.yaml
 
     :param keep_model: Whether to destroy model at end of run
@@ -27,11 +27,14 @@ def func_test_runner(keep_model=False, smoke=False):
     :type smoke: boolean
     """
     test_config = utils.get_charm_config()
-    if smoke:
-        bundle_key = 'smoke_bundles'
+    if bundle:
+        bundles = [bundle]
     else:
-        bundle_key = 'gate_bundles'
-    bundles = test_config[bundle_key]
+        if smoke:
+            bundle_key = 'smoke_bundles'
+        else:
+            bundle_key = 'gate_bundles'
+        bundles = test_config[bundle_key]
     last_test = bundles[-1]
     for t in bundles:
         model_name = generate_model_name(test_config['charm_name'], t)
@@ -70,6 +73,9 @@ def parse_args(args):
     parser.add_argument('--smoke', dest='smoke',
                         help='Just run smoke test',
                         action='store_true')
+    parser.add_argument('-b', '--bundle',
+                        help='Override the bundle to be run',
+                        required=False)
     parser.set_defaults(keep_model=False, smoke=False)
     return parser.parse_args(args)
 
@@ -77,5 +83,5 @@ def parse_args(args):
 def main():
     logging.basicConfig(level=logging.INFO)
     args = parse_args(sys.argv[1:])
-    func_test_runner(keep_model=args.keep_model, smoke=args.smoke)
+    func_test_runner(keep_model=args.keep_model, smoke=args.smoke, bundle=args.bundle)
     asyncio.get_event_loop().close()
