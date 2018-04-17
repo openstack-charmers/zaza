@@ -39,6 +39,20 @@ Deploy the target bundle and wait for it to complete. **functest-run-suite**
 will look at the list of bundles in the tests.yaml in the charm to determine
 the bundle.
 
+In addition to the specified bundle the overlay template directory will be
+searched for a corresponding template (\<bundle\_name\>.j2). If one is found
+then the overlay will be rendered using environment variables a specific set
+of environment variables as conext. Currently these are:
+
+ * FIP\_RANGE
+ * GATEWAY
+ * NAME\_SERVER
+ * NET\_ID
+ * OS\_\*
+ * VIP\_RANGE
+
+The rendered overlay will be used on top of the specified bundle at deploy time.
+
 To run manually:
 
 ```
@@ -136,8 +150,15 @@ tests/bundles/base-xenial-ha.yaml
 tests/bundles/base-bionic.yaml
 ```
 
+ * Bundle overlay templates
+
+```
+tests/bundles/overlays/xenial-ha-mysql.yaml.j2
+```
+
  * A tests/tests.yaml file that describes the bundles to be run and
    the tests
+
 ```
 charm_name: vault
 tests:
