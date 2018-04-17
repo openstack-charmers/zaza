@@ -107,6 +107,8 @@ def render_overlay(overlay_name, target_dir):
     :rtype: str
     """
     template = get_template(overlay_name)
+    if not template:
+        return
     rendered_template_file = os.path.join(
         target_dir,
         os.path.basename(overlay_name))
