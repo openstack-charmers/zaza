@@ -6,6 +6,10 @@ import unit_tests.utils as ut_utils
 
 class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
 
+    def test_generate_model_name(self):
+        mname = lc_func_test_runner.generate_model_name('mycharm', 'bundle')
+        self.assertTrue(mname.startswith('zaza-mycharmbundle'))
+
     def test_parser(self):
         # Test defaults
         args = lc_func_test_runner.parse_args([])
