@@ -82,6 +82,11 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         handle = m()
         handle.write.assert_called_once_with('Template contents')
 
+    def test_render_overlay_no_template(self):
+        self.patch_object(lc_deploy, 'get_template')
+        self.get_template.return_value = None
+        self.assertIsNone(lc_deploy.render_overlay('mybundle.yaml', '/tmp/'))
+
     def test_render_overlays(self):
         RESP = {
             'local-charm-overlay.yaml': '/tmp/local-charm-overlay.yaml',
