@@ -1,4 +1,3 @@
-import functools
 import mock
 import zaza.model as model
 import unit_tests.utils as ut_utils
@@ -11,6 +10,9 @@ class TestModel(ut_utils.BaseTestCase):
         super(TestModel, self).setUp()
 
         async def _scp_to(source, destination, user, proxy, scp_opts):
+            return
+
+        async def _scp_from(source, destination, user, proxy, scp_opts):
             return
 
         async def _run(command, timeout=None):
@@ -44,6 +46,8 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit1.run.side_effect = _run
         self.unit1.scp_to.side_effect = _scp_to
         self.unit2.scp_to.side_effect = _scp_to
+        self.unit1.scp_from.side_effect = _scp_from
+        self.unit2.scp_from.side_effect = _scp_from
         self.units = [self.unit1, self.unit2]
         _units = mock.MagicMock()
         _units.units = self.units
@@ -64,61 +68,28 @@ class TestModel(ut_utils.BaseTestCase):
 
     def test_run_in_model(self):
         self.patch_object(model, 'Model')
-
-        async def _test_func(arg):
-            return arg * 2
         self.Model.return_value = self.Model_mock
-        func = functools.partial(_test_func, 'hello')
-        out = loop.run(
-            model.run_in_model(
-                'mymodel',
-                func,
-                awaitable=True))
-        self.assertEqual(out, 'hellohello')
 
-    def test_run_in_model_not_awaitable(self):
-        self.patch_object(model, 'Model')
-
-        def _test_func(arg):
-            return arg * 3
-        self.Model.return_value = self.Model_mock
-        func = functools.partial(_test_func, 'hello')
-        out = loop.run(
-            model.run_in_model(
-                'mymodel',
-                func,
-                awaitable=False))
-        self.assertEqual(out, 'hellohellohello')
-
-    def test_run_in_model_add_model_arg(self):
-        self.patch_object(model, 'Model')
-
-        def _test_func(arg, model):
-            return model
-        self.Model.return_value = self.Model_mock
-        func = functools.partial(_test_func, 'hello')
-        out = loop.run(
-            model.run_in_model(
-                'mymodel',
-                func,
-                add_model_arg=True,
-                awaitable=False))
-        self.assertEqual(out, self.Model_mock)
+        async def _wrapper():
+            async with model.run_in_model('modelname') as mymodel:
+                return mymodel
+        self.assertEqual(loop.run(_wrapper()), self.Model_mock)
+        self.Model_mock.connect_model.assert_called_once_with('modelname')
+        self.Model_mock.disconnect.assert_called_once_with()
 
     def test_scp_to_unit(self):
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
-        unit_mock = mock.MagicMock()
-        self.get_unit_from_name.return_value = unit_mock
+        self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        model.scp_to_unit('app/1', 'modelname', '/tmp/src', '/tmp/dest')
-        unit_mock.scp_to.assert_called_once_with(
+        model.scp_to_unit('modelname', 'app/1', '/tmp/src', '/tmp/dest')
+        self.unit1.scp_to.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
 
     def test_scp_to_all_units(self):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        model.scp_to_all_units('app', 'modelname', '/tmp/src', '/tmp/dest')
+        model.scp_to_all_units('modelname', 'app', '/tmp/src', '/tmp/dest')
         self.unit1.scp_to.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
         self.unit2.scp_to.assert_called_once_with(
@@ -127,11 +98,10 @@ class TestModel(ut_utils.BaseTestCase):
     def test_scp_from_unit(self):
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
-        unit_mock = mock.MagicMock()
-        self.get_unit_from_name.return_value = unit_mock
+        self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        model.scp_from_unit('app/1', 'modelname', '/tmp/src', '/tmp/dest')
-        unit_mock.scp_from.assert_called_once_with(
+        model.scp_from_unit('modelname', 'app/1', '/tmp/src', '/tmp/dest')
+        self.unit1.scp_from.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
 
     def test_get_units(self):
