@@ -375,7 +375,7 @@ async def async_run_action(model_name, unit_name, action_name,
 
     :param model_name: Name of model to query.
     :type model_name: str
-    :param unit_name: Name of unit to scp from
+    :param unit_name: Name of unit to run action on
     :type unit_name: str
     :param action_name: Name of action to run
     :type action_name: str
