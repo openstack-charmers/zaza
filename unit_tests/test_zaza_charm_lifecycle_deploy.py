@@ -30,20 +30,20 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             {'OS_VIP04': '10.10.0.2'}
         )
 
-    def test_get_charm_config_contex(self):
+    def test_get_charm_config_context(self):
         self.patch_object(lc_deploy.utils, 'get_charm_config')
         self.get_charm_config.return_value = {
             'charm_name': 'mycharm'}
         self.assertEqual(
-            lc_deploy.get_charm_config_contex(),
+            lc_deploy.get_charm_config_context(),
             {'charm_location': '../../../mycharm', 'charm_name': 'mycharm'})
 
     def test_get_template_overlay_context(self):
         self.patch_object(lc_deploy, 'get_template_context_from_env')
-        self.patch_object(lc_deploy, 'get_charm_config_contex')
+        self.patch_object(lc_deploy, 'get_charm_config_context')
         self.get_template_context_from_env.return_value = {
             'OS_VIP04': '10.10.0.2'}
-        self.get_charm_config_contex.return_value = {
+        self.get_charm_config_context.return_value = {
             'charm_location': '../../../mycharm',
             'charm_name': 'mycharm'}
         self.assertEqual(

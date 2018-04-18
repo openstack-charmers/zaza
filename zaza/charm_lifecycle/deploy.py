@@ -52,7 +52,7 @@ def get_template_context_from_env():
     return {k: v for k, v in os.environ.items() if is_valid_env_key(k)}
 
 
-def get_charm_config_contex():
+def get_charm_config_context():
     """Return settings from charm config file
 
     :returns: Context for template rendering
@@ -74,7 +74,7 @@ def get_template_overlay_context():
     context = {}
     contexts = [
         get_template_context_from_env(),
-        get_charm_config_contex()]
+        get_charm_config_context()]
     for c in contexts:
         context.update(c)
     return context
