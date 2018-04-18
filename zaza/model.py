@@ -88,45 +88,14 @@ async def run_in_model(model_name):
     await model.disconnect()
 
 
-async def run_in_model_old(model_name, f, add_model_arg=False, awaitable=True):
-    """Run the given function in the model matching the model_name
-
-    :param model_name: Name of model to run function in
-    :type model_name: str
-    :param f: Function to run with given moel in focus
-    :type f: functools.partial
-    :param add_model_arg: Whether to add kwarg pointing at model to the given
-                          function before running it
-    :type add_model_arg: boolean
-    :param awaitable: Whether f is awaitable
-    :type awaitable: boolean
-    :returns: Output of f
-    :rtype: Unknown, depends on the passed in function
-    """
-    model = Model()
-    await model.connect_model(model_name)
-    output = None
-    try:
-        if add_model_arg:
-            f.keywords.update(model=model)
-        if awaitable:
-            output = await f()
-        else:
-            output = f()
-    finally:
-        # Disconnect from the api server and cleanup.
-        await model.disconnect()
-        return output
-
-
 async def async_scp_to_unit(model_name, unit_name, source, destination,
                             user='ubuntu', proxy=False, scp_opts=''):
     """Transfer files to unit_name in model_name.
 
-    :param unit_name: Name of unit to scp to
-    :type unit_name: str
     :param model_name: Name of model unit is in
     :type model_name: str
+    :param unit_name: Name of unit to scp to
+    :type unit_name: str
     :param source: Local path of file(s) to transfer
     :type source: str
     :param destination: Remote destination of transferred files
@@ -151,10 +120,10 @@ async def async_scp_to_all_units(model_name, application_name, source,
                                  scp_opts=''):
     """Transfer files from to all units of an application
 
-    :param application_name: Name of application to scp file to
-    :type unit_name: str
     :param model_name: Name of model unit is in
     :type model_name: str
+    :param application_name: Name of application to scp file to
+    :type application_name: str
     :param source: Local path of file(s) to transfer
     :type source: str
     :param destination: Remote destination of transferred files
@@ -179,10 +148,10 @@ async def async_scp_from_unit(model_name, unit_name, source, destination,
                               user='ubuntu', proxy=False, scp_opts=''):
     """Transfer files from to unit_name in model_name.
 
-    :param unit_name: Name of unit to scp from
-    :type unit_name: str
     :param model_name: Name of model unit is in
     :type model_name: str
+    :param unit_name: Name of unit to scp from
+    :type unit_name: str
     :param source: Remote path of file(s) to transfer
     :type source: str
     :param destination: Local destination of transferred files
@@ -206,10 +175,10 @@ scp_from_unit = sync_wrapper(async_scp_from_unit)
 async def async_run_on_unit(model_name, unit_name, command, timeout=None):
     """Juju run on unit
 
-    :param unit_name: Name of unit to match
-    :type unit: str
     :param model_name: Name of model unit is in
     :type model_name: str
+    :param unit_name: Name of unit to match
+    :type unit: str
     :param command: Command to execute
     :type command: str
     :param timeout: DISABLED due to Issue #225
