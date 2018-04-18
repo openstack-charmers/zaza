@@ -83,5 +83,8 @@ def parse_args(args):
 def main():
     logging.basicConfig(level=logging.INFO)
     args = parse_args(sys.argv[1:])
-    func_test_runner(keep_model=args.keep_model, smoke=args.smoke, bundle=args.bundle)
+    func_test_runner(
+        keep_model=args.keep_model,
+        smoke=args.smoke,
+        bundle=args.bundle)
     asyncio.get_event_loop().close()
