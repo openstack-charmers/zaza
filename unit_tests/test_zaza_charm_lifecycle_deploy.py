@@ -30,6 +30,29 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             {'OS_VIP04': '10.10.0.2'}
         )
 
+    def test_get_charm_config_context(self):
+        self.patch_object(lc_deploy.utils, 'get_charm_config')
+        self.get_charm_config.return_value = {
+            'charm_name': 'mycharm'}
+        self.assertEqual(
+            lc_deploy.get_charm_config_context(),
+            {'charm_location': '../../../mycharm', 'charm_name': 'mycharm'})
+
+    def test_get_template_overlay_context(self):
+        self.patch_object(lc_deploy, 'get_template_context_from_env')
+        self.patch_object(lc_deploy, 'get_charm_config_context')
+        self.get_template_context_from_env.return_value = {
+            'OS_VIP04': '10.10.0.2'}
+        self.get_charm_config_context.return_value = {
+            'charm_location': '../../../mycharm',
+            'charm_name': 'mycharm'}
+        self.assertEqual(
+            lc_deploy.get_template_overlay_context(),
+            {
+                'OS_VIP04': '10.10.0.2',
+                'charm_location': '../../../mycharm',
+                'charm_name': 'mycharm'})
+
     def test_get_overlay_template_dir(self):
         self.assertEqual(
             lc_deploy.get_overlay_template_dir(),
@@ -69,18 +92,26 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             jinja2.exceptions.TemplateNotFound(name='bob')
         self.assertIsNone(lc_deploy.get_template('mybundle.yaml'))
 
-    def test_render_overlay(self):
-        self.patch_object(lc_deploy, 'get_template_context_from_env')
+    def test_render_template(self):
+        self.patch_object(lc_deploy, 'get_template_overlay_context')
         template_mock = mock.MagicMock()
         template_mock.render.return_value = 'Template contents'
-        self.patch_object(lc_deploy, 'get_template')
-        self.get_template.return_value = template_mock
         m = mock.mock_open()
         with mock.patch('zaza.charm_lifecycle.deploy.open', m, create=True):
-            lc_deploy.render_overlay('mybundle.yaml', '/tmp/')
+            lc_deploy.render_template(template_mock, '/tmp/mybundle.yaml')
         m.assert_called_once_with('/tmp/mybundle.yaml', 'w')
         handle = m()
         handle.write.assert_called_once_with('Template contents')
+
+    def test_render_overlay(self):
+        self.patch_object(lc_deploy, 'render_template')
+        template_mock = mock.MagicMock()
+        self.patch_object(lc_deploy, 'get_template')
+        self.get_template.return_value = template_mock
+        lc_deploy.render_overlay('my_overlay.yaml', '/tmp/special-dir')
+        self.render_template.assert_called_once_with(
+            template_mock,
+            '/tmp/special-dir/my_overlay.yaml')
 
     def test_render_overlay_no_template(self):
         self.patch_object(lc_deploy, 'get_template')
@@ -89,23 +120,24 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
 
     def test_render_overlays(self):
         RESP = {
-            'local-charm-overlay.yaml': '/tmp/local-charm-overlay.yaml',
             'mybundles/mybundle.yaml': '/tmp/mybundle.yaml'}
+        self.patch_object(lc_deploy, 'render_local_overlay')
+        self.render_local_overlay.return_value = '/tmp/local-overlay.yaml'
         self.patch_object(lc_deploy, 'render_overlay')
         self.render_overlay.side_effect = lambda x, y: RESP[x]
         self.assertEqual(
             lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
-            ['/tmp/local-charm-overlay.yaml', '/tmp/mybundle.yaml'])
+            ['/tmp/local-overlay.yaml', '/tmp/mybundle.yaml'])
 
     def test_render_overlays_missing(self):
-        RESP = {
-            'local-charm-overlay.yaml': None,
-            'mybundles/mybundle.yaml': '/tmp/mybundle.yaml'}
+        RESP = {'mybundles/mybundle.yaml': None}
         self.patch_object(lc_deploy, 'render_overlay')
+        self.patch_object(lc_deploy, 'render_local_overlay')
+        self.render_local_overlay.return_value = '/tmp/local.yaml'
         self.render_overlay.side_effect = lambda x, y: RESP[x]
         self.assertEqual(
             lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
-            ['/tmp/mybundle.yaml'])
+            ['/tmp/local.yaml'])
 
     def test_deploy_bundle(self):
         self.patch_object(lc_deploy, 'render_overlays')
