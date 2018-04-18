@@ -6,4 +6,4 @@ python:
 install: pip install tox-travis
 script:
   - tox -c tox.ini -e pep8
-  - tox -c tox.ini -e py36
+  - tox -c tox.ini -e py3
