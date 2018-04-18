@@ -44,7 +44,7 @@ def run(*steps):
     """Run the given steps in an asyncio loop
 
     :returns: The result of the asyncio.Task
-    :rtype: obj
+    :rtype: Any
     """
     if not steps:
         return
@@ -72,7 +72,7 @@ def sync_wrapper(f):
 @asynccontextmanager
 @async_generator
 async def run_in_model(model_name):
-    """Conext manager for executing code inside a libjuju model
+    """Context manager for executing code inside a libjuju model
        Example of using run_in_model:
            async with run_in_model(model_name) as model:
                model.do_something()
