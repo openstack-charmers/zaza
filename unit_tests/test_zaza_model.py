@@ -18,6 +18,14 @@ class TestModel(ut_utils.BaseTestCase):
         async def _run(command, timeout=None):
             return self.action
 
+        async def _run_action(command, **params):
+            return self.run_action
+
+        async def _wait():
+            return
+
+        self.run_action = mock.MagicMock()
+        self.run_action.wait.side_effect = _wait
         self.action = mock.MagicMock()
         self.action.data = {
             'model-uuid': '1a035018-71ff-473e-8aab-d1a8d6b6cda7',
@@ -48,6 +56,8 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.scp_to.side_effect = _scp_to
         self.unit1.scp_from.side_effect = _scp_from
         self.unit2.scp_from.side_effect = _scp_from
+        self.unit1.run_action.side_effect = _run_action
+        self.unit2.run_action.side_effect = _run_action
         self.units = [self.unit1, self.unit2]
         _units = mock.MagicMock()
         _units.units = self.units
@@ -145,3 +155,14 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertEqual(model.run_on_unit('app/2', 'modelname', cmd),
                          expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
+
+    def test_run_action(self):
+        self.patch_object(model, 'Model')
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = self.unit1
+        self.Model.return_value = self.Model_mock
+        model.run_action('app/2', 'modelname', 'backup',
+                         {'backup_dir': '/dev/null'})
+        self.unit1.run_action.assert_called_once_with(
+            'backup',
+            backup_dir='/dev/null')
