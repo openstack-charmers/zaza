@@ -112,7 +112,8 @@ def get_yaml_config(config_file):
     return yaml.load(open(config_file, 'r').read())
 
 
-def get_net_info(net_topology, ignore_env_vars=False):
+def get_net_info(net_topology, ignore_env_vars=False,
+                 net_topology_file="network.yaml"):
     """Get network info from network.yaml, override the values if specific
     environment variables are set.
 
@@ -124,13 +125,17 @@ def get_net_info(net_topology, ignore_env_vars=False):
     :rtype: dict
     """
 
-    net_info = get_yaml_config('network.yaml')[net_topology]
+    if os.path.exists(net_topology_file):
+        net_info = get_yaml_config(net_topology_file)[net_topology]
+    else:
+        raise Exception("Network topology file: {} not found."
+                        .format(net_topology_file))
 
     if not ignore_env_vars:
-        logging.info('Consuming network environment variables as overrides.')
+        logging.info("Consuming network environment variables as overrides.")
         net_info.update(get_network_env_vars())
 
-    logging.info('Network info: {}'.format(dict_to_yaml(net_info)))
+    logging.info("Network info: {}".format(dict_to_yaml(net_info)))
     return net_info
 
 
@@ -173,8 +178,8 @@ def remote_run(unit, remote_cmd, timeout=None, fatal=None):
     """
     if fatal is None:
         fatal = True
-    result = model.run_on_unit(unit,
-                               lifecycle_utils.get_juju_model(),
+    result = model.run_on_unit(lifecycle_utils.get_juju_model(),
+                               unit,
                                remote_cmd,
                                timeout=timeout)
     if result:

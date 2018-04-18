@@ -224,7 +224,7 @@ def deploy(bundle, model, wait=True):
     if wait:
         logging.info("Waiting for environment to settle")
         utils.set_juju_model(model)
-        juju_wait.wait()
+        juju_wait.wait(wait_for_workload=True)
 
 
 def parse_args(args):
