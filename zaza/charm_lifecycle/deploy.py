@@ -11,7 +11,6 @@ import juju_wait
 import zaza.charm_lifecycle.utils as utils
 
 DEFAULT_OVERLAY_TEMPLATE_DIR = 'tests/bundles/overlays'
-DEFAULT_OVERLAYS = ['local-charm-overlay.yaml']
 VALID_ENVIRONMENT_KEY_PREFIXES = [
     'FIP_RANGE',
     'GATEWAY',
@@ -20,11 +19,15 @@ VALID_ENVIRONMENT_KEY_PREFIXES = [
     'OS_',
     'VIP_RANGE',
 ]
+LOCAL_OVERLAY_TEMPLATE = """
+applications:
+  {{ charm_name }}:
+    charm: {{ charm_location }}
+"""
 
 
 def is_valid_env_key(key):
     """Check if key is a valid environment variable name for use with template
-       rendering
 
     :param key: List of configure functions functions
     :type key: str
@@ -47,6 +50,34 @@ def get_template_context_from_env():
     :rtype: dict
     """
     return {k: v for k, v in os.environ.items() if is_valid_env_key(k)}
+
+
+def get_charm_config_contex():
+    """Return settings from charm config file
+
+    :returns: Context for template rendering
+    :rtype: dict
+    """
+    test_config = utils.get_charm_config()
+    ctxt = {
+        'charm_name': test_config['charm_name'],
+        'charm_location': '../../../{}'.format(test_config['charm_name'])}
+    return ctxt
+
+
+def get_template_overlay_context():
+    """Combine contexts which can be used for overlay template rendering
+
+    :returns: Context for template rendering
+    :rtype: dict
+    """
+    context = {}
+    contexts = [
+        get_template_context_from_env(),
+        get_charm_config_contex()]
+    for c in contexts:
+        context.update(c)
+    return context
 
 
 def get_overlay_template_dir():
@@ -96,6 +127,19 @@ def get_template(target_file):
     return template
 
 
+def render_template(template, target_file):
+    """Render the template to the file supplied
+
+    :param template: Template to be rendered
+    :type template: jinja2.Template
+    :param target_file: File name for rendered template
+    :type target_file: str
+    """
+    with open(target_file, "w") as fh:
+        fh.write(
+            template.render(get_template_overlay_context()))
+
+
 def render_overlay(overlay_name, target_dir):
     """Render the overlay template in the directory supplied
 
@@ -112,9 +156,24 @@ def render_overlay(overlay_name, target_dir):
     rendered_template_file = os.path.join(
         target_dir,
         os.path.basename(overlay_name))
-    with open(rendered_template_file, "w") as fh:
-        fh.write(
-            template.render(get_template_context_from_env()))
+    render_template(template, rendered_template_file)
+    return rendered_template_file
+
+
+def render_local_overlay(target_dir):
+    """Render the local overlay template in the directory supplied
+
+    :param target_dir: Directory to render overlay in
+    :type overlay_name: str
+    :returns: Path to rendered overlay
+    :rtype: str
+    """
+    template = jinja2.Environment(loader=jinja2.BaseLoader).from_string(
+        LOCAL_OVERLAY_TEMPLATE)
+    rendered_template_file = os.path.join(
+        target_dir,
+        os.path.basename('local-charm-overlay.yaml'))
+    render_template(template, rendered_template_file)
     return rendered_template_file
 
 
@@ -125,14 +184,13 @@ def render_overlays(bundle, target_dir):
     :type bundle: str
     :param target_dir: Directory to render overlay in
     :type overlay_name: str
-    :returns: Path to rendered overlay
-    :rtype: str
+    :returns: List of rendered overlays
+    :rtype: [str, str,...]
     """
-    overlays = []
-    for overlay in DEFAULT_OVERLAYS + [bundle]:
-        rendered_overlay = render_overlay(overlay, target_dir)
-        if rendered_overlay:
-            overlays.append(rendered_overlay)
+    overlays = [render_local_overlay(target_dir)]
+    rendered_bundle_overlay = render_overlay(bundle, target_dir)
+    if rendered_bundle_overlay:
+        overlays.append(rendered_bundle_overlay)
     return overlays
 
 
