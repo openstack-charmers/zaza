@@ -338,6 +338,30 @@ async def async_get_status(model_name):
 get_status = sync_wrapper(async_get_status)
 
 
+async def async_run_action(model_name, unit_name, action_name,
+                           action_params=None):
+    """Run action on given unit
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param unit_name: Name of unit to run action on
+    :type unit_name: str
+    :param action_name: Name of action to run
+    :type action_name: str
+    :param action_params: Dictionary of config options for action
+    :type action_params: dict
+    :returns: Action object
+    :rtype: juju.action.Action
+    """
+    async with run_in_model(model_name) as model:
+        unit = get_unit_from_name(unit_name, model)
+        action_obj = await unit.run_action(action_name, **action_params)
+        await action_obj.wait()
+        return action_obj
+
+run_action = sync_wrapper(async_run_action)
+
+
 def main():
     # Run the deploy coroutine in an asyncio event loop, using a helper
     # that abstracts loop creation and teardown.
