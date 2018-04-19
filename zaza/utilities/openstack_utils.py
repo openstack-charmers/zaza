@@ -401,10 +401,6 @@ def configure_gateway_ext_port(novaclient, neutronclient,
     else:
         application_name = 'neutron-gateway'
 
-    # XXX Trying to track down a failure with juju run neutron-gateway/0 in
-    #     the post juju_set check. Try a sleep here to see if some network
-    #     reconfigureing on the gateway is still in progress and that's
-    #     causing the issue
     if ext_br_macs:
         logging.info('Setting {} on {} external port to {}'.format(
             config_key, application_name, ext_br_macs_str))

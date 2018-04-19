@@ -3,17 +3,19 @@
 import unittest
 
 from zaza.utilities import _local_utils
-from zaza.charm_tests.dragent import test_dragent
+from zaza.charm_tests.dragent import test
 
 
 class DRAgentTest(unittest.TestCase):
+
+    BGP_PEER_APPLICATION = 'quagga'
 
     @classmethod
     def setUpClass(cls):
         _local_utils.setup_logging()
 
     def test_bgp_routes(self):
-        test_dragent.test_bgp_routes(peer_application_name="quagga")
+        test.test_bgp_routes(peer_application_name=self.BGP_PEER_APPLICATION)
 
 
 if __name__ == "__main__":

@@ -7,14 +7,76 @@ import sys
 from zaza.utilities import _local_utils
 from zaza.utilities import openstack_utils
 
+"""Configure network
 
-def setup_sdn(net_topology, net_info, keystone_session=None):
+For these network configuration functions there are two distinct sets of
+settings. There is the configuration of the overcloud's network, the network
+under test, settings which may vary from test to test. Then there is the
+configuration of the substrate specific undercloud which may vary from one test
+environment to another. All of this information is required to setup a valid
+test. For the purposes of using these functions please consider the following:
+
+The overcloud network configuration settings are declared by the test caller.
+These are the network configuration settings under test and they may range from
+a simple GRE setup, to a DVR configuration, to subnetpools with address scopes.
+Each test caller may declare a slightly different set of configuration
+settings. Here is a simple GRE example:
+
+EXAMPLE_OVERCLOUD_NETWORK_CONFIG = {
+    "network_type": "gre",
+    "router_name": "provider-router",
+    "private_net_cidr": "192.168.21.0/24",
+    "external_net_name": "ext_net",
+    "external_subnet_name": "ext_net_subnet",
+}
+
+The undercloud network configuration settings are substrate specific to the
+environment where the tests are being executed. They primarily focus on the
+provider network settings. These settings may be overridden by environment
+variables. See the doc string documentation for
+zaza.utilities._local_utils.get_overcloud_env_vars for the environment
+variables required to be exported and available to zaza. Here is an example of
+undercloud settings:
+EXAMPLE_DEFAULT_UNDERCLOUD_NETWORK_CONFIG = {
+    "start_floating_ip": "10.5.150.0",
+    "end_floating_ip": "10.5.150.254",
+    "external_dns": "10.5.0.2",
+    "external_net_cidr": "10.5.0.0/16",
+    "default_gateway": "10.5.0.1",
+}
+
+The network configuration functions take in a dictionary parameter called
+network_config and it is a combination of the above including environmental
+overrides. The recommended use case is as follows:
+
+As a python module:
+
+    import zaza
+    # Build network configuration settings
+    network_config = {}
+    # Declared overcloud settings for the network under test
+    network_config.update(EXAMPLE_OVERCLOUD_NETWORK_CONFIG)
+    # Default undercloud settings
+    network_config.update(EXAMPLE_DEFAULT_UNDERCLOUD_NETWORK_CONFIG)
+    # Environment specific settings
+    network_config.update(
+        zaza.utilities._local_utils.get_undercloud_env_vars())
+
+    # Configure the SDN network
+    zaza.configure.network.setup_sdn(network_config)
+
+
+As a script from CLI with a YAML file of configuration:
+
+    ./network toploogy_name -f network.yaml
+"""
+
+
+def setup_sdn(network_config, keystone_session=None):
     """Setup Software Defined Network
 
-    :param net_topology: String name of network topology
-    :type net_topology: string
-    :param net_info: Network configuration dictionary
-    :type net_info: dict
+    :param network_config: Network configuration settings dictionary
+    :type network_config: dict
     :param keystone_session: Keystone session object for overcloud
     :type keystone_session: keystoneauth1.session.Session object
     :returns: None
@@ -31,14 +93,14 @@ def setup_sdn(net_topology, net_info, keystone_session=None):
     neutron_client = openstack_utils.get_neutron_session_client(
         keystone_session)
 
-    # Resolve the project name from the overcloud opentackrc into a project id
+    # Resolve the project name from the overcloud openrc into a project id
     project_id = openstack_utils.get_project_id(
         keystone_client,
         "admin",
     )
     # Network Setup
     subnetpools = False
-    if net_info.get("subnetpool_prefix"):
+    if network_config.get("subnetpool_prefix"):
         subnetpools = True
 
     logging.info("Configuring overcloud network")
@@ -46,68 +108,67 @@ def setup_sdn(net_topology, net_info, keystone_session=None):
     ext_network = openstack_utils.create_external_network(
         neutron_client,
         project_id,
-        net_info.get("dvr_enabled", False),
-        net_info["external_net_name"])
+        network_config.get("dvr_enabled", False),
+        network_config["external_net_name"])
     openstack_utils.create_external_subnet(
         neutron_client,
         project_id,
         ext_network,
-        net_info["default_gateway"],
-        net_info["external_net_cidr"],
-        net_info["start_floating_ip"],
-        net_info["end_floating_ip"],
-        net_info["external_subnet_name"])
-    # Should this be --enable_snat = False
+        network_config["default_gateway"],
+        network_config["external_net_cidr"],
+        network_config["start_floating_ip"],
+        network_config["end_floating_ip"],
+        network_config["external_subnet_name"])
     provider_router = (
         openstack_utils.create_provider_router(neutron_client, project_id))
     openstack_utils.plug_extnet_into_router(
         neutron_client,
         provider_router,
         ext_network)
-    ip_version = net_info.get("ip_version") or 4
+    ip_version = network_config.get("ip_version") or 4
     subnetpool = None
     if subnetpools:
         address_scope = openstack_utils.create_address_scope(
             neutron_client,
             project_id,
-            net_info.get("address_scope"),
+            network_config.get("address_scope"),
             ip_version=ip_version)
         subnetpool = openstack_utils.create_subnetpool(
             neutron_client,
             project_id,
-            net_info.get("subnetpool_name"),
-            net_info.get("subnetpool_prefix"),
+            network_config.get("subnetpool_name"),
+            network_config.get("subnetpool_prefix"),
             address_scope)
     project_network = openstack_utils.create_project_network(
         neutron_client,
         project_id,
         shared=False,
-        network_type=net_info["network_type"])
+        network_type=network_config["network_type"])
     project_subnet = openstack_utils.create_project_subnet(
         neutron_client,
         project_id,
         project_network,
-        net_info.get("private_net_cidr"),
+        network_config.get("private_net_cidr"),
         subnetpool=subnetpool,
         ip_version=ip_version)
     openstack_utils.update_subnet_dns(
         neutron_client,
         project_subnet,
-        net_info["external_dns"])
+        network_config["external_dns"])
     openstack_utils.plug_subnet_into_router(
         neutron_client,
-        net_info["router_name"],
+        network_config["router_name"],
         project_network,
         project_subnet)
     openstack_utils.add_neutron_secgroup_rules(neutron_client, project_id)
 
 
-def setup_gateway_ext_port(net_info, keystone_session=None):
+def setup_gateway_ext_port(network_config, keystone_session=None):
     """Setup external port on Neutron Gateway.
     For OpenStack on OpenStack scenarios
 
-    :param net_info: Network configuration dictionary
-    :type net_info: dict
+    :param network_config: Network configuration dictionary
+    :type network_config: dict
     :param keystone_session: Keystone session object for undercloud
     :type keystone_session: keystoneauth1.session.Session object
     :returns: None
@@ -125,8 +186,8 @@ def setup_gateway_ext_port(net_info, keystone_session=None):
 
     # Add an interface to the neutron-gateway units and tell juju to use it
     # as the external port.
-    if "net_id" in net_info.keys():
-        net_id = net_info["net_id"]
+    if "net_id" in network_config.keys():
+        net_id = network_config["net_id"]
     else:
         net_id = None
 
@@ -134,12 +195,27 @@ def setup_gateway_ext_port(net_info, keystone_session=None):
     openstack_utils.configure_gateway_ext_port(
         nova_client,
         neutron_client,
-        dvr_mode=net_info.get("dvr_enabled", False),
+        dvr_mode=network_config.get("dvr_enabled", False),
         net_id=net_id)
 
 
 def run_from_cli():
     """Run network configurations from CLI
+
+    Use a YAML file of network configuration settings to configure the
+    overcloud network. YAML file of the form:
+
+    topology_name:
+      network_type: gre
+      router_name: provider-router
+      private_net_cidr: 192.168.21.0/24
+      external_dns: 10.5.0.2
+      external_net_cidr: 10.5.0.0/16
+      external_net_name: ext_net
+      external_subnet_name: ext_net_subnet
+      default_gateway: 10.5.0.1
+      start_floating_ip: 10.5.150.0
+      end_floating_ip: 10.5.200.254
 
     :returns: None
     :rtype: None
@@ -164,14 +240,14 @@ def run_from_cli():
     ignore_env_vars = _local_utils.parse_arg(options, "ignore_env_vars")
 
     logging.info("Setting up %s network" % (net_topology))
-    net_info = _local_utils.get_net_info(
+    network_config = _local_utils.get_network_config(
         net_topology, ignore_env_vars, net_topology_file)
 
     # Handle network for Openstack-on-Openstack scenarios
     if _local_utils.get_provider_type() == "openstack":
-        setup_gateway_ext_port(net_info)
+        setup_gateway_ext_port(network_config)
 
-    setup_sdn(net_topology, net_info)
+    setup_sdn(network_config)
 
 
 if __name__ == "__main__":

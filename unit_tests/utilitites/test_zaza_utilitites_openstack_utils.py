@@ -11,6 +11,8 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.port_name = "port_name"
         self.net_uuid = "net_uuid"
         self.project_id = "project_uuid"
+        self.ext_net = "ext_net"
+        self.private_net = "private_net"
         self.port = {
             "port": {"id": "port_id",
                      "name": self.port_name,
@@ -30,6 +32,18 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
                               "tenant_id": self.project_id}}
         self.address_scopes = {
             "address_scopes": [self.address_scope["address_scope"]]}
+
+        self.network = {
+            "network": {"id": "network_id",
+                              "name": self.ext_net,
+                              "tenant_id": self.project_id,
+                              "router:external": True,
+                              "provider:physical_network": "physnet1",
+                              "provider:network_type": "flat"}}
+
+        self.networks = {
+            "networks": [self.network["network"]]}
+
         self.neutronclient = mock.MagicMock()
         self.neutronclient.list_ports.return_value = self.ports
         self.neutronclient.create_port.return_value = self.port
@@ -41,8 +55,9 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             self.address_scopes)
         self.neutronclient.create_address_scope.return_value = (
             self.address_scope)
-        self.ext_net = "ext_net"
-        self.private_net = "private_net"
+
+        self.neutronclient.list_networks.return_value = self.networks
+        self.neutronclient.create_network.return_value = self.network
 
     def test_create_port(self):
         self.patch_object(openstack_utils, "get_net_uuid")
@@ -101,6 +116,27 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.assertEqual(address_scope, self.address_scope["address_scope"])
         self.neutronclient.create_address_scope.assert_called_once_with(
             address_scope_msg)
+
+    def test_create_external_network(self):
+        self.patch_object(openstack_utils, "get_net_uuid")
+        self.get_net_uuid.return_value = self.net_uuid
+
+        # Already exists
+        network = openstack_utils.create_external_network(
+            self.neutronclient, self.project_id, False)
+        self.assertEqual(network, self.network["network"])
+        self.neutronclient.create_network.assert_not_called()
+
+        # Does not yet exist
+        self.neutronclient.list_networks.return_value = {
+            "networks": []}
+        network_msg = copy.deepcopy(self.network)
+        network_msg["network"].pop("id")
+        network = openstack_utils.create_external_network(
+            self.neutronclient, self.project_id, False)
+        self.assertEqual(network, self.network["network"])
+        self.neutronclient.create_network.assert_called_once_with(
+            network_msg)
 
     def test_get_keystone_scope(self):
         self.patch_object(openstack_utils, "get_current_os_versions")
