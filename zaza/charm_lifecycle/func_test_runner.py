@@ -13,9 +13,9 @@ import zaza.charm_lifecycle.deploy as deploy
 import zaza.charm_lifecycle.test as test
 
 
-def generate_model_name(charm_name, bundle_name):
+def generate_model_name():
     timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    return 'zaza-{}{}{}'.format(charm_name, bundle_name, timestamp)
+    return 'zaza-{}'.format(timestamp)
 
 
 def func_test_runner(keep_model=False, smoke=False):
@@ -34,7 +34,7 @@ def func_test_runner(keep_model=False, smoke=False):
     bundles = test_config[bundle_key]
     last_test = bundles[-1]
     for t in bundles:
-        model_name = generate_model_name(test_config['charm_name'], t)
+        model_name = generate_model_name()
         # Prepare
         prepare.prepare(model_name)
         # Deploy
