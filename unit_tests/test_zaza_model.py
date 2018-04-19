@@ -166,3 +166,12 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit1.run_action.assert_called_once_with(
             'backup',
             backup_dir='/dev/null')
+
+    def test_get_actions(self):
+        self.patch_object(model.subprocess, 'check_output')
+        self.check_output.return_value = 'action: "action desc"'
+        self.assertEqual(
+            model.get_actions('mname', 'myapp'),
+            {'action': "action desc"})
+        self.check_output.assert_called_once_with(
+            ['juju', 'actions', '-m', 'mname', 'myapp', '--format', 'yaml'])

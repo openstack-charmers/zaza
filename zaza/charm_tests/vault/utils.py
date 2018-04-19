@@ -200,3 +200,12 @@ def auth_all(clients, token):
     """
     for client in clients:
         client.hvac_client.token = token
+
+
+def run_charm_authorize(token):
+    unit = zaza.model.get_first_unit_name(utils.get_juju_model(), 'vault')
+    return zaza.model.run_action(
+        utils.get_juju_model(),
+        unit,
+        'authorize-charm',
+        action_params={'token': token})

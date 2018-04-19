@@ -1,5 +1,7 @@
 import asyncio
 from async_generator import async_generator, yield_, asynccontextmanager
+import subprocess
+import yaml
 
 from juju import loop
 from juju.model import Model
@@ -360,6 +362,23 @@ async def async_run_action(model_name, unit_name, action_name,
         return action_obj
 
 run_action = sync_wrapper(async_run_action)
+
+
+def get_actions(model_name, application_name):
+    """Get the actions an applications supports
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    :returns: Dictionary of actions and their descriptions
+    :rtype: dict
+    """
+    # libjuju has not implemented get_actions yet
+    # https://github.com/juju/python-libjuju/issues/226
+    cmd = ['juju', 'actions', '-m', model_name, application_name,
+           '--format', 'yaml']
+    return yaml.load(subprocess.check_output(cmd))
 
 
 def main():
