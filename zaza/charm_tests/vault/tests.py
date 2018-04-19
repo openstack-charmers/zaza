@@ -5,8 +5,10 @@ import time
 import unittest
 import uuid
 
+import zaza.charm_lifecycle.utils as lifecycle_utils
 import zaza.charm_tests.test_utils as test_utils
 import zaza.charm_tests.vault.utils as vault_utils
+import zaza.model
 
 
 class VaultTest(unittest.TestCase):
@@ -17,9 +19,9 @@ class VaultTest(unittest.TestCase):
         cls.vip_client = vault_utils.get_vip_client()
         if cls.vip_client:
             cls.clients.append(cls.vip_client)
-        vault_creds = vault_utils.get_credentails()
-        vault_utils.unseal_all(cls.clients, vault_creds['keys'][0])
-        vault_utils.auth_all(cls.clients, vault_creds['root_token'])
+        cls.vault_creds = vault_utils.get_credentails()
+        vault_utils.unseal_all(cls.clients, cls.vault_creds['keys'][0])
+        vault_utils.auth_all(cls.clients, cls.vault_creds['root_token'])
 
     def test_all_clients_authenticated(self):
         for client in self.clients:
@@ -71,6 +73,20 @@ class VaultTest(unittest.TestCase):
         for client in self.clients:
             self.assertFalse(client.hvac_client.seal_status['sealed'])
             self.assertTrue(client.hvac_client.seal_status['cluster_name'])
+
+    def test_vault_authorize_charm_action(self):
+        vault_actions = zaza.model.get_actions(
+            lifecycle_utils.get_juju_model(),
+            'vault')
+        if 'authorize-charm' not in vault_actions:
+            raise unittest.SkipTest('Action not defined')
+        action = vault_utils.run_charm_authorize(
+            self.vault_creds['root_token'])
+        self.assertEqual(action.status, 'completed')
+        client = self.clients[0]
+        self.assertIn(
+            'local-charm-policy',
+            client.hvac_client.list_policies())
 
 
 if __name__ == '__main__':
