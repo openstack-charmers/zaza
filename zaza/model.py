@@ -366,7 +366,7 @@ run_action = sync_wrapper(async_run_action)
 
 async def async_run_action_on_leader(model_name, application_name, action_name,
                                      action_params=None):
-    """Run action on given unit
+    """Run action on lead unit of the given application
 
     :param model_name: Name of model to query.
     :type model_name: str
