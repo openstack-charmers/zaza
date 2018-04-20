@@ -152,7 +152,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.patch_object(lc_deploy.juju_wait, 'wait')
         lc_deploy.deploy('bun.yaml', 'newmodel')
         self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
-        self.wait.assert_called_once_with()
+        self.wait.assert_called_once_with(wait_for_workload=True)
 
     def test_deploy_nowait(self):
         self.patch_object(lc_deploy, 'deploy_bundle')

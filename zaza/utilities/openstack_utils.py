@@ -139,6 +139,23 @@ def get_neutron_session_client(session):
     return neutronclient.Client(session=session)
 
 
+def get_keystone_scope():
+    """Return Keystone scope based on OpenStack release
+
+    :returns: String keystone scope
+    :rtype: string
+    """
+
+    os_version = get_current_os_versions("keystone")["keystone"]
+    # Keystone policy.json shipped the charm with liberty requires a domain
+    # scoped token. Bug #1649106
+    if os_version == "liberty":
+        scope = "DOMAIN"
+    else:
+        scope = "PROJECT"
+    return scope
+
+
 def get_keystone_session(opentackrc_creds, insecure=True, scope='PROJECT'):
     """Return keystone session
 
@@ -158,6 +175,28 @@ def get_keystone_session(opentackrc_creds, insecure=True, scope='PROJECT'):
     else:
         auth = v3.Password(**keystone_creds)
     return session.Session(auth=auth, verify=not insecure)
+
+
+def get_overcloud_keystone_session():
+    """Return Over cloud keystone session
+
+    :returns keystone_session: keystoneauth1.session.Session object
+    :rtype: keystoneauth1.session.Session
+    """
+
+    return get_keystone_session(get_overcloud_auth(),
+                                scope=get_keystone_scope())
+
+
+def get_undercloud_keystone_session():
+    """Return Under cloud keystone session
+
+    :returns keystone_session: keystoneauth1.session.Session object
+    :rtype: keystoneauth1.session.Session
+    """
+
+    return get_keystone_session(get_undercloud_auth(),
+                                scope=get_keystone_scope())
 
 
 def get_keystone_session_client(session):
@@ -362,10 +401,6 @@ def configure_gateway_ext_port(novaclient, neutronclient,
     else:
         application_name = 'neutron-gateway'
 
-    # XXX Trying to track down a failure with juju run neutron-gateway/0 in
-    #     the post juju_set check. Try a sleep here to see if some network
-    #     reconfigureing on the gateway is still in progress and that's
-    #     causing the issue
     if ext_br_macs:
         logging.info('Setting {} on {} external port to {}'.format(
             config_key, application_name, ext_br_macs_str))
@@ -377,7 +412,7 @@ def configure_gateway_ext_port(novaclient, neutronclient,
         model.set_application_config(
             lifecycle_utils.get_juju_model(), application_name,
             configuration={config_key: ext_br_macs_str})
-        juju_wait.wait()
+        juju_wait.wait(wait_for_workload=True)
 
 
 def create_project_network(neutron_client, project_id, net_name='private',
@@ -444,10 +479,9 @@ def create_external_network(neutron_client, project_id, dvr_mode,
             'name': net_name,
             'router:external': True,
             'tenant_id': project_id,
+            'provider:physical_network': 'physnet1',
+            'provider:network_type': 'flat',
         }
-        if not deprecated_external_networking(dvr_mode):
-            network_msg['provider:physical_network'] = 'physnet1'
-            network_msg['provider:network_type'] = 'flat'
 
         logging.info('Creating new external network definition: %s',
                      net_name)

@@ -24,6 +24,7 @@ python-keystoneclient
 python-neutronclient
 python-novaclient
 python-swiftclient
+tenacity
 distro-info
 paramiko
 

@@ -18,65 +18,64 @@ from zaza import model
 from zaza.charm_lifecycle import utils as lifecycle_utils
 
 
-# XXX Tech Debt Begins Here
+def get_undercloud_env_vars():
+    """ Get environment specific undercloud network configuration settings from
+    environment variables.
 
-def get_network_env_vars():
-    """Get environment variables with names which are consistent with
-    network.yaml keys;  Also get network environment variables as commonly
-    used by openstack-charm-testing and ubuntu-openstack-ci automation.
-    Return a dictionary compatible with openstack-mojo-specs network.yaml
-    key structure.
+    For each testing substrate, specific undercloud network configuration
+    settings should be exported into the environment to enable testing on that
+    substrate.
+
+    Note: *Overcloud* settings should be declared by the test caller and should
+    not be overridden here.
+
+    Return a dictionary compatible with zaza.configure.network functions'
+    expected key structure.
+
+    Example exported environment variables:
+    export default_gateway="172.17.107.1"
+    export external_net_cidr="172.17.107.0/24"
+    export external_dns="10.5.0.2"
+    export start_floating_ip="172.17.107.200"
+    export end_floating_ip="172.17.107.249"
+
+    Example o-c-t & uosci non-standard environment variables:
+    export NET_ID="a705dd0f-5571-4818-8c30-4132cc494668"
+    export GATEWAY="172.17.107.1"
+    export CIDR_EXT="172.17.107.0/24"
+    export NAMESERVER="10.5.0.2"
+    export FIP_RANGE="172.17.107.200:172.17.107.249"
 
     :returns: Network environment variables
     :rtype: dict
     """
 
-    # Example o-c-t & uosci environment variables:
-    #   NET_ID="a705dd0f-5571-4818-8c30-4132cc494668"
-    #   GATEWAY="172.17.107.1"
-    #   CIDR_EXT="172.17.107.0/24"
-    #   CIDR_PRIV="192.168.121.0/24"
-    #   NAMESERVER="10.5.0.2"
-    #   FIP_RANGE="172.17.107.200:172.17.107.249"
-    #   AMULET_OS_VIP00="172.17.107.250"
-    #   AMULET_OS_VIP01="172.17.107.251"
-    #   AMULET_OS_VIP02="172.17.107.252"
-    #   AMULET_OS_VIP03="172.17.107.253"
+    # Handle backward compatibile OSCI enviornment variables
     _vars = {}
     _vars['net_id'] = os.environ.get('NET_ID')
     _vars['external_dns'] = os.environ.get('NAMESERVER')
     _vars['default_gateway'] = os.environ.get('GATEWAY')
     _vars['external_net_cidr'] = os.environ.get('CIDR_EXT')
-    _vars['private_net_cidr'] = os.environ.get('CIDR_PRIV')
 
+    # Take FIP_RANGE and create start and end floating ips
     _fip_range = os.environ.get('FIP_RANGE')
     if _fip_range and ':' in _fip_range:
         _vars['start_floating_ip'] = os.environ.get('FIP_RANGE').split(':')[0]
         _vars['end_floating_ip'] = os.environ.get('FIP_RANGE').split(':')[1]
 
-    _vips = [os.environ.get('AMULET_OS_VIP00'),
-             os.environ.get('AMULET_OS_VIP01'),
-             os.environ.get('AMULET_OS_VIP02'),
-             os.environ.get('AMULET_OS_VIP03')]
-
-    # Env var naming consistent with network.yaml takes priority
-    _keys = ['default_gateway'
+    # Env var naming consistent with zaza.configure.network functions takes
+    # priority. Override backward compatible settings.
+    _keys = ['default_gateway',
              'start_floating_ip',
              'end_floating_ip',
              'external_dns',
-             'external_net_cidr',
-             'external_net_name',
-             'external_subnet_name',
-             'network_type',
-             'private_net_cidr',
-             'router_name']
+             'external_net_cidr']
     for _key in _keys:
         _val = os.environ.get(_key)
         if _val:
             _vars[_key] = _val
 
     # Remove keys and items with a None value
-    _vars['vips'] = [_f for _f in _vips if _f]
     for k, v in list(_vars.items()):
         if not v:
             del _vars[k]
@@ -112,9 +111,13 @@ def get_yaml_config(config_file):
     return yaml.load(open(config_file, 'r').read())
 
 
-def get_net_info(net_topology, ignore_env_vars=False):
+def get_net_info(net_topology, ignore_env_vars=False,
+                 net_topology_file="network.yaml"):
     """Get network info from network.yaml, override the values if specific
-    environment variables are set.
+    environment variables are set for the undercloud.
+
+    This function may be used when running network configuration from CLI to
+    pass in network configuration settings from a YAML file.
 
     :param net_topology: Network topology name from network.yaml
     :type net_topology: string
@@ -124,13 +127,18 @@ def get_net_info(net_topology, ignore_env_vars=False):
     :rtype: dict
     """
 
-    net_info = get_yaml_config('network.yaml')[net_topology]
+    if os.path.exists(net_topology_file):
+        net_info = get_yaml_config(net_topology_file)[net_topology]
+    else:
+        raise Exception("Network topology file: {} not found."
+                        .format(net_topology_file))
 
     if not ignore_env_vars:
-        logging.info('Consuming network environment variables as overrides.')
-        net_info.update(get_network_env_vars())
+        logging.info("Consuming network environment variables as overrides "
+                     "for the undercloud.")
+        net_info.update(get_undercloud_env_vars())
 
-    logging.info('Network info: {}'.format(dict_to_yaml(net_info)))
+    logging.info("Network info: {}".format(dict_to_yaml(net_info)))
     return net_info
 
 
@@ -173,8 +181,8 @@ def remote_run(unit, remote_cmd, timeout=None, fatal=None):
     """
     if fatal is None:
         fatal = True
-    result = model.run_on_unit(unit,
-                               lifecycle_utils.get_juju_model(),
+    result = model.run_on_unit(lifecycle_utils.get_juju_model(),
+                               unit,
                                remote_cmd,
                                timeout=timeout)
     if result:
