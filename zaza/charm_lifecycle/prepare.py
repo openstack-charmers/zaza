@@ -4,6 +4,22 @@ import subprocess
 import sys
 
 
+MODEL_DEFAULTS = [
+    # Model defaults from charm-test-infra
+    #   https://jujucharms.com/docs/2.1/models-config
+    '--config', 'agent-stream=proposed',
+    '--config', 'default-series=xenial',
+    '--config', 'image-stream=daily',
+    '--config', 'test-mode=true',
+    '--config', 'transmit-vendor-metrics=false',
+    # https://bugs.launchpad.net/juju/+bug/1685351
+    # enable-os-refresh-update: false
+    '--config', 'enable-os-upgrade=false',
+    '--config', 'automatically-retry-hooks=false',
+    '--config', 'use-default-secgroup=true',
+]
+
+
 def add_model(model_name):
     """Add a model with the given name
 
@@ -11,7 +27,7 @@ def add_model(model_name):
     :type bundle: str
     """
     logging.info("Adding model {}".format(model_name))
-    subprocess.check_call(['juju', 'add-model', model_name])
+    subprocess.check_call(['juju', 'add-model', model_name] + MODEL_DEFAULTS)
 
 
 def prepare(model_name):

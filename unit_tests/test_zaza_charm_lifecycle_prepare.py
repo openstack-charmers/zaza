@@ -8,7 +8,17 @@ class TestCharmLifecyclePrepare(ut_utils.BaseTestCase):
         self.patch_object(lc_prepare.subprocess, 'check_call')
         lc_prepare.add_model('newmodel')
         self.check_call.assert_called_once_with(
-            ['juju', 'add-model', 'newmodel'])
+            [
+                'juju', 'add-model', 'newmodel',
+                '--config', 'agent-stream=proposed',
+                '--config', 'default-series=xenial',
+                '--config', 'image-stream=daily',
+                '--config', 'test-mode=true',
+                '--config', 'transmit-vendor-metrics=false',
+                '--config', 'enable-os-upgrade=false',
+                '--config', 'automatically-retry-hooks=false',
+                '--config', 'use-default-secgroup=true'
+            ])
 
     def test_prepare(self):
         self.patch_object(lc_prepare, 'add_model')
