@@ -37,7 +37,8 @@ def func_test_runner(keep_model=False, smoke=False, bundle=None):
         bundles = test_config[bundle_key]
     last_test = bundles[-1]
     for t in bundles:
-        model_name = generate_model_name(test_config['charm_name'], t)
+        charm_name = test_config['charm_name']
+        model_name = generate_model_name(charm_name, t)
         # Prepare
         prepare.prepare(model_name)
         # Deploy
@@ -47,7 +48,7 @@ def func_test_runner(keep_model=False, smoke=False, bundle=None):
         # Configure
         configure.configure(model_name, test_config['configure'])
         # Test
-        test.test(model_name, test_config['tests'])
+        test.test(charm_name, model_name, test_config['tests'])
         # Destroy
         # Keep the model from the last run if keep_model is true, this is to
         # maintian compat with osci and should change when the zaza collect

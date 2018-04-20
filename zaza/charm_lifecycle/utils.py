@@ -1,3 +1,4 @@
+import collections
 import importlib
 import os
 import yaml
@@ -14,6 +15,12 @@ def get_charm_config(yaml_file=None):
     :returns: Config dictionary
     :rtype: dict
     """
+
+    # make PyYAML construct OrderedDict from loaded YAML
+    def _dict_constructor(loader, node):
+        return collections.OrderedDict(loader.construct_pairs(node))
+    yaml.Loader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+                                _dict_constructor)
     if not yaml_file:
         yaml_file = DEFAULT_TEST_CONFIG
     with open(yaml_file, 'r') as stream:
