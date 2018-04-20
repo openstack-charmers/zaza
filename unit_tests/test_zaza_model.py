@@ -24,6 +24,11 @@ class TestModel(ut_utils.BaseTestCase):
         async def _wait():
             return
 
+        def _is_leader(leader):
+            async def _inner_is_leader():
+                return leader
+            return _inner_is_leader
+
         self.run_action = mock.MagicMock()
         self.run_action.wait.side_effect = _wait
         self.action = mock.MagicMock()
@@ -58,6 +63,8 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.scp_from.side_effect = _scp_from
         self.unit1.run_action.side_effect = _run_action
         self.unit2.run_action.side_effect = _run_action
+        self.unit1.is_leader_from_status.side_effect = _is_leader(False)
+        self.unit2.is_leader_from_status.side_effect = _is_leader(True)
         self.units = [self.unit1, self.unit2]
         _units = mock.MagicMock()
         _units.units = self.units
@@ -175,3 +182,13 @@ class TestModel(ut_utils.BaseTestCase):
             {'action': "action desc"})
         self.check_output.assert_called_once_with(
             ['juju', 'actions', '-m', 'mname', 'myapp', '--format', 'yaml'])
+
+    def test_run_action_on_leader(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        model.run_action_on_leader('modelname', 'app', 'backup',
+                                   {'backup_dir': '/dev/null'})
+        self.assertFalse(self.unit1.called)
+        self.unit2.run_action.assert_called_once_with(
+            'backup',
+            backup_dir='/dev/null')

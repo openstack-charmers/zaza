@@ -364,6 +364,33 @@ async def async_run_action(model_name, unit_name, action_name,
 run_action = sync_wrapper(async_run_action)
 
 
+async def async_run_action_on_leader(model_name, application_name, action_name,
+                                     action_params=None):
+    """Run action on lead unit of the given application
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    :param action_name: Name of action to run
+    :type action_name: str
+    :param action_params: Dictionary of config options for action
+    :type action_params: dict
+    :returns: Action object
+    :rtype: juju.action.Action
+    """
+    async with run_in_model(model_name) as model:
+        for unit in model.applications[application_name].units:
+            is_leader = await unit.is_leader_from_status()
+            if is_leader:
+                action_obj = await unit.run_action(action_name,
+                                                   **action_params)
+                await action_obj.wait()
+                return action_obj
+
+run_action_on_leader = sync_wrapper(async_run_action_on_leader)
+
+
 def get_actions(model_name, application_name):
     """Get the actions an applications supports
 
