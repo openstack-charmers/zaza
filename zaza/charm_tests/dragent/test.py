@@ -2,8 +2,8 @@
 
 import argparse
 import logging
-import time
 import sys
+import tenacity
 
 from zaza import model
 from zaza.charm_lifecycle import utils as lifecycle_utils
@@ -35,7 +35,7 @@ def test_bgp_routes(peer_application_name="quagga", keystone_session=None):
 
     # Get the peer unit
     peer_unit = model.get_units(
-        lifecycle_utils.get_juju_model(), peer_application_name)[0]
+        lifecycle_utils.get_juju_model(), peer_application_name)[0].entity_id
 
     # Get expected advertised routes
     private_cidr = neutron_client.list_subnets(
@@ -45,32 +45,23 @@ def test_bgp_routes(peer_application_name="quagga", keystone_session=None):
         ["floatingips"][0]["floating_ip_address"])
 
     # This test may run immediately after configuration. It may take time for
-    # routes to propogate via BGP. Do a binary backoff up to ~2 minutes long.
-    backoff = 2
-    max_wait = 129
-    logging.info("Checking routes on BGP peer {}".format(peer_unit.entity_id))
-    while backoff < max_wait:
+    # routes to propogate via BGP. Do a binary backoff.
+    @tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
+                    reraise=True, stop=tenacity.stop_after_attempt(8))
+    def _assert_cidr_in_peer_routing_table(peer_unit, cidr):
+        logging.debug("Checking for {} on BGP peer {}"
+                      .format(cidr, peer_unit))
         # Run show ip route bgp on BGP peer
         routes = _local_utils.remote_run(
-            peer_unit.entity_id, remote_cmd='vtysh -c "show ip route bgp"')
-        try:
-            logging.debug(routes)
-            assert private_cidr in routes, (
-                "Private subnet CIDR, {}, not advertised to BGP peer"
-                .format(private_cidr))
-            logging.info("Private subnet CIDR, {}, found in routing table"
-                         .format(private_cidr))
-            break
-        except AssertionError:
-            logging.info("Binary backoff waiting {} seconds for bgp "
-                         "routes on peer".format(backoff))
-            time.sleep(backoff)
-            backoff = backoff * 2
-            if backoff > max_wait:
-                raise
+            peer_unit, remote_cmd='vtysh -c "show ip route bgp"')
+        logging.debug(routes)
+        assert cidr in routes, (
+            "CIDR, {}, not found in BGP peer's routing table" .format(cidr))
 
-    assert floating_ip_cidr in routes, ("Floating IP, {}, not advertised "
-                                        "to BGP peer".format(floating_ip_cidr))
+    _assert_cidr_in_peer_routing_table(peer_unit, private_cidr)
+    logging.info("Private subnet CIDR, {}, found in routing table"
+                 .format(private_cidr))
+    _assert_cidr_in_peer_routing_table(peer_unit, floating_ip_cidr)
     logging.info("Floating IP CIDR, {}, found in routing table"
                  .format(floating_ip_cidr))
 

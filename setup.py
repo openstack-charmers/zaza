@@ -14,6 +14,7 @@ install_require = [
     'juju',
     'juju-wait',
     'PyYAML',
+    'tenacity',
 ]
 
 tests_require = [
