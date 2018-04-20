@@ -203,9 +203,8 @@ def auth_all(clients, token):
 
 
 def run_charm_authorize(token):
-    unit = zaza.model.get_first_unit_name(utils.get_juju_model(), 'vault')
-    return zaza.model.run_action(
+    return zaza.model.run_action_on_leader(
         utils.get_juju_model(),
-        unit,
+        'vault',
         'authorize-charm',
         action_params={'token': token})
