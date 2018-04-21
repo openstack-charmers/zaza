@@ -1,9 +1,9 @@
 import argparse
 import asyncio
-import datetime
 import logging
 import os
 import sys
+import uuid
 
 import zaza.charm_lifecycle.configure as configure
 import zaza.charm_lifecycle.destroy as destroy
@@ -13,9 +13,8 @@ import zaza.charm_lifecycle.deploy as deploy
 import zaza.charm_lifecycle.test as test
 
 
-def generate_model_name(charm_name, bundle_name):
-    timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    return 'zaza-{}{}{}'.format(charm_name, bundle_name, timestamp)
+def generate_model_name():
+    return 'zaza-{}'.format(str(uuid.uuid4())[-12:])
 
 
 def func_test_runner(keep_model=False, smoke=False, bundle=None):
@@ -37,7 +36,7 @@ def func_test_runner(keep_model=False, smoke=False, bundle=None):
         bundles = test_config[bundle_key]
     last_test = bundles[-1]
     for t in bundles:
-        model_name = generate_model_name(test_config['charm_name'], t)
+        model_name = generate_model_name()
         # Prepare
         prepare.prepare(model_name)
         # Deploy

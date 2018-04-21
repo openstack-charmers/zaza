@@ -7,8 +7,10 @@ import unit_tests.utils as ut_utils
 class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
 
     def test_generate_model_name(self):
-        mname = lc_func_test_runner.generate_model_name('mycharm', 'bundle')
-        self.assertTrue(mname.startswith('zaza-mycharmbundle'))
+        self.patch_object(lc_func_test_runner.uuid, "uuid4")
+        self.uuid4.return_value = "longer-than-12characters"
+        self.assertEqual(lc_func_test_runner.generate_model_name(),
+                         "zaza-12characters")
 
     def test_parser(self):
         # Test defaults
