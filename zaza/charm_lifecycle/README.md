@@ -174,6 +174,19 @@ smoke_bundles:
   - base-bionic
 ```
 
+ * One of the applications being deployed may have a non-standard workload
+   status target state or message. To inform the deployment step what to
+   wait for an optional targeti\_deploy\_status stanza can be added:
+
+```
+target_deploy_status:
+  vault:
+    workload-status: blocked
+    workload-status-message: Vault needs to be initialized
+  ntp:
+    workload-status-message: Go for it
+```
+
 # Adding tests to zaza
 
 The setup and tests for a charm should live in zaza, this enables the code to

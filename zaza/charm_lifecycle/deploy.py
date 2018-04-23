@@ -8,6 +8,7 @@ import tempfile
 
 import juju_wait
 
+import zaza.model
 import zaza.charm_lifecycle.utils as utils
 
 DEFAULT_OVERLAY_TEMPLATE_DIR = 'tests/bundles/overlays'
@@ -222,9 +223,13 @@ def deploy(bundle, model, wait=True):
     """
     deploy_bundle(bundle, model)
     if wait:
+        test_config = utils.get_charm_config()
         logging.info("Waiting for environment to settle")
         utils.set_juju_model(model)
-        juju_wait.wait(wait_for_workload=True)
+        juju_wait.wait()
+        zaza.model.wait_for_application_states(
+            model,
+            test_config.get('target_deploy_status', {}))
 
 
 def parse_args(args):

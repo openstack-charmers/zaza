@@ -1,5 +1,6 @@
 import asyncio
 from async_generator import async_generator, yield_, asynccontextmanager
+import logging
 import subprocess
 import yaml
 
@@ -389,6 +390,63 @@ async def async_run_action_on_leader(model_name, application_name, action_name,
                 return action_obj
 
 run_action_on_leader = sync_wrapper(async_run_action_on_leader)
+
+
+async def async_wait_for_application_states(model_name, states, timeout=900):
+    """Wait for model to achieve the desired state
+
+    Check the workload status and workload status message for every unit of
+    every application. By default look for an 'active' workload status and a
+    message that start with one of the approved_message_prefixes.
+
+    Bespoke statuses and messages can be passed in with states. states takes
+    the form:
+
+    {
+        'app': {
+            'workload-status': 'blocked',
+            'workload-status-message': 'No requests without a prod'}
+        'anotherapp': {
+            'workload-status-message': 'Unit is super ready'}}
+
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param states: Stest to look for
+    :type states: dict
+    :param timeout: Time to wait for status to be achieved
+    :type timeout: int
+    """
+    approved_message_prefixes = ('ready', 'Ready', 'Unit is ready')
+
+    async with run_in_model(model_name) as model:
+        logging.info("Waiting for all units to be idle")
+        await model.block_until(
+            lambda: model.all_units_idle(), timeout=timeout)
+        for application in model.applications:
+            check_info = states.get(application, {})
+            for unit in model.applications[application].units:
+                logging.info("Checking workload status of {}".format(
+                    unit.entity_id))
+                await model.block_until(
+                    lambda: unit.workload_status == check_info.get(
+                        'workload-status',
+                        'active'),
+                    timeout=timeout)
+                check_msg = check_info.get('workload-status-message')
+                logging.info("Checking workload status message of {}".format(
+                    unit.entity_id))
+                msg = unit.workload_status_message
+                if check_msg:
+                    await model.block_until(
+                        lambda: msg == check_msg,
+                        timeout=timeout)
+                else:
+                    await model.block_until(
+                        lambda: msg.startswith(approved_message_prefixes),
+                        timeout=timeout)
+
+wait_for_application_states = sync_wrapper(async_wait_for_application_states)
 
 
 def get_actions(model_name, application_name):
