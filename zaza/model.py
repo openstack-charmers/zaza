@@ -392,7 +392,8 @@ async def async_run_action_on_leader(model_name, application_name, action_name,
 run_action_on_leader = sync_wrapper(async_run_action_on_leader)
 
 
-async def async_wait_for_application_states(model_name, states, timeout=900):
+async def async_wait_for_application_states(model_name, states=None,
+                                            timeout=900):
     """Wait for model to achieve the desired state
 
     Check the workload status and workload status message for every unit of
@@ -419,6 +420,8 @@ async def async_wait_for_application_states(model_name, states, timeout=900):
     """
     approved_message_prefixes = ('ready', 'Ready', 'Unit is ready')
 
+    if not states:
+        states = {}
     async with run_in_model(model_name) as model:
         logging.info("Waiting for all units to be idle")
         await model.block_until(

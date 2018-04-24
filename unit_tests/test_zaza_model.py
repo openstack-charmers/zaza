@@ -79,6 +79,7 @@ class TestModel(ut_utils.BaseTestCase):
 
         async def _disconnect():
             return
+
         self.Model_mock.connect_model.side_effect = _connect_model
         self.Model_mock.disconnect.side_effect = _disconnect
         self.Model_mock.applications = self.mymodel.applications
@@ -192,3 +193,80 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.run_action.assert_called_once_with(
             'backup',
             backup_dir='/dev/null')
+
+    def _application_states_setup(self, setup):
+        self.system_ready = True
+
+        async def _block_until(f, timeout=None):
+            result = f()
+            print(result)
+            if not result:
+                self.system_ready = False
+            return
+        self.Model_mock.block_until.side_effect = _block_until
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.Model_mock.all_units_idle.return_value = True
+        p_mock_ws = mock.PropertyMock(
+            return_value=setup['workload-status'])
+        p_mock_wsmsg = mock.PropertyMock(
+            return_value=setup['workload-status-message'])
+        type(self.unit1).workload_status = p_mock_ws
+        type(self.unit1).workload_status_message = p_mock_wsmsg
+        type(self.unit2).workload_status = p_mock_ws
+        type(self.unit2).workload_status_message = p_mock_wsmsg
+
+    def test_wait_for_application_states(self):
+        self._application_states_setup({
+            'workload-status': 'active',
+            'workload-status-message': 'Unit is ready'})
+        model.wait_for_application_states('modelname', timeout=1)
+        self.assertTrue(self.system_ready)
+
+    def test_wait_for_application_states_not_ready_ws(self):
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'Unit is ready'})
+        model.wait_for_application_states('modelname', timeout=1)
+        self.assertFalse(self.system_ready)
+
+    def test_wait_for_application_states_not_ready_wsmsg(self):
+        self._application_states_setup({
+            'workload-status': 'active',
+            'workload-status-message': 'Unit is not ready'})
+        model.wait_for_application_states('modelname', timeout=1)
+        self.assertFalse(self.system_ready)
+
+    def test_wait_for_application_states_blocked_ok(self):
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'Unit is ready'})
+        model.wait_for_application_states(
+            'modelname',
+            states={'app': {
+                'workload-status': 'blocked'}},
+            timeout=1)
+        self.assertTrue(self.system_ready)
+
+    def test_wait_for_application_states_bespoke_msg(self):
+        self._application_states_setup({
+            'workload-status': 'active',
+            'workload-status-message': 'Sure, I could do something'})
+        model.wait_for_application_states(
+            'modelname',
+            states={'app': {
+                'workload-status-message': 'Sure, I could do something'}},
+            timeout=1)
+        self.assertTrue(self.system_ready)
+
+    def test_wait_for_application_states_bespoke_msg_bloked_ok(self):
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'Sure, I could do something'})
+        model.wait_for_application_states(
+            'modelname',
+            states={'app': {
+                'workload-status': 'blocked',
+                'workload-status-message': 'Sure, I could do something'}},
+            timeout=1)
+        self.assertTrue(self.system_ready)
