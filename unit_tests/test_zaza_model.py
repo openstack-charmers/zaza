@@ -199,7 +199,6 @@ class TestModel(ut_utils.BaseTestCase):
 
         async def _block_until(f, timeout=None):
             result = f()
-            print(result)
             if not result:
                 self.system_ready = False
             return
