@@ -111,8 +111,8 @@ def get_yaml_config(config_file):
     return yaml.load(open(config_file, 'r').read())
 
 
-def get_net_info(net_topology, ignore_env_vars=False,
-                 net_topology_file="network.yaml"):
+def get_network_config(net_topology, ignore_env_vars=False,
+                       net_topology_file="network.yaml"):
     """Get network info from network.yaml, override the values if specific
     environment variables are set for the undercloud.
 

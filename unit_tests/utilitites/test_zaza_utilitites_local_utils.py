@@ -56,7 +56,7 @@ class TestLocalUtils(ut_utils.BaseTestCase):
         self.assertEqual(_local_utils.get_undercloud_env_vars(),
                          _expected_result)
 
-    def test_get_net_info(self):
+    def test_get_network_config(self):
         self.patch_object(_local_utils.os.path, "exists")
         self.patch_object(_local_utils, "get_yaml_config")
         self.patch_object(_local_utils, "get_undercloud_env_vars")
@@ -67,12 +67,13 @@ class TestLocalUtils(ut_utils.BaseTestCase):
         # YAML file does not exist
         self.exists.return_value = False
         with self.assertRaises(Exception):
-            _local_utils.get_net_info(net_topology)
+            _local_utils.get_network_config(net_topology)
 
         # No environmental variables
         self.exists.return_value = True
         self.assertEqual(
-            _local_utils.get_net_info(net_topology, ignore_env_vars=True),
+            _local_utils.get_network_config(net_topology,
+                                            ignore_env_vars=True),
             _data[net_topology])
         self.get_yaml_config.assert_called_once_with("network.yaml")
         self.get_undercloud_env_vars.assert_not_called()
@@ -83,6 +84,6 @@ class TestLocalUtils(ut_utils.BaseTestCase):
         self.get_undercloud_env_vars.return_value = _more_data
         _data[net_topology].update(_more_data)
         self.assertEqual(
-            _local_utils.get_net_info(net_topology),
+            _local_utils.get_network_config(net_topology),
             _data[net_topology])
         self.get_undercloud_env_vars.assert_called_once_with()
