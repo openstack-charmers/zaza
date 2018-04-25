@@ -510,6 +510,10 @@ async def async_wait_for_application_states(model_name, states=None,
         states = {}
     async with run_in_model(model_name) as model:
         check_model_for_hard_errors(model)
+        logging.info("Waiting for a unit to appear")
+        await model.block_until(
+            lambda: len(model.units) > 0
+        )
         logging.info("Waiting for all units to be idle")
         await model.block_until(
             lambda: model.all_units_idle(), timeout=timeout)
