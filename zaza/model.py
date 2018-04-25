@@ -479,7 +479,7 @@ def check_unit_workload_status_message(model, unit, message=None,
 
 
 async def async_wait_for_application_states(model_name, states=None,
-                                            timeout=900):
+                                            timeout=2700):
     """Wait for model to achieve the desired state
 
     Check the workload status and workload status message for every unit of
