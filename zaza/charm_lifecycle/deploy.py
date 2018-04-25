@@ -6,8 +6,6 @@ import subprocess
 import sys
 import tempfile
 
-import juju_wait
-
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
 
@@ -226,7 +224,6 @@ def deploy(bundle, model, wait=True):
         test_config = utils.get_charm_config()
         logging.info("Waiting for environment to settle")
         utils.set_juju_model(model)
-        juju_wait.wait()
         zaza.model.wait_for_application_states(
             model,
             test_config.get('target_deploy_status', {}))

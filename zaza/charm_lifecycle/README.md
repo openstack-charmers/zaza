@@ -176,7 +176,7 @@ smoke_bundles:
 
  * One of the applications being deployed may have a non-standard workload
    status target state or message. To inform the deployment step what to
-   wait for an optional targeti\_deploy\_status stanza can be added:
+   wait for an optional target\_deploy\_status stanza can be added:
 
 ```
 target_deploy_status:

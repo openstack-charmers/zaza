@@ -154,10 +154,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.patch_object(lc_deploy.utils, 'get_charm_config')
         self.get_charm_config.return_value = {}
         self.patch_object(lc_deploy, 'deploy_bundle')
-        self.patch_object(lc_deploy.juju_wait, 'wait')
         lc_deploy.deploy('bun.yaml', 'newmodel')
         self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
-        self.wait.assert_called_once_with()
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
             {})
@@ -171,10 +169,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
                     'workload-status': 'blocked',
                     'workload-status-message': 'Vault needs to be inited'}}}
         self.patch_object(lc_deploy, 'deploy_bundle')
-        self.patch_object(lc_deploy.juju_wait, 'wait')
         lc_deploy.deploy('bun.yaml', 'newmodel')
         self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
-        self.wait.assert_called_once_with()
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
             {'vault': {
@@ -182,11 +178,11 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
                 'workload-status-message': 'Vault needs to be inited'}})
 
     def test_deploy_nowait(self):
+        self.patch_object(lc_deploy.zaza.model, 'wait_for_application_states')
         self.patch_object(lc_deploy, 'deploy_bundle')
-        self.patch_object(lc_deploy.juju_wait, 'wait')
         lc_deploy.deploy('bun.yaml', 'newmodel', wait=False)
         self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
-        self.assertFalse(self.wait.called)
+        self.assertFalse(self.wait_for_application_states.called)
 
     def test_parser(self):
         args = lc_deploy.parse_args([

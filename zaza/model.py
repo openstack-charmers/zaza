@@ -392,13 +392,103 @@ async def async_run_action_on_leader(model_name, application_name, action_name,
 run_action_on_leader = sync_wrapper(async_run_action_on_leader)
 
 
+class UnitError(Exception):
+    """Exception raised for units in error state
+
+    """
+
+    def __init__(self, units):
+        message = "Units {} in error state".format(
+            ','.join([u.entity_id for u in units]))
+        super(UnitError, self).__init__(message)
+
+
+def units_with_wl_status_state(model, state):
+    """Return a list of unit which have a matching workload status
+
+    :returns: Units in error state
+    :rtype: [juju.Unit, ...]
+    """
+    matching_units = []
+    for unit in model.units.values():
+        wl_status = unit.workload_status
+        if wl_status == state:
+            matching_units.append(unit)
+    return matching_units
+
+
+def check_model_for_hard_errors(model):
+    """Check model for any hard errors that should halt a deployment
+
+       The only check currently implemented is checking for units in an
+       error state
+
+    :raises: UnitError
+    """
+    errored_units = units_with_wl_status_state(model, 'error')
+    if errored_units:
+        raise UnitError(errored_units)
+
+
+def check_unit_workload_status(model, unit, state):
+    """Check that the units workload status matches the supplied state.
+       This function has the side effect of also checking for *any* units
+       in an error state and aborting if any are found.
+
+    :param model: Model object to check in
+    :type model: juju.Model
+    :param unit: Unit to check wl status of
+    :type unit: juju.Unit
+    :param state: Expected unit work load state
+    :type state: str
+    :raises: UnitError
+    :returns: Whether units workload status matches desired state
+    :rtype: bool
+    """
+    logging.info("Checking workload status of {}".format(
+        unit.entity_id))
+    check_model_for_hard_errors(model)
+    return unit.workload_status == state
+
+
+def check_unit_workload_status_message(model, unit, message=None,
+                                       prefixes=None):
+    """Check that the units workload status message matches the supplied
+       message or starts with one of the supplied prefixes. Raises an exception
+       if neither prefixes or message is set. This function has the side effect
+       of also checking for *any* units in an error state and aborting if any
+       are found.
+
+    :param model: Model object to check in
+    :type model: juju.Model
+    :param unit: Unit to check wl status of
+    :type unit: juju.Unit
+    :param message: Expected message text
+    :type message: str
+    :param prefixes: Prefixes to match message against
+    :type prefixes: tuple
+    :raises: ValueError, UnitError
+    :returns: Whether message matches desired string
+    :rtype: bool
+    """
+    logging.info("Checking workload status message of {}".format(
+        unit.entity_id))
+    check_model_for_hard_errors(model)
+    if message:
+        return unit.workload_status_message == message
+    elif prefixes:
+        return unit.workload_status_message.startswith(prefixes)
+    else:
+        raise ValueError("Must be called with message or prefixes")
+
+
 async def async_wait_for_application_states(model_name, states=None,
                                             timeout=900):
     """Wait for model to achieve the desired state
 
     Check the workload status and workload status message for every unit of
     every application. By default look for an 'active' workload status and a
-    message that start with one of the approved_message_prefixes.
+    message that starts with one of the approved_message_prefixes.
 
     Bespoke statuses and messages can be passed in with states. states takes
     the form:
@@ -413,7 +503,7 @@ async def async_wait_for_application_states(model_name, states=None,
 
     :param model_name: Name of model to query.
     :type model_name: str
-    :param states: Stest to look for
+    :param states: Staes to look for
     :type states: dict
     :param timeout: Time to wait for status to be achieved
     :type timeout: int
@@ -423,30 +513,33 @@ async def async_wait_for_application_states(model_name, states=None,
     if not states:
         states = {}
     async with run_in_model(model_name) as model:
+        check_model_for_hard_errors(model)
         logging.info("Waiting for all units to be idle")
         await model.block_until(
             lambda: model.all_units_idle(), timeout=timeout)
         for application in model.applications:
             check_info = states.get(application, {})
             for unit in model.applications[application].units:
-                logging.info("Checking workload status of {}".format(
-                    unit.entity_id))
                 await model.block_until(
-                    lambda: unit.workload_status == check_info.get(
-                        'workload-status',
-                        'active'),
+                    lambda: check_unit_workload_status(
+                        model,
+                        unit,
+                        check_info.get('workload-status', 'active')),
                     timeout=timeout)
                 check_msg = check_info.get('workload-status-message')
-                logging.info("Checking workload status message of {}".format(
-                    unit.entity_id))
-                msg = unit.workload_status_message
                 if check_msg:
                     await model.block_until(
-                        lambda: msg == check_msg,
+                        lambda: check_unit_workload_status_message(
+                            model,
+                            unit,
+                            message=check_msg),
                         timeout=timeout)
                 else:
                     await model.block_until(
-                        lambda: msg.startswith(approved_message_prefixes),
+                        lambda: check_unit_workload_status_message(
+                            model,
+                            unit,
+                            prefixes=approved_message_prefixes),
                         timeout=timeout)
 
 wait_for_application_states = sync_wrapper(async_wait_for_application_states)
