@@ -79,9 +79,13 @@ class TestModel(ut_utils.BaseTestCase):
 
         async def _disconnect():
             return
+
         self.Model_mock.connect_model.side_effect = _connect_model
         self.Model_mock.disconnect.side_effect = _disconnect
         self.Model_mock.applications = self.mymodel.applications
+        self.Model_mock.units = {
+            'app/2': self.unit1,
+            'app/4': self.unit2}
 
     def test_run_in_model(self):
         self.patch_object(model, 'Model')
@@ -192,3 +196,170 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.run_action.assert_called_once_with(
             'backup',
             backup_dir='/dev/null')
+
+    def _application_states_setup(self, setup, units_idle=True):
+        self.system_ready = True
+
+        async def _block_until(f, timeout=None):
+            result = f()
+            if not result:
+                self.system_ready = False
+            return
+
+        async def _all_units_idle():
+            return units_idle
+        self.Model_mock.block_until.side_effect = _block_until
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.Model_mock.all_units_idle.return_value = _all_units_idle
+        p_mock_ws = mock.PropertyMock(
+            return_value=setup['workload-status'])
+        p_mock_wsmsg = mock.PropertyMock(
+            return_value=setup['workload-status-message'])
+        type(self.unit1).workload_status = p_mock_ws
+        type(self.unit1).workload_status_message = p_mock_wsmsg
+        type(self.unit2).workload_status = p_mock_ws
+        type(self.unit2).workload_status_message = p_mock_wsmsg
+
+    def test_units_with_wl_status_state(self):
+        self._application_states_setup({
+            'workload-status': 'active',
+            'workload-status-message': 'Unit is ready'})
+        units = model.units_with_wl_status_state(self.Model_mock, 'active')
+        self.assertTrue(len(units) == 2)
+        self.assertIn(self.unit1, units)
+        self.assertIn(self.unit2, units)
+
+    def test_units_with_wl_status_state_no_match(self):
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'Unit is ready'})
+        units = model.units_with_wl_status_state(self.Model_mock, 'active')
+        self.assertTrue(len(units) == 0)
+
+    def test_check_model_for_hard_errors(self):
+        self.patch_object(model, 'units_with_wl_status_state')
+        self.units_with_wl_status_state.return_value = []
+        # Test will fail if an Exception is raised
+        model.check_model_for_hard_errors(self.Model_mock)
+
+    def test_check_model_for_hard_errors_found(self):
+        self.patch_object(model, 'units_with_wl_status_state')
+        self.units_with_wl_status_state.return_value = [self.unit1]
+        with self.assertRaises(model.UnitError):
+            model.check_model_for_hard_errors(self.Model_mock)
+
+    def test_check_unit_workload_status(self):
+        self.patch_object(model, 'check_model_for_hard_errors')
+        self._application_states_setup({
+            'workload-status': 'active',
+            'workload-status-message': 'Unit is ready'})
+        self.assertTrue(
+            model.check_unit_workload_status(self.Model_mock,
+                                             self.unit1, 'active'))
+
+    def test_check_unit_workload_status_no_match(self):
+        self.patch_object(model, 'check_model_for_hard_errors')
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'Unit is ready'})
+        self.assertFalse(
+            model.check_unit_workload_status(self.Model_mock,
+                                             self.unit1, 'active'))
+
+    def test_check_unit_workload_status_message_message(self):
+        self.patch_object(model, 'check_model_for_hard_errors')
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'Unit is ready'})
+        self.assertTrue(
+            model.check_unit_workload_status_message(self.Model_mock,
+                                                     self.unit1,
+                                                     message='Unit is ready'))
+
+    def test_check_unit_workload_status_message_message_not_found(self):
+        self.patch_object(model, 'check_model_for_hard_errors')
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'Something else'})
+        self.assertFalse(
+            model.check_unit_workload_status_message(self.Model_mock,
+                                                     self.unit1,
+                                                     message='Unit is ready'))
+
+    def test_check_unit_workload_status_message_prefix(self):
+        self.patch_object(model, 'check_model_for_hard_errors')
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'Unit is ready (OSD Count 23)'})
+        self.assertTrue(
+            model.check_unit_workload_status_message(
+                self.Model_mock,
+                self.unit1,
+                prefixes=('Readyish', 'Unit is ready')))
+
+    def test_check_unit_workload_status_message_prefix_no_match(self):
+        self.patch_object(model, 'check_model_for_hard_errors')
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'On my holidays'})
+        self.assertFalse(
+            model.check_unit_workload_status_message(
+                self.Model_mock,
+                self.unit1,
+                prefixes=('Readyish', 'Unit is ready')))
+
+    def test_wait_for_application_states(self):
+        self._application_states_setup({
+            'workload-status': 'active',
+            'workload-status-message': 'Unit is ready'})
+        model.wait_for_application_states('modelname', timeout=1)
+        self.assertTrue(self.system_ready)
+
+    def test_wait_for_application_states_not_ready_ws(self):
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'Unit is ready'})
+        model.wait_for_application_states('modelname', timeout=1)
+        self.assertFalse(self.system_ready)
+
+    def test_wait_for_application_states_not_ready_wsmsg(self):
+        self._application_states_setup({
+            'workload-status': 'active',
+            'workload-status-message': 'Unit is not ready'})
+        model.wait_for_application_states('modelname', timeout=1)
+        self.assertFalse(self.system_ready)
+
+    def test_wait_for_application_states_blocked_ok(self):
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'Unit is ready'})
+        model.wait_for_application_states(
+            'modelname',
+            states={'app': {
+                'workload-status': 'blocked'}},
+            timeout=1)
+        self.assertTrue(self.system_ready)
+
+    def test_wait_for_application_states_bespoke_msg(self):
+        self._application_states_setup({
+            'workload-status': 'active',
+            'workload-status-message': 'Sure, I could do something'})
+        model.wait_for_application_states(
+            'modelname',
+            states={'app': {
+                'workload-status-message': 'Sure, I could do something'}},
+            timeout=1)
+        self.assertTrue(self.system_ready)
+
+    def test_wait_for_application_states_bespoke_msg_bloked_ok(self):
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'Sure, I could do something'})
+        model.wait_for_application_states(
+            'modelname',
+            states={'app': {
+                'workload-status': 'blocked',
+                'workload-status-message': 'Sure, I could do something'}},
+            timeout=1)
+        self.assertTrue(self.system_ready)
