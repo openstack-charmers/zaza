@@ -1,5 +1,6 @@
 async_generator
 juju
+juju_wait
 PyYAML
 flake8>=2.2.4,<=3.5.0
 mock>=1.2

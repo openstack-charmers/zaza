@@ -445,8 +445,6 @@ def check_unit_workload_status(model, unit, state):
     :returns: Whether units workload status matches desired state
     :rtype: bool
     """
-    logging.info("Checking workload status of {}".format(
-        unit.entity_id))
     check_model_for_hard_errors(model)
     return unit.workload_status == state
 
@@ -471,8 +469,6 @@ def check_unit_workload_status_message(model, unit, message=None,
     :returns: Whether message matches desired string
     :rtype: bool
     """
-    logging.info("Checking workload status message of {}".format(
-        unit.entity_id))
     check_model_for_hard_errors(model)
     if message:
         return unit.workload_status_message == message
@@ -520,6 +516,8 @@ async def async_wait_for_application_states(model_name, states=None,
         for application in model.applications:
             check_info = states.get(application, {})
             for unit in model.applications[application].units:
+                logging.info("Checking workload status of {}".format(
+                    unit.entity_id))
                 await model.block_until(
                     lambda: check_unit_workload_status(
                         model,
@@ -527,6 +525,8 @@ async def async_wait_for_application_states(model_name, states=None,
                         check_info.get('workload-status', 'active')),
                     timeout=timeout)
                 check_msg = check_info.get('workload-status-message')
+                logging.info("Checking workload status message of {}".format(
+                    unit.entity_id))
                 if check_msg:
                     await model.block_until(
                         lambda: check_unit_workload_status_message(
