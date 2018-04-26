@@ -532,19 +532,15 @@ async def async_wait_for_application_states(model_name, states=None,
                 logging.info("Checking workload status message of {}".format(
                     unit.entity_id))
                 if check_msg:
-                    await model.block_until(
-                        lambda: check_unit_workload_status_message(
-                            model,
-                            unit,
-                            message=check_msg),
-                        timeout=timeout)
+                    prefixes = (check_msg)
                 else:
-                    await model.block_until(
-                        lambda: check_unit_workload_status_message(
-                            model,
-                            unit,
-                            prefixes=approved_message_prefixes),
-                        timeout=timeout)
+                    prefixes = approved_message_prefixes
+                await model.block_until(
+                    lambda: check_unit_workload_status_message(
+                        model,
+                        unit,
+                        prefixes=prefixes),
+                    timeout=timeout)
 
 wait_for_application_states = sync_wrapper(async_wait_for_application_states)
 
