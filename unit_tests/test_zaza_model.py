@@ -80,12 +80,18 @@ class TestModel(ut_utils.BaseTestCase):
         async def _disconnect():
             return
 
+        async def _connect():
+            return
+
+        self.Model_mock.connect.side_effect = _connect
         self.Model_mock.connect_model.side_effect = _connect_model
         self.Model_mock.disconnect.side_effect = _disconnect
         self.Model_mock.applications = self.mymodel.applications
         self.Model_mock.units = {
             'app/2': self.unit1,
             'app/4': self.unit2}
+        self.model_name = "testmodel"
+        self.Model_mock.info.name = self.model_name
 
     def test_run_in_model(self):
         self.patch_object(model, 'Model')
@@ -363,3 +369,8 @@ class TestModel(ut_utils.BaseTestCase):
                 'workload-status-message': 'Sure, I could do something'}},
             timeout=1)
         self.assertTrue(self.system_ready)
+
+    def test_get_current_model(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.get_current_model(), self.model_name)

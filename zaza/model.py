@@ -562,6 +562,25 @@ def get_actions(model_name, application_name):
     return yaml.load(subprocess.check_output(cmd))
 
 
+async def async_get_current_model():
+    """Return the current active model name
+
+    Connect to the current active model and return its name.
+
+    :returns: String curenet model name
+    :rtype: str
+    """
+
+    model = Model()
+    await model.connect()
+    model_name = model.info.name
+    await model.disconnect()
+    return model_name
+
+
+get_current_model = sync_wrapper(async_get_current_model)
+
+
 def main():
     # Run the deploy coroutine in an asyncio event loop, using a helper
     # that abstracts loop creation and teardown.

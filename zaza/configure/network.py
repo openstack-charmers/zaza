@@ -199,7 +199,7 @@ def setup_gateway_ext_port(network_config, keystone_session=None):
         net_id=net_id)
 
 
-def run_from_cli():
+def run_from_cli(**kwargs):
     """Run network configurations from CLI
 
     Use a YAML file of network configuration settings to configure the
@@ -217,6 +217,7 @@ def run_from_cli():
       start_floating_ip: 10.5.150.0
       end_floating_ip: 10.5.200.254
 
+    :param kwargs: Allow for override of argparse options
     :returns: None
     :rtype: None
     """
@@ -235,9 +236,12 @@ def run_from_cli():
                         default="network.yaml")
     # Handle CLI options
     options = parser.parse_args()
-    net_topology = _local_utils.parse_arg(options, "net_topology")
-    net_topology_file = _local_utils.parse_arg(options, "net_topology_file")
-    ignore_env_vars = _local_utils.parse_arg(options, "ignore_env_vars")
+    net_topology = (kwargs.get('net_toplogoy') or
+                    _local_utils.parse_arg(options, "net_topology"))
+    net_topology_file = (kwargs.get('net_topology_file') or
+                         _local_utils.parse_arg(options, "net_topology_file"))
+    ignore_env_vars = (kwargs.get('ignore_env_vars') or
+                       _local_utils.parse_arg(options, "ignore_env_vars"))
 
     logging.info("Setting up %s network" % (net_topology))
     network_config = _local_utils.get_network_config(
