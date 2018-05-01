@@ -2,6 +2,8 @@ import importlib
 import os
 import yaml
 
+from zaza import model
+
 BUNDLE_DIR = "./tests/bundles/"
 DEFAULT_TEST_CONFIG = "./tests/tests.yaml"
 
@@ -47,9 +49,18 @@ def set_juju_model(model_name):
 
 
 def get_juju_model():
-    """Retrieve current model from environment
+    """Retrieve current model
+
+    First check the environment for JUJU_MODEL. If this is not set, get the
+    current active model.
 
     :returns: In focus model name
     :rtype: str
     """
-    return os.environ["JUJU_MODEL"]
+
+    try:
+        # Check the environment
+        return os.environ["JUJU_MODEL"]
+    except KeyError:
+        # If unset connect get the current active model
+        return model.get_current_model()
