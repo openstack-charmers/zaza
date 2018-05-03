@@ -16,6 +16,7 @@
 
 import cryptography
 from cryptography.hazmat.primitives.asymmetric import rsa
+import cryptography.hazmat.primitives.hashes as hashes
 import cryptography.hazmat.primitives.serialization as serialization
 import datetime
 
@@ -121,3 +122,68 @@ def generate_cert(common_name,
         certificate.public_bytes(
             serialization.Encoding.PEM)
     )
+
+
+def sign_csr(csr, ca_private_key, ca_cert=None, issuer_name=None,
+             ca_private_key_password=None, generate_ca=False):
+    """Sign CSR with the given key.
+
+    :param csr: Certificate to sign
+    :type csr: str
+    :param ca_private_key: Private key to be used to sign csr
+    :type ca_private_key: str
+    :param ca_cert: Cert to base some options from
+    :type ca_cert: str
+    :param issuer_name: Issuer name, must match provided_private_key issuer
+    :type issuer_name: Optional[str]
+    :param ca_private_key_password: Password to decrypt ca_private_key
+    :type ca_private_key_password: Optional[str]
+    :param generate_ca: Allow resulting cert to be used as ca
+    :type generate_ca: bool
+    :returns: x.509 certificate
+    :rtype: cryptography.x509.Certificate
+    """
+    backend = cryptography.hazmat.backends.default_backend()
+    # Create x509 artifacts
+    root_ca_pkey = serialization.load_pem_private_key(
+        ca_private_key.encode(),
+        password=ca_private_key_password,
+        backend=backend)
+
+    new_csr = cryptography.x509.load_pem_x509_csr(
+        csr.encode(),
+        backend)
+
+    if ca_cert:
+        root_ca_cert = cryptography.x509.load_pem_x509_certificate(
+            ca_cert.encode(),
+            backend)
+        issuer_name = root_ca_cert.subject
+    else:
+        issuer_name = issuer_name
+    # Create builder
+    builder = cryptography.x509.CertificateBuilder()
+    builder = builder.serial_number(
+        cryptography.x509.random_serial_number())
+    builder = builder.issuer_name(issuer_name)
+    builder = builder.not_valid_before(
+        datetime.datetime.today() - datetime.timedelta(1, 0, 0),
+    )
+    builder = builder.not_valid_after(
+        datetime.datetime.today() + datetime.timedelta(80, 0, 0),
+    )
+    builder = builder.subject_name(new_csr.subject)
+    builder = builder.public_key(new_csr.public_key())
+
+    builder = builder.add_extension(
+        cryptography.x509.BasicConstraints(ca=generate_ca, path_length=None),
+        critical=True
+    )
+
+    # Sign the csr
+    signer_ca_cert = builder.sign(
+        private_key=root_ca_pkey,
+        algorithm=hashes.SHA256(),
+        backend=backend)
+
+    return signer_ca_cert.public_bytes(encoding=serialization.Encoding.PEM)
