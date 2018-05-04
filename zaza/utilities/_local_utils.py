@@ -290,10 +290,14 @@ def get_application_status(application=None, unit=None):
     """
 
     status = get_full_juju_status()
+
+    if unit and not application:
+        application = unit.split("/")[0]
+
     if application:
         status = status.applications.get(application)
     if unit:
-        status = status.units.get(unit)
+        status = status.get('units').get(unit)
     return status
 
 
@@ -325,6 +329,12 @@ def get_machines_for_application(application):
     """
 
     status = get_application_status(application)
+
+    # libjuju juju status no longer has units for subordinate charms
+    # Use the application it is subordinate-to to find machines
+    if status.get('units') is None and status.get('subordinate-to'):
+        return get_machines_for_application(status.get('subordinate-to')[0])
+
     machines = []
     for unit in status.get('units').keys():
         machines.append(
