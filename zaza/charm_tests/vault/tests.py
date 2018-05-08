@@ -4,10 +4,13 @@ import hvac
 import time
 import unittest
 import uuid
+import tempfile
 
+import requests
 import zaza.charm_lifecycle.utils as lifecycle_utils
 import zaza.charm_tests.test_utils as test_utils
 import zaza.charm_tests.vault.utils as vault_utils
+import zaza.utilities.cert
 import zaza.model
 
 
@@ -22,6 +25,48 @@ class VaultTest(unittest.TestCase):
         cls.vault_creds = vault_utils.get_credentails()
         vault_utils.unseal_all(cls.clients, cls.vault_creds['keys'][0])
         vault_utils.auth_all(cls.clients, cls.vault_creds['root_token'])
+
+    def test_csr(self):
+        vault_actions = zaza.model.get_actions(
+            lifecycle_utils.get_juju_model(),
+            'vault')
+        if 'get-csrs' not in vault_actions:
+            raise unittest.SkipTest('Action not defined')
+        action = vault_utils.run_charm_authorize(
+            self.vault_creds['root_token'])
+        action = vault_utils.run_get_csrs()
+
+        intermediate_csr = action.data['results']['output']
+        (cakey, cacert) = zaza.utilities.cert.generate_cert(
+            'DivineAuthority',
+            generate_ca=True)
+        intermediate_cert = zaza.utilities.cert.sign_csr(
+            intermediate_csr,
+            cakey,
+            cacert,
+            generate_ca=True)
+        action = vault_utils.run_upload_signed_csr(
+            pem=intermediate_cert,
+            root_ca=cacert,
+            allowed_domains='openstack.local')
+
+        test_config = lifecycle_utils.get_charm_config()
+        del test_config['target_deploy_status']['vault']
+        zaza.model.app_file_has_contents(
+            lifecycle_utils.get_juju_model(),
+            'keystone',
+            '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
+            cacert.decode().strip())
+        zaza.model.wait_for_application_states(
+            lifecycle_utils.get_juju_model(),
+            test_config.get('target_deploy_status', {}))
+        ip = zaza.model.get_app_ips(
+            lifecycle_utils.get_juju_model(),
+            'keystone')[0]
+        with tempfile.NamedTemporaryFile(mode='w') as fp:
+            fp.write(cacert.decode())
+            fp.flush()
+            requests.get('https://{}:5000'.format(ip), verify=fp.name)
 
     def test_all_clients_authenticated(self):
         for client in self.clients:
