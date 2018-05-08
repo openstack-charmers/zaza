@@ -654,6 +654,35 @@ block_until_file_has_contents = sync_wrapper(
     async_block_until_file_has_contents)
 
 
+async def async_get_relation_id(model_name, application_name,
+                                remote_application_name,
+                                remote_interface_name=None):
+    """
+    Get relation id of relation from model
+
+    :param model_name: Name of model to operate on
+    :type model_name: str
+    :param application_name: Name of application on this side of relation
+    :type application_name: str
+    :param remote_application_name: Name of application on other side of
+                                    relation
+    :type remote_application_name: str
+    :param remote_interface_name: Name of interface on remote end of relation
+    :type remote_interface_name: Optional(str)
+    :returns: Relation id of relation if found or None
+    :rtype: any
+    """
+    async with run_in_model(model_name) as model:
+        for rel in model.applications[application_name].relations:
+            spec = '{}'.format(remote_application_name)
+            if remote_interface_name is not None:
+                spec += ':{}'.format(remote_interface_name)
+            if rel.matches(spec):
+                return(rel.id)
+
+get_relation_id = sync_wrapper(async_get_relation_id)
+
+
 def main():
     # Run the deploy coroutine in an asyncio event loop, using a helper
     # that abstracts loop creation and teardown.
