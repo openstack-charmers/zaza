@@ -1,10 +1,13 @@
 import asyncio
 from async_generator import async_generator, yield_, asynccontextmanager
 import logging
+import os
 import subprocess
+import tempfile
 import yaml
 
 from juju import loop
+from juju.errors import JujuError
 from juju.model import Model
 
 
@@ -579,6 +582,79 @@ async def async_get_current_model():
 
 
 get_current_model = sync_wrapper(async_get_current_model)
+
+
+async def async_block_until(*conditions, timeout=None, wait_period=0.5,
+                            loop=None):
+    """Return only after all async conditions are true.
+
+    Based on juju.utils.block_until which currently does not support
+    async methods as conditions.
+
+    :param conditions: Functions to evaluate.
+    :type conditions: functions
+    :param timeout: Timeout in secounds
+    :type timeout: int
+    :param wait_period: Time to wait between re-assing conditions.
+    :type wait_period: float
+    :param loop: The evnt loop to use
+    :type loop: An event loop
+    """
+
+    async def _block():
+        while True:
+            evaluated = []
+            for c in conditions:
+                result = await c()
+                evaluated.append(result)
+            if all(evaluated):
+                return
+            else:
+                await asyncio.sleep(wait_period, loop=loop)
+    await asyncio.wait_for(_block(), timeout, loop=loop)
+
+
+async def async_block_until_file_has_contents(model_name, application_name,
+                                              remote_file, expected_contents,
+                                              timeout=2700):
+    """Block until all the units of a given application have the expected
+       contents in the given file.
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    :param remote_file: Remote path of file(s) to transfer
+    :type remote_file: str
+    :param expected_contents: Contents expected to be found in file
+    :type expected_contents,: str
+    :param timeout: Time to wait for contents to appear in file
+    :type timeout: int
+    """
+    async def _check_file():
+        file_name = os.path.basename(remote_file)
+        units = model.applications[application_name].units
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for unit in units:
+                try:
+                    await unit.scp_from(remote_file, tmpdir)
+                    with open(os.path.join(tmpdir, file_name), 'r') as lf:
+                        contents = lf.read()
+                    if expected_contents not in contents:
+                        return False
+                # libjuju throws a generic error for scp failure. So we cannot
+                # differentiate between a connectivity issue and a target file
+                # not existing error. For now just assume the latter.
+                except JujuError as e:
+                    return False
+            else:
+                return True
+
+    async with run_in_model(model_name) as model:
+        await async_block_until(_check_file, timeout=timeout)
+
+block_until_file_has_contents = sync_wrapper(
+    async_block_until_file_has_contents)
 
 
 def main():
