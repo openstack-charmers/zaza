@@ -42,8 +42,8 @@ class VaultTest(unittest.TestCase):
             generate_ca=True)
         intermediate_cert = zaza.utilities.cert.sign_csr(
             intermediate_csr,
-            cakey,
-            cacert,
+            cakey.decode(),
+            cacert.decode(),
             generate_ca=True)
         action = vault_utils.run_upload_signed_csr(
             pem=intermediate_cert,
@@ -52,7 +52,7 @@ class VaultTest(unittest.TestCase):
 
         test_config = lifecycle_utils.get_charm_config()
         del test_config['target_deploy_status']['vault']
-        zaza.model.app_file_has_contents(
+        zaza.model.block_until_file_has_contents(
             lifecycle_utils.get_juju_model(),
             'keystone',
             '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
