@@ -594,7 +594,7 @@ async def async_block_until(*conditions, timeout=None, wait_period=0.5,
     :param conditions: Functions to evaluate.
     :type conditions: functions
     :param timeout: Timeout in secounds
-    :type timeout: int
+    :type timeout: float
     :param wait_period: Time to wait between re-assing conditions.
     :type wait_period: float
     :param loop: The evnt loop to use
@@ -624,12 +624,12 @@ async def async_block_until_file_has_contents(model_name, application_name,
     :type model_name: str
     :param application_name: Name of application
     :type application_name: str
-    :param remote_file: Remote path of file(s) to transfer
+    :param remote_file: Remote path of file to transfer
     :type remote_file: str
     :param expected_contents: Contents expected to be found in file
     :type expected_contents,: str
     :param timeout: Time to wait for contents to appear in file
-    :type timeout: int
+    :type timeout: float
     """
     async def _check_file():
         file_name = os.path.basename(remote_file)
