@@ -614,11 +614,11 @@ async def async_block_until(*conditions, timeout=None, wait_period=0.5,
     await asyncio.wait_for(_block(), timeout, loop=loop)
 
 
-async def async_block_until_file_has_contents(model_name, application_name,
-                                              remote_file, expected_contents,
-                                              timeout=2700):
-    """Block until all the units of a given application have the expected
-       contents in the given file.
+async def async_block_until_file_ready(model_name, application_name,
+                                       remote_file, check_function,
+                                       timeout=2700):
+    """Block until the check_function passes against the contents of the given
+       file on all units of the application
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -626,8 +626,9 @@ async def async_block_until_file_has_contents(model_name, application_name,
     :type application_name: str
     :param remote_file: Remote path of file to transfer
     :type remote_file: str
-    :param expected_contents: Contents expected to be found in file
-    :type expected_contents,: str
+    :param check_function: Function to use to check if file is ready, must take
+                           exactly one argument which is the file contents.
+    :type check_function: function
     :param timeout: Time to wait for contents to appear in file
     :type timeout: float
     """
@@ -640,7 +641,7 @@ async def async_block_until_file_has_contents(model_name, application_name,
                     await unit.scp_from(remote_file, tmpdir)
                     with open(os.path.join(tmpdir, file_name), 'r') as lf:
                         contents = lf.read()
-                    if expected_contents not in contents:
+                    if not check_function(contents):
                         return False
                 # libjuju throws a generic error for scp failure. So we cannot
                 # differentiate between a connectivity issue and a target file
@@ -652,6 +653,29 @@ async def async_block_until_file_has_contents(model_name, application_name,
 
     async with run_in_model(model_name) as model:
         await async_block_until(_check_file, timeout=timeout)
+
+
+async def async_block_until_file_has_contents(model_name, application_name,
+                                              remote_file, expected_contents,
+                                              timeout=2700):
+    """Block until the expected_contents are in the given file on all units of
+       the application
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    :param remote_file: Remote path of file to transfer
+    :type remote_file: str
+    :param expected_contents: String to look for in file
+    :type expected_contents: str
+    :param timeout: Time to wait for contents to appear in file
+    :type timeout: float
+    """
+    def f(x):
+        return expected_contents in x
+    return await async_block_until_file_ready(model_name, application_name,
+                                              remote_file, f, timeout)
 
 block_until_file_has_contents = sync_wrapper(
     async_block_until_file_has_contents)
