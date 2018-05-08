@@ -1,7 +1,11 @@
+import aiounittest
+import asyncio.futures
 import mock
-import zaza.model as model
+
 import unit_tests.utils as ut_utils
 from juju import loop
+
+import zaza.model as model
 
 
 class TestModel(ut_utils.BaseTestCase):
@@ -9,10 +13,12 @@ class TestModel(ut_utils.BaseTestCase):
     def setUp(self):
         super(TestModel, self).setUp()
 
-        async def _scp_to(source, destination, user, proxy, scp_opts):
+        async def _scp_to(source, destination, user=None, proxy=None,
+                          scp_opts=None):
             return
 
-        async def _scp_from(source, destination, user, proxy, scp_opts):
+        async def _scp_from(source, destination, user=None, proxy=None,
+                            scp_opts=None):
             return
 
         async def _run(command, timeout=None):
@@ -374,3 +380,66 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.assertEqual(model.get_current_model(), self.model_name)
+
+    def test_block_until_file_has_contents(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch("builtins.open",
+                   new_callable=mock.mock_open(),
+                   name="_open")
+        _fileobj = mock.MagicMock()
+        _fileobj.__enter__().read.return_value = "somestring"
+        self._open.return_value = _fileobj
+        model.block_until_file_has_contents(
+            'modelname',
+            'app',
+            '/tmp/src/myfile.txt',
+            'somestring',
+            timeout=0.1)
+        self.unit1.scp_from.assert_called_once_with(
+            '/tmp/src/myfile.txt', mock.ANY)
+        self.unit2.scp_from.assert_called_once_with(
+            '/tmp/src/myfile.txt', mock.ANY)
+
+    def test_block_until_file_has_contents_missing(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch("builtins.open",
+                   new_callable=mock.mock_open(),
+                   name="_open")
+        _fileobj = mock.MagicMock()
+        _fileobj.__enter__().read.return_value = "anything else"
+        self._open.return_value = _fileobj
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.block_until_file_has_contents(
+                'modelname',
+                'app',
+                '/tmp/src/myfile.txt',
+                'somestring',
+                timeout=0.1)
+        self.unit1.scp_from.assert_called_once_with(
+            '/tmp/src/myfile.txt', mock.ANY)
+
+
+class AsyncModelTests(aiounittest.AsyncTestCase):
+
+    async def test_async_block_until_timeout(self):
+
+        async def _f():
+            return False
+
+        async def _g():
+            return True
+
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            await model.async_block_until(_f, _g, timeout=0.1)
+
+    async def test_async_block_until_pass(self):
+
+        async def _f():
+            return True
+
+        async def _g():
+            return True
+
+        await model.async_block_until(_f, _g, timeout=0.1)
