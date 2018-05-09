@@ -27,7 +27,8 @@ from zaza import model
 from zaza.charm_lifecycle import utils as lifecycle_utils
 from zaza.utilities import (
     exceptions,
-    _local_utils,
+    generic_utils,
+    juju_utils,
 )
 
 CHARM_TYPES = {
@@ -267,7 +268,7 @@ def get_gateway_uuids():
     :rtype: list
     """
 
-    return _local_utils.get_machine_uuids_for_application('neutron-gateway')
+    return juju_utils.get_machine_uuids_for_application('neutron-gateway')
 
 
 def get_ovs_uuids():
@@ -277,7 +278,7 @@ def get_ovs_uuids():
     :rtype: list
     """
 
-    return (_local_utils
+    return (juju_utils
             .get_machine_uuids_for_application('neutron-openvswitch'))
 
 
@@ -1100,8 +1101,8 @@ def get_current_os_versions(deployed_applications):
         if application['name'] not in deployed_applications:
             continue
 
-        version = _local_utils.get_pkg_version(application['name'],
-                                               application['type']['pkg'])
+        version = generic_utils.get_pkg_version(application['name'],
+                                                application['type']['pkg'])
         versions[application['name']] = (
             get_os_code_info(application['type']['pkg'], version))
     return versions

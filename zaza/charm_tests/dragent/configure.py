@@ -5,7 +5,8 @@ from zaza.configure import (
     bgp_speaker,
 )
 from zaza.utilities import (
-    _local_utils,
+    cli_utils,
+    generic_utils,
     openstack_utils,
 )
 
@@ -28,7 +29,7 @@ OVERCLOUD_NETWORK_CONFIG = {
 # The undercloud network configuration settings are substrate specific to
 # the environment where the tests are being executed. These settings may be
 # overridden by environment variables. See the doc string documentation for
-# zaza.utilities._local_utils.get_overcloud_env_vars for the environment
+# zaza.utilities.generic_utils.get_undercloud_env_vars for the environment
 # variables required to be exported and available to zaza.
 # These are default settings provided as an example.
 DEFAULT_UNDERCLOUD_NETWORK_CONFIG = {
@@ -54,7 +55,7 @@ def setup():
     :rtype: None
     """
 
-    _local_utils.setup_logging()
+    cli_utils.setup_logging()
 
     # Get network configuration settings
     network_config = {}
@@ -63,7 +64,7 @@ def setup():
     # Default undercloud settings
     network_config.update(DEFAULT_UNDERCLOUD_NETWORK_CONFIG)
     # Environment specific settings
-    network_config.update(_local_utils.get_undercloud_env_vars())
+    network_config.update(generic_utils.get_undercloud_env_vars())
 
     # Get keystone session
     keystone_session = openstack_utils.get_overcloud_keystone_session()
