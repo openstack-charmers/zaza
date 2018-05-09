@@ -30,11 +30,11 @@ class VaultTest(unittest.TestCase):
         vault_actions = zaza.model.get_actions(
             lifecycle_utils.get_juju_model(),
             'vault')
-        if 'get-csrs' not in vault_actions:
+        if 'get-csr' not in vault_actions:
             raise unittest.SkipTest('Action not defined')
         action = vault_utils.run_charm_authorize(
             self.vault_creds['root_token'])
-        action = vault_utils.run_get_csrs()
+        action = vault_utils.run_get_csr()
 
         intermediate_csr = action.data['results']['output']
         (cakey, cacert) = zaza.utilities.cert.generate_cert(

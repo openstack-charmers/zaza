@@ -211,11 +211,11 @@ def run_charm_authorize(token):
         action_params={'token': token})
 
 
-def run_get_csrs():
+def run_get_csr():
     return zaza.model.run_action_on_leader(
         utils.get_juju_model(),
         'vault',
-        'get-csrs',
+        'get-csr',
         action_params={})
 
 
