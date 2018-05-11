@@ -5,10 +5,10 @@ import logging
 import sys
 
 from zaza.utilities import (
-    cli_utils,
-    generic_utils,
-    juju_utils,
-    openstack_utils,
+    cli as cli_utils,
+    generic as generic_utils,
+    juju as juju_utils,
+    openstack as openstack_utils,
 )
 
 """Configure network

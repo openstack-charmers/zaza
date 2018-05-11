@@ -6,7 +6,7 @@ import yaml
 
 from zaza import model
 from zaza.charm_lifecycle import utils as lifecycle_utils
-from zaza.utilities import juju_utils
+from zaza.utilities import juju as juju_utils
 
 
 def dict_to_yaml(dict_data):

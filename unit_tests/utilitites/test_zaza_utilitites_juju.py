@@ -1,6 +1,6 @@
 import mock
 import unit_tests.utils as ut_utils
-from zaza.utilities import juju_utils
+from zaza.utilities import juju as juju_utils
 
 
 class TestJujuUtils(ut_utils.BaseTestCase):

@@ -1,6 +1,6 @@
 import mock
 import unit_tests.utils as ut_utils
-from zaza.utilities import generic_utils
+from zaza.utilities import generic as generic_utils
 
 
 class TestGenericUtils(ut_utils.BaseTestCase):

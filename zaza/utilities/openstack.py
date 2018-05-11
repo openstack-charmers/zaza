@@ -27,8 +27,8 @@ from zaza import model
 from zaza.charm_lifecycle import utils as lifecycle_utils
 from zaza.utilities import (
     exceptions,
-    generic_utils,
-    juju_utils,
+    generic as generic_utils,
+    juju as juju_utils,
 )
 
 CHARM_TYPES = {

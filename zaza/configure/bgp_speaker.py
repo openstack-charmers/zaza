@@ -4,8 +4,8 @@ import argparse
 import logging
 import sys
 from zaza.utilities import (
-    cli_utils,
-    openstack_utils,
+    cli as cli_utils,
+    openstack as openstack_utils,
 )
 
 

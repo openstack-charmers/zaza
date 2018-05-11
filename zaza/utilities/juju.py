@@ -8,7 +8,7 @@ from zaza import (
     controller,
 )
 from zaza.charm_lifecycle import utils as lifecycle_utils
-from zaza.utilities import generic_utils
+from zaza.utilities import generic as generic_utils
 
 
 def get_application_status(application=None, unit=None):

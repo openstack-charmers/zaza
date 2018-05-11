@@ -2,7 +2,7 @@
 
 import unittest
 
-from zaza.utilities import generic_utils
+from zaza.utilities import generic as generic_utils
 from zaza.charm_tests.dragent import test
 
 

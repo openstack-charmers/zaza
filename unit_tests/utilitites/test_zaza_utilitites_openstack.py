@@ -1,7 +1,7 @@
 import copy
 import mock
 import unit_tests.utils as ut_utils
-from zaza.utilities import openstack_utils
+from zaza.utilities import openstack as openstack_utils
 
 
 class TestOpenStackUtils(ut_utils.BaseTestCase):
