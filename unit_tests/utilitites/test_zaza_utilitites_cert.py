@@ -16,6 +16,35 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
             self.cryptography.x509.oid.NameOID.COMMON_NAME,
             'unit_test.ci.local',
         )
+        self.cryptography.x509.SubjectAlternativeName.assert_called_with(
+            [
+                self.cryptography.x509.DNSName('unit_test.ci.local'),
+            ]
+        )
+        self.cryptography.x509.BasicConstraints.assert_called_with(
+            ca=False, path_length=None
+        )
+
+    def test_generate_cert_san(self):
+        self.patch_object(cert, 'serialization')
+        self.patch_object(cert, 'rsa')
+        self.patch_object(cert, 'cryptography')
+        cert.generate_cert(
+            'unit_test.ci.local',
+            alternative_names=['unit_test_second.ci.local', '172.16.42.1']
+        )
+        self.assertTrue(self.serialization.NoEncryption.called)
+        self.cryptography.x509.NameAttribute.assert_called_with(
+            self.cryptography.x509.oid.NameOID.COMMON_NAME,
+            'unit_test.ci.local',
+        )
+        self.cryptography.x509.SubjectAlternativeName.assert_called_with(
+            [
+                self.cryptography.x509.DNSName('unit_test.ci.local'),
+                self.cryptography.x509.DNSName('unit_test_second.ci.local'),
+                self.cryptography.x509.IPAddress('172.16.42.1'),
+            ]
+        )
         self.cryptography.x509.BasicConstraints.assert_called_with(
             ca=False, path_length=None
         )
@@ -29,6 +58,11 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         self.cryptography.x509.NameAttribute.assert_called_with(
             self.cryptography.x509.oid.NameOID.COMMON_NAME,
             'unit_test.ci.local',
+        )
+        self.cryptography.x509.SubjectAlternativeName.assert_called_with(
+            [
+                self.cryptography.x509.DNSName('unit_test.ci.local'),
+            ]
         )
         self.cryptography.x509.BasicConstraints.assert_called_with(
             ca=False, path_length=None
@@ -62,6 +96,11 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
             self.cryptography.x509.oid.NameOID.COMMON_NAME,
             'unit_test.ci.local',
         )
+        self.cryptography.x509.SubjectAlternativeName.assert_called_with(
+            [
+                self.cryptography.x509.DNSName('unit_test.ci.local'),
+            ]
+        )
         self.cryptography.x509.BasicConstraints.assert_called_with(
             ca=False, path_length=None
         )
@@ -85,6 +124,11 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
             self.cryptography.x509.oid.NameOID.COMMON_NAME,
             'unit_test.ci.local',
         )
+        self.cryptography.x509.SubjectAlternativeName.assert_called_with(
+            [
+                self.cryptography.x509.DNSName('unit_test.ci.local'),
+            ]
+        )
         self.cryptography.x509.BasicConstraints.assert_called_with(
             ca=False, path_length=None
         )
@@ -98,6 +142,11 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         self.cryptography.x509.NameAttribute.assert_called_with(
             self.cryptography.x509.oid.NameOID.COMMON_NAME,
             'unit_test.ci.local',
+        )
+        self.cryptography.x509.SubjectAlternativeName.assert_called_with(
+            [
+                self.cryptography.x509.DNSName('unit_test.ci.local'),
+            ]
         )
         self.cryptography.x509.BasicConstraints.assert_called_with(
             ca=True, path_length=None

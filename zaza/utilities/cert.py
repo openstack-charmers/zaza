@@ -19,9 +19,11 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 import cryptography.hazmat.primitives.hashes as hashes
 import cryptography.hazmat.primitives.serialization as serialization
 import datetime
+import ipaddress
 
 
 def generate_cert(common_name,
+                  alternative_names=None,
                   password=None,
                   issuer_name=None,
                   signing_key=None,
@@ -38,6 +40,8 @@ def generate_cert(common_name,
 
     :param common_name: Common Name to use in generated certificate
     :type common_name: str
+    :param alternative_names: List of names to add as SubjectAlternativeName
+    :type alternative_names: Optional[list(str)]
     :param password: Password to protect encrypted private key with
     :type password: Optional[str]
     :param issuer_name: Issuer name, must match provided_private_key issuer
@@ -92,9 +96,20 @@ def generate_cert(common_name,
     )
     builder = builder.serial_number(cryptography.x509.random_serial_number())
     builder = builder.public_key(public_key)
+
+    san_list = [cryptography.x509.DNSName(common_name)]
+    if alternative_names is not None:
+        for name in alternative_names:
+            try:
+                addr = ipaddress.ip_address(name)
+            except ValueError:
+                san_list.append(cryptography.x509.DNSName(name))
+            else:
+                san_list.append(cryptography.x509.IPAddress(addr))
+
     builder = builder.add_extension(
         cryptography.x509.SubjectAlternativeName(
-            [cryptography.x509.DNSName(common_name)],
+            san_list,
         ),
         critical=False,
     )
