@@ -3,8 +3,10 @@
 import argparse
 import logging
 import sys
-from zaza.utilities import _local_utils
-from zaza.utilities import openstack_utils
+from zaza.utilities import (
+    cli as cli_utils,
+    openstack as openstack_utils,
+)
 
 
 EXT_NET = "ext_net"
@@ -74,15 +76,15 @@ def run_from_cli():
     :rtype: None
     """
 
-    _local_utils.setup_logging()
+    cli_utils.setup_logging()
     parser = argparse.ArgumentParser()
     parser.add_argument("--peer-application", "-a",
                         help="BGP peer application name. Default: quagga",
                         default="quagga")
 
     options = parser.parse_args()
-    peer_application_name = _local_utils.parse_arg(options,
-                                                   "peer_application")
+    peer_application_name = cli_utils.parse_arg(options,
+                                                "peer_application")
 
     setup_bgp_speaker(peer_application_name)
 

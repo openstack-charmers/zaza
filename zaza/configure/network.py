@@ -4,8 +4,12 @@ import argparse
 import logging
 import sys
 
-from zaza.utilities import _local_utils
-from zaza.utilities import openstack_utils
+from zaza.utilities import (
+    cli as cli_utils,
+    generic as generic_utils,
+    juju as juju_utils,
+    openstack as openstack_utils,
+)
 
 """Configure network
 
@@ -34,7 +38,7 @@ The undercloud network configuration settings are substrate specific to the
 environment where the tests are being executed. They primarily focus on the
 provider network settings. These settings may be overridden by environment
 variables. See the doc string documentation for
-zaza.utilities._local_utils.get_overcloud_env_vars for the environment
+zaza.utilities.generic_utils.get_undercloud_env_vars for the environment
 variables required to be exported and available to zaza. Here is an example of
 undercloud settings:
 EXAMPLE_DEFAULT_UNDERCLOUD_NETWORK_CONFIG = {
@@ -60,7 +64,7 @@ As a python module:
     network_config.update(EXAMPLE_DEFAULT_UNDERCLOUD_NETWORK_CONFIG)
     # Environment specific settings
     network_config.update(
-        zaza.utilities._local_utils.get_undercloud_env_vars())
+        zaza.utilities.generic_utils.get_undercloud_env_vars())
 
     # Configure the SDN network
     zaza.configure.network.setup_sdn(network_config)
@@ -222,7 +226,7 @@ def run_from_cli(**kwargs):
     :rtype: None
     """
 
-    _local_utils.setup_logging()
+    cli_utils.setup_logging()
     parser = argparse.ArgumentParser()
     parser.add_argument("net_topology",
                         help="network topology type, default is GRE",
@@ -237,18 +241,18 @@ def run_from_cli(**kwargs):
     # Handle CLI options
     options = parser.parse_args()
     net_topology = (kwargs.get('net_toplogoy') or
-                    _local_utils.parse_arg(options, "net_topology"))
+                    cli_utils.parse_arg(options, "net_topology"))
     net_topology_file = (kwargs.get('net_topology_file') or
-                         _local_utils.parse_arg(options, "net_topology_file"))
+                         cli_utils.parse_arg(options, "net_topology_file"))
     ignore_env_vars = (kwargs.get('ignore_env_vars') or
-                       _local_utils.parse_arg(options, "ignore_env_vars"))
+                       cli_utils.parse_arg(options, "ignore_env_vars"))
 
     logging.info("Setting up %s network" % (net_topology))
-    network_config = _local_utils.get_network_config(
+    network_config = generic_utils.get_network_config(
         net_topology, ignore_env_vars, net_topology_file)
 
     # Handle network for Openstack-on-Openstack scenarios
-    if _local_utils.get_provider_type() == "openstack":
+    if juju_utils.get_provider_type() == "openstack":
         setup_gateway_ext_port(network_config)
 
     setup_sdn(network_config)

@@ -8,8 +8,9 @@ import tenacity
 from zaza import model
 from zaza.charm_lifecycle import utils as lifecycle_utils
 from zaza.utilities import (
-    _local_utils,
-    openstack_utils,
+    cli as cli_utils,
+    juju as juju_utils,
+    openstack as openstack_utils,
 )
 
 
@@ -52,7 +53,7 @@ def test_bgp_routes(peer_application_name="quagga", keystone_session=None):
         logging.debug("Checking for {} on BGP peer {}"
                       .format(cidr, peer_unit))
         # Run show ip route bgp on BGP peer
-        routes = _local_utils.remote_run(
+        routes = juju_utils.remote_run(
             peer_unit, remote_cmd='vtysh -c "show ip route bgp"')
         logging.debug(routes)
         assert cidr in routes, (
@@ -73,15 +74,15 @@ def run_from_cli():
     :rtype: None
     """
 
-    _local_utils.setup_logging()
+    cli_utils.setup_logging()
     parser = argparse.ArgumentParser()
     parser.add_argument("--peer-application", "-a",
                         help="BGP Peer application name. Default: quagga",
                         default="quagga")
     options = parser.parse_args()
 
-    peer_application_name = _local_utils.parse_arg(options,
-                                                   "peer_application")
+    peer_application_name = cli_utils.parse_arg(options,
+                                                "peer_application")
 
     test_bgp_routes(peer_application_name)
 

@@ -10,6 +10,8 @@ from juju import loop
 from juju.errors import JujuError
 from juju.model import Model
 
+from zaza import sync_wrapper
+
 
 async def deployed(filter=None):
     # Create a Model instance. We need to connect our Model to a Juju api
@@ -44,35 +46,6 @@ def get_unit_from_name(unit_name, model):
     else:
         raise Exception
     return unit
-
-
-def run(*steps):
-    """Run the given steps in an asyncio loop
-
-    :returns: The result of the asyncio.Task
-    :rtype: Any
-    """
-    if not steps:
-        return
-    loop = asyncio.get_event_loop()
-
-    for step in steps:
-        task = loop.create_task(step)
-        loop.run_until_complete(asyncio.wait([task], loop=loop))
-    return task.result()
-
-
-def sync_wrapper(f):
-    """Convert the given async function into a sync function
-
-    :returns: The de-async'd function
-    :rtype: function
-    """
-    def _wrapper(*args, **kwargs):
-        async def _run_it():
-            return await f(*args, **kwargs)
-        return run(_run_it())
-    return _wrapper
 
 
 @asynccontextmanager
