@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import base64
 import hvac
 import requests
 import tempfile
@@ -208,3 +209,23 @@ def run_charm_authorize(token):
         'vault',
         'authorize-charm',
         action_params={'token': token})
+
+
+def run_get_csr():
+    return zaza.model.run_action_on_leader(
+        utils.get_juju_model(),
+        'vault',
+        'get-csr',
+        action_params={})
+
+
+def run_upload_signed_csr(pem, root_ca, allowed_domains):
+    return zaza.model.run_action_on_leader(
+        utils.get_juju_model(),
+        'vault',
+        'upload-signed-csr',
+        action_params={
+            'pem': base64.b64encode(pem).decode(),
+            'root-ca': base64.b64encode(root_ca).decode(),
+            'allowed-domains=': allowed_domains,
+            'ttl': '24h'})
