@@ -155,3 +155,46 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         # Fatal failure
         with self.assertRaises(Exception):
             juju_utils.remote_run(self.unit, _cmd, fatal=True)
+
+    def test_get_unit_names(self):
+        self.patch('zaza.model.get_first_unit_name', new_callable=mock.Mock(),
+                   name='_get_first_unit_name')
+        juju_utils._get_unit_names(['aunit/0', 'otherunit/0'])
+        self.assertFalse(self._get_first_unit_name.called)
+
+    def test_get_unit_names_called_with_application_name(self):
+        self.patch_object(juju_utils, 'model')
+        juju_utils._get_unit_names(['aunit', 'otherunit/0'])
+        self.model.get_first_unit_name.assert_called()
+
+    def test_get_relation_from_unit(self):
+        self.patch_object(juju_utils, 'lifecycle_utils')
+        self.patch_object(juju_utils, '_get_unit_names')
+        self.patch_object(juju_utils, 'yaml')
+        self.patch_object(juju_utils, 'model')
+        self._get_unit_names.return_value = ['aunit/0', 'otherunit/0']
+        data = {'foo': 'bar'}
+        self.model.get_relation_id.return_value = 42
+        self.model.run_on_unit.return_value = {'Code': 0, 'Stdout': str(data)}
+        juju_utils.get_relation_from_unit('aunit/0', 'otherunit/0',
+                                          'arelation')
+        self.model.run_on_unit.assert_called_with(
+            self.lifecycle_utils.get_juju_model(), 'aunit/0',
+            'relation-get --format=yaml -r "42" - "otherunit/0"')
+        self.yaml.load.assert_called_with(str(data))
+
+    def test_get_relation_from_unit_fails(self):
+        self.patch_object(juju_utils, 'lifecycle_utils')
+        self.patch_object(juju_utils, '_get_unit_names')
+        self.patch_object(juju_utils, 'yaml')
+        self.patch_object(juju_utils, 'model')
+        self._get_unit_names.return_value = ['aunit/0', 'otherunit/0']
+        self.model.get_relation_id.return_value = 42
+        self.model.run_on_unit.return_value = {'Code': 1, 'Stderr': 'ERROR'}
+        with self.assertRaises(Exception):
+            juju_utils.get_relation_from_unit('aunit/0', 'otherunit/0',
+                                              'arelation')
+        self.model.run_on_unit.assert_called_with(
+            self.lifecycle_utils.get_juju_model(), 'aunit/0',
+            'relation-get --format=yaml -r "42" - "otherunit/0"')
+        self.assertFalse(self.yaml.load.called)

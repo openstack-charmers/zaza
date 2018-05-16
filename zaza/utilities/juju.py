@@ -1,7 +1,21 @@
 #!/usr/bin/env python3
 
+# Copyright 2018 Canonical Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import os
 from pathlib import Path
+import yaml
 
 from zaza import (
     model,
@@ -169,3 +183,61 @@ def remote_run(unit, remote_cmd, timeout=None, fatal=None):
                 raise Exception("Error running remote command: {}"
                                 .format(result.get("Stderr")))
             return result.get("Stderr")
+
+
+def _get_unit_names(names):
+    """
+    Helper function that resolves application names to first unit name of
+    said application.  Any already resolved unit names are returned as-is.
+
+    :param names: List of units/applications to translate
+    :type names: list(str)
+    :returns: List of units
+    :rtype: list(str)
+    """
+    result = []
+    for name in names:
+        if '/' in name:
+            result.append(name)
+        else:
+            result.append(
+                model.get_first_unit_name(lifecycle_utils.get_juju_model(),
+                                          name))
+    return result
+
+
+def get_relation_from_unit(entity, remote_entity, remote_interface_name):
+    """
+    Get relation data for relation with `remote_interface_name` between
+    `entity` and `remote_entity` from the perspective of `entity`.
+
+    `entity` and `remote_entity` may refer to either a application or a
+    specific unit. If application name is given first unit is found in model.
+
+    :param entity: Application or unit to get relation data from
+    :type entity: str
+    :param remote_entity: Application or Unit in the other end of the relation
+                          we want to query
+    :type remote_entity: str
+    :param remote_interface_name: Name of interface to query on remote end of
+                                  relation
+    :type remote_interface_name: str
+    :returns: dict with relation data
+    :rtype: dict
+    """
+    application = entity.split('/')[0]
+    remote_application = remote_entity.split('/')[0]
+    rid = model.get_relation_id(lifecycle_utils.get_juju_model(), application,
+                                remote_application,
+                                remote_interface_name=remote_interface_name)
+    (unit, remote_unit) = _get_unit_names([entity, remote_entity])
+    result = model.run_on_unit(
+        lifecycle_utils.get_juju_model(), unit,
+        'relation-get --format=yaml -r "{}" - "{}"'
+        .format(rid, remote_unit)
+    )
+    if result and int(result.get('Code')) == 0:
+        return yaml.load(result.get('Stdout'))
+    else:
+        raise Exception('Error running remote command: "{}"'
+                        .format(result.get("Stderr")))

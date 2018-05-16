@@ -72,8 +72,18 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit1.is_leader_from_status.side_effect = _is_leader(False)
         self.unit2.is_leader_from_status.side_effect = _is_leader(True)
         self.units = [self.unit1, self.unit2]
+        self.relation1 = mock.MagicMock()
+        self.relation1.id = 42
+        self.relation1.matches.side_effect = \
+            lambda x: True if x == 'app' else False
+        self.relation2 = mock.MagicMock()
+        self.relation2.id = 51
+        self.relation2.matches.side_effect = \
+            lambda x: True if x == 'app:interface' else False
+        self.relations = [self.relation1, self.relation2]
         _units = mock.MagicMock()
         _units.units = self.units
+        _units.relations = self.relations
         self.mymodel = mock.MagicMock()
         self.mymodel.applications = {
             'app': _units
@@ -178,6 +188,17 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertEqual(model.run_on_unit('app/2', 'modelname', cmd),
                          expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
+
+    def test_get_relation_id(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.get_relation_id('testmodel', 'app', 'app'), 42)
+
+    def test_get_relation_id_interface(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.get_relation_id('testmodel', 'app', 'app',
+                                               'interface'), 51)
 
     def test_run_action(self):
         self.patch_object(model, 'Model')

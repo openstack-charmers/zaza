@@ -6,6 +6,7 @@ import sys
 from zaza.utilities import (
     cli as cli_utils,
     openstack as openstack_utils,
+    juju as juju_utils,
 )
 
 
@@ -24,6 +25,19 @@ def setup_bgp_speaker(peer_application_name, keystone_session=None):
     :returns: None
     :rtype: None
     """
+    # Get ASNs from deployment
+    dr_relation = juju_utils.get_relation_from_unit(
+        'neutron-dynamic-routing',
+        peer_application_name,
+        'bgpclient')
+    peer_asn = dr_relation.get('asn')
+    logging.debug('peer ASn: "{}"'.format(peer_asn))
+    peer_relation = juju_utils.get_relation_from_unit(
+        peer_application_name,
+        'neutron-dynamic-routing',
+        'bgp-speaker')
+    dr_asn = peer_relation.get('asn')
+    logging.debug('our ASn: "{}"'.format(dr_asn))
 
     # If a session has not been provided, acquire one
     if not keystone_session:
@@ -36,7 +50,7 @@ def setup_bgp_speaker(peer_application_name, keystone_session=None):
     # Create BGP speaker
     logging.info("Setting up BGP speaker")
     bgp_speaker = openstack_utils.create_bgp_speaker(
-        neutron_client, local_as=12345)
+        neutron_client, local_as=dr_asn)
 
     # Add networks to bgp speaker
     logging.info("Advertising BGP routes")
@@ -53,7 +67,7 @@ def setup_bgp_speaker(peer_application_name, keystone_session=None):
     logging.info("Setting up BGP peer")
     bgp_peer = openstack_utils.create_bgp_peer(neutron_client,
                                                peer_application_name,
-                                               remote_as=10000)
+                                               remote_as=peer_asn)
     # Add peer to bgp speaker
     logging.info("Adding BGP peer to BGP speaker")
     openstack_utils.add_peer_to_bgp_speaker(
