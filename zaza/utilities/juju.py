@@ -190,9 +190,10 @@ def _get_unit_names(names):
     Helper function that resolves application names to first unit name of
     said application.  Any already resolved unit names are returned as-is.
 
-    :param units: List of units/applications to translate
+    :param names: List of units/applications to translate
+    :type names: list(str)
     :returns: List of units
-    :rtype: list
+    :rtype: list(str)
     """
     result = []
     for name in names:
