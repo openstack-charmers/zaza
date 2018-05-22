@@ -75,13 +75,20 @@ def parse_args(args):
     parser.add_argument('-b', '--bundle',
                         help='Override the bundle to be run',
                         required=False)
-    parser.set_defaults(keep_model=False, smoke=False)
+    parser.add_argument('--log', dest='loglevel',
+                        help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
+    parser.set_defaults(keep_model=False, smoke=False, loglevel='INFO')
     return parser.parse_args(args)
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
     args = parse_args(sys.argv[1:])
+
+    level = getattr(logging, args.loglevel.upper(), None)
+    if not isinstance(level, int):
+        raise ValueError('Invalid log level: "{}"'.format(args.loglevel))
+    logging.basicConfig(level=level)
+
     func_test_runner(
         keep_model=args.keep_model,
         smoke=args.smoke,
