@@ -870,7 +870,6 @@ async def async_block_until_unit_wl_status(model_name, unit_name, status,
     """
     async with run_in_model(model_name) as model:
         unit = get_unit_from_name(unit_name, model)
-        print(unit.workload_status)
         await model.block_until(
             lambda: unit.workload_status == status,
             timeout=timeout
