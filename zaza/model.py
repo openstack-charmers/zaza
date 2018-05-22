@@ -616,9 +616,10 @@ async def async_block_until_service_status(model_name, unit_name, services,
                 unit_name,
                 "pidof -x {}".format(service),
                 timeout=timeout)
-            if target_status == "running" and len(out['Stdout'].strip()) == 0:
+            response_size = len(out['Stdout'].strip())
+            if target_status == "running" and response_size == 0:
                 return False
-            elif target_status == "stopped" and len(out['Stdout'].strip()) > 0:
+            elif target_status == "stopped" and response_size > 0:
                 return False
         return True
     async with run_in_model(model_name):
