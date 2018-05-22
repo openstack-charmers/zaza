@@ -5,6 +5,7 @@ import os
 import subprocess
 import tempfile
 import yaml
+from oslo_config import cfg
 
 from juju import loop
 from juju.errors import JujuError
@@ -181,6 +182,54 @@ async def async_run_on_unit(model_name, unit_name, command, timeout=None):
             return {}
 
 run_on_unit = sync_wrapper(async_run_on_unit)
+
+
+async def async_get_unit_time(model_name, unit_name, timeout=None):
+    """ Get the current time (in seconds since Epoch) on the given unit
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param unit_name: Name of unit to run action on
+    :type unit_name: str
+    :returns: time in seconds since Epoch on unit
+    :rtype: int
+    """
+    out = await async_run_on_unit(
+        model_name,
+        unit_name,
+        "date +'%s'",
+        timeout=timeout)
+    return int(out['Stdout'])
+
+get_unit_time = sync_wrapper(async_get_unit_time)
+
+
+async def async_get_unit_service_start_time(model_name, unit_name, service,
+                                            timeout=None):
+    """Return the time (in seconds since Epoch) that the given service was
+       started on the given unit. If the service is not running return 0
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param unit_name: Name of unit to run action on
+    :type unit_name: str
+    :param service: Name of service to check is running
+    :type service: str
+    :param timeout: Time to wait for status to be achieved
+    :type timeout: int
+    :returns: time in seconds since Epoch on unit
+    :rtype: int
+    :raises: ServiceNotRunning
+    """
+    cmd = "stat -c %Y /proc/$(pidof -x {} | cut -f1 -d ' ')".format(service)
+    out = await async_run_on_unit(model_name, unit_name, cmd, timeout=timeout)
+    out = out['Stdout'].strip()
+    if out:
+        return int(out)
+    else:
+        raise ServiceNotRunning(service)
+
+get_unit_service_start_time = sync_wrapper(async_get_unit_service_start_time)
 
 
 async def async_get_application(model_name, application_name):
@@ -370,13 +419,21 @@ run_action_on_leader = sync_wrapper(async_run_action_on_leader)
 
 class UnitError(Exception):
     """Exception raised for units in error state
-
     """
 
     def __init__(self, units):
         message = "Units {} in error state".format(
             ','.join([u.entity_id for u in units]))
         super(UnitError, self).__init__(message)
+
+
+class ServiceNotRunning(Exception):
+    """Exception raised when service not running
+    """
+
+    def __init__(self, service):
+        message = "Service {} not running".format(service)
+        super(ServiceNotRunning, self).__init__(message)
 
 
 def units_with_wl_status_state(model, state):
@@ -475,7 +532,7 @@ async def async_wait_for_application_states(model_name, states=None,
 
     :param model_name: Name of model to query.
     :type model_name: str
-    :param states: Staes to look for
+    :param states: States to look for
     :type states: dict
     :param timeout: Time to wait for status to be achieved
     :type timeout: int
@@ -519,6 +576,55 @@ async def async_wait_for_application_states(model_name, states=None,
                     timeout=timeout)
 
 wait_for_application_states = sync_wrapper(async_wait_for_application_states)
+
+
+async def async_block_until_all_units_idle(model_name, timeout=2700):
+    """Block until all units in the given model are idle
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param timeout: Time to wait for status to be achieved
+    :type timeout: int
+    """
+    async with run_in_model(model_name) as model:
+        await model.block_until(
+            lambda: model.all_units_idle(), timeout=timeout)
+
+block_until_all_units_idle = sync_wrapper(async_block_until_all_units_idle)
+
+
+async def async_block_until_service_status(model_name, unit_name, services,
+                                           target_status, timeout=2700):
+    """Block until all services on the unit are in the desired state (stopped
+       or running)
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param unit_name: Name of unit to run action on
+    :type unit_name: str
+    :param services: List of services to check
+    :type services: []
+    :param target_status: State services should be in (stopped or running)
+    :type target_status: str
+    :param timeout: Time to wait for status to be achieved
+    :type timeout: int
+    """
+    async def _check_service():
+        for service in services:
+            out = await async_run_on_unit(
+                model_name,
+                unit_name,
+                "pidof -x {}".format(service),
+                timeout=timeout)
+            if target_status == "running" and len(out['Stdout'].strip()) == 0:
+                return False
+            elif target_status == "stopped" and len(out['Stdout'].strip()) > 0:
+                return False
+        return True
+    async with run_in_model(model_name):
+        await async_block_until(_check_service, timeout=timeout)
+
+block_until_service_status = sync_wrapper(async_block_until_service_status)
 
 
 def get_actions(model_name, application_name):
@@ -652,6 +758,125 @@ async def async_block_until_file_has_contents(model_name, application_name,
 
 block_until_file_has_contents = sync_wrapper(
     async_block_until_file_has_contents)
+
+
+async def async_block_until_oslo_config_entries_match(model_name,
+                                                      application_name,
+                                                      remote_file,
+                                                      expected_contents,
+                                                      timeout=2700):
+    """Block until the expected_contents are in the given file on all units of
+       the application
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    :param remote_file: Remote path of file to transfer
+    :type remote_file: str
+    :param expected_contents: The key values pairs in their corresponding
+                              sections to be looked for in the remote_file
+    :type expected_contents: {}
+    :param timeout: Time to wait for contents to appear in file
+    :type timeout: float
+
+    For example to check for,
+
+        [DEFAULT]
+        debug = False
+
+        [glance_store]
+        filesystem_store_datadir = /var/lib/glance/images/
+        default_store = file
+
+    use:
+
+        expected_contents = {
+            'DEFAULT': {
+                'debug': ['False']},
+            'glance_store': {
+                'filesystem_store_datadir': ['/var/lib/glance/images/'],
+                 'default_store': ['file']}}
+    """
+    def f(x):
+        # Writing out the file that was just read is suboptimal
+        with tempfile.NamedTemporaryFile(mode='w', delete=True) as fp:
+            fp.write(x)
+            fp.seek(0)
+            sections = {}
+            parser = cfg.ConfigParser(fp.name, sections)
+            parser.parse()
+            for section, entries in expected_contents.items():
+                for key, value in entries.items():
+                    if sections.get(section, {}).get(key) != value:
+                        return False
+        return True
+    return await async_block_until_file_ready(model_name, application_name,
+                                              remote_file, f, timeout)
+
+
+block_until_oslo_config_entries_match = sync_wrapper(
+    async_block_until_oslo_config_entries_match)
+
+
+async def async_block_until_services_restarted(model_name, application_name,
+                                               mtime, services, timeout=2700):
+    """Block until the given services have a start time later then mtime
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    :param mtime: Time in seconds since Epoch to check against
+    :type mtime: int
+    :param services: Listr of services to check restart time of
+    :type services: []
+    :param timeout: Time to wait for services to be restarted
+    :type timeout: float
+    """
+    async def _check_service():
+        units = model.applications[application_name].units
+        for unit in units:
+            for service in services:
+                try:
+                    svc_mtime = await async_get_unit_service_start_time(
+                        model_name,
+                        unit.entity_id,
+                        service)
+                except ServiceNotRunning:
+                    return False
+                if svc_mtime < mtime:
+                    return False
+        return True
+    async with run_in_model(model_name) as model:
+        await async_block_until(_check_service, timeout=timeout)
+
+
+block_until_services_restarted = sync_wrapper(
+    async_block_until_services_restarted)
+
+
+async def async_block_until_unit_wl_status(model_name, unit_name, status,
+                                           timeout=2700):
+    """Block until the given unit has the desired workload status
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param unit_name: Name of unit to run action on
+    :type unit_name: str
+    :param status: Status to wait for (active, maintenance etc)
+    :type status: str
+    :param timeout: Time to wait for unit to achieved desired status
+    :type timeout: float
+    """
+    async with run_in_model(model_name) as model:
+        unit = get_unit_from_name(unit_name, model)
+        print(unit.workload_status)
+        await model.block_until(
+            lambda: unit.workload_status == status,
+            timeout=timeout
+        )
+
+block_until_unit_wl_status = sync_wrapper(
+    async_block_until_unit_wl_status)
 
 
 async def async_get_relation_id(model_name, application_name,
