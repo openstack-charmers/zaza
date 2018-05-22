@@ -441,6 +441,322 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit1.scp_from.assert_called_once_with(
             '/tmp/src/myfile.txt', mock.ANY)
 
+    def test_async_block_until_all_units_idle(self):
+
+        async def _block_until(f, timeout=None):
+            if not f():
+                raise asyncio.futures.TimeoutError
+
+        def _all_units_idle():
+            return True
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.Model_mock.all_units_idle.side_effect = _all_units_idle
+        self.Model_mock.block_until.side_effect = _block_until
+        # Check exception is not raised:
+        model.block_until_all_units_idle('modelname')
+
+    def test_async_block_until_all_units_idle_false(self):
+
+        async def _block_until(f, timeout=None):
+            if not f():
+                raise asyncio.futures.TimeoutError
+
+        def _all_units_idle():
+            return False
+        self.Model_mock.all_units_idle.side_effect = _all_units_idle
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.Model_mock.block_until.side_effect = _block_until
+        # Confirm exception is raised:
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.block_until_all_units_idle('modelname')
+
+    def block_until_service_status_base(self, rou_return):
+
+        async def _block_until(f, timeout=None):
+            rc = await f()
+            if not rc:
+                raise asyncio.futures.TimeoutError
+
+        async def _run_on_unit(model_name, unit_name, cmd, timeout=None):
+            return rou_return
+        self.patch_object(model, 'async_run_on_unit')
+        self.async_run_on_unit.side_effect = _run_on_unit
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
+
+    def test_block_until_service_status_check_running(self):
+        self.block_until_service_status_base({'Stdout': '152 409 54'})
+        model.block_until_service_status(
+            'modelname',
+            'app/2',
+            ['test_svc'],
+            'running')
+
+    def test_block_until_service_status_check_running_fail(self):
+        self.block_until_service_status_base({'Stdout': ''})
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.block_until_service_status(
+                'modelname',
+                'app/2',
+                ['test_svc'],
+                'running')
+
+    def test_block_until_service_status_check_stopped(self):
+        self.block_until_service_status_base({'Stdout': ''})
+        model.block_until_service_status(
+            'modelname',
+            'app/2',
+            ['test_svc'],
+            'stopped')
+
+    def test_block_until_service_status_check_stopped_fail(self):
+        self.block_until_service_status_base({'Stdout': '152 409 54'})
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.block_until_service_status(
+                'modelname',
+                'app/2',
+                ['test_svc'],
+                'stopped')
+
+    def test_get_unit_time(self):
+        async def _run_on_unit(model_name, unit_name, cmd, timeout=None):
+            return {'Stdout': '1524409654'}
+        self.patch_object(model, 'async_run_on_unit')
+        self.async_run_on_unit.side_effect = _run_on_unit
+        self.assertEqual(
+            model.get_unit_time('mymodel', 'app/2'),
+            1524409654)
+
+    def test_get_unit_service_start_time(self):
+        async def _run_on_unit(model_name, unit_name, cmd, timeout=None):
+            return {'Stdout': '1524409654'}
+        self.patch_object(model, 'async_run_on_unit')
+        self.async_run_on_unit.side_effect = _run_on_unit
+        self.assertEqual(
+            model.get_unit_service_start_time('mymodel', 'app/2', 'mysvc1'),
+            1524409654)
+
+    def test_get_unit_service_start_time_not_running(self):
+        async def _run_on_unit(model_name, unit_name, cmd, timeout=None):
+            return {'Stdout': ''}
+        self.patch_object(model, 'async_run_on_unit')
+        self.async_run_on_unit.side_effect = _run_on_unit
+        with self.assertRaises(model.ServiceNotRunning):
+            model.get_unit_service_start_time('mymodel', 'app/2', 'mysvc1')
+
+    def block_until_oslo_config_entries_match_base(self, file_contents,
+                                                   expected_contents):
+        async def _scp_from(remote_file, tmpdir):
+            with open('{}/myfile.txt'.format(tmpdir), 'w') as f:
+                f.write(file_contents)
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.unit1.scp_from.side_effect = _scp_from
+        self.unit2.scp_from.side_effect = _scp_from
+        model.block_until_oslo_config_entries_match(
+            'modelname',
+            'app',
+            '/tmp/src/myfile.txt',
+            expected_contents,
+            timeout=0.1)
+
+    def test_block_until_oslo_config_entries_match(self):
+        file_contents = """
+[DEFAULT]
+verbose = False
+use_syslog = False
+debug = False
+workers = 4
+bind_host = 0.0.0.0
+
+[glance_store]
+filesystem_store_datadir = /var/lib/glance/images/
+stores = glance.store.filesystem.Store,glance.store.http.Store
+default_store = file
+
+[image_format]
+disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
+"""
+        expected_contents = {
+            'DEFAULT': {
+                'debug': ['False']},
+            'glance_store': {
+                'filesystem_store_datadir': ['/var/lib/glance/images/'],
+                'default_store': ['file']}}
+        self.block_until_oslo_config_entries_match_base(
+            file_contents,
+            expected_contents)
+        self.unit1.scp_from.assert_called_once_with(
+            '/tmp/src/myfile.txt', mock.ANY)
+        self.unit2.scp_from.assert_called_once_with(
+            '/tmp/src/myfile.txt', mock.ANY)
+
+    def test_block_until_oslo_config_entries_match_fail(self):
+        file_contents = """
+[DEFAULT]
+verbose = False
+use_syslog = False
+debug = True
+workers = 4
+bind_host = 0.0.0.0
+
+[glance_store]
+filesystem_store_datadir = /var/lib/glance/images/
+stores = glance.store.filesystem.Store,glance.store.http.Store
+default_store = file
+
+[image_format]
+disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
+"""
+        expected_contents = {
+            'DEFAULT': {
+                'debug': ['False']},
+            'glance_store': {
+                'filesystem_store_datadir': ['/var/lib/glance/images/'],
+                'default_store': ['file']}}
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            self.block_until_oslo_config_entries_match_base(
+                file_contents,
+                expected_contents)
+        self.unit1.scp_from.assert_called_once_with(
+            '/tmp/src/myfile.txt', mock.ANY)
+
+    def test_block_until_oslo_config_entries_match_missing_entry(self):
+        file_contents = """
+[DEFAULT]
+verbose = False
+use_syslog = False
+workers = 4
+bind_host = 0.0.0.0
+
+[glance_store]
+filesystem_store_datadir = /var/lib/glance/images/
+stores = glance.store.filesystem.Store,glance.store.http.Store
+default_store = file
+
+[image_format]
+disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
+"""
+        expected_contents = {
+            'DEFAULT': {
+                'debug': ['False']},
+            'glance_store': {
+                'filesystem_store_datadir': ['/var/lib/glance/images/'],
+                'default_store': ['file']}}
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            self.block_until_oslo_config_entries_match_base(
+                file_contents,
+                expected_contents)
+        self.unit1.scp_from.assert_called_once_with(
+            '/tmp/src/myfile.txt', mock.ANY)
+
+    def test_block_until_oslo_config_entries_match_missing_section(self):
+        file_contents = """
+[DEFAULT]
+verbose = False
+use_syslog = False
+workers = 4
+bind_host = 0.0.0.0
+
+[image_format]
+disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
+"""
+        expected_contents = {
+            'DEFAULT': {
+                'debug': ['False']},
+            'glance_store': {
+                'filesystem_store_datadir': ['/var/lib/glance/images/'],
+                'default_store': ['file']}}
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            self.block_until_oslo_config_entries_match_base(
+                file_contents,
+                expected_contents)
+        self.unit1.scp_from.assert_called_once_with(
+            '/tmp/src/myfile.txt', mock.ANY)
+
+    def block_until_services_restarted_base(self, gu_return=None,
+                                            gu_raise_exception=False):
+        async def _block_until(f, timeout=None):
+            rc = await f()
+            if not rc:
+                raise asyncio.futures.TimeoutError
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
+
+        async def _async_get_unit_service_start_time(model_name, unit, svc):
+            if gu_raise_exception:
+                raise model.ServiceNotRunning('sv1')
+            else:
+                return gu_return
+        self.patch_object(model, 'async_get_unit_service_start_time')
+        self.async_get_unit_service_start_time.side_effect = \
+            _async_get_unit_service_start_time
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+
+    def test_block_until_services_restarted(self):
+        self.block_until_services_restarted_base(gu_return=10)
+        model.block_until_services_restarted(
+            'modelname',
+            'app',
+            8,
+            ['svc1', 'svc2'])
+
+    def test_block_until_services_restarted_fail(self):
+        self.block_until_services_restarted_base(gu_return=10)
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.block_until_services_restarted(
+                'modelname',
+                'app',
+                12,
+                ['svc1', 'svc2'])
+
+    def test_block_until_services_restarted_not_running(self):
+        self.block_until_services_restarted_base(gu_raise_exception=True)
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.block_until_services_restarted(
+                'modelname',
+                'app',
+                12,
+                ['svc1', 'svc2'])
+
+    def test_block_until_unit_wl_status(self):
+        async def _block_until(f, timeout=None):
+            if not f():
+                raise asyncio.futures.TimeoutError
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.Model_mock.block_until.side_effect = _block_until
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = mock.MagicMock(
+            workload_status='active')
+        model.block_until_unit_wl_status(
+            'modelname',
+            'app/2',
+            'active',
+            timeout=0.1)
+
+    def test_block_until_unit_wl_status_fail(self):
+        async def _block_until(f, timeout=None):
+            if not f():
+                raise asyncio.futures.TimeoutError
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.Model_mock.block_until.side_effect = _block_until
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = mock.MagicMock(
+            workload_status='maintenance')
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.block_until_unit_wl_status(
+                'modelname',
+                'app/2',
+                'active',
+                timeout=0.1)
+
 
 class AsyncModelTests(aiounittest.AsyncTestCase):
 
