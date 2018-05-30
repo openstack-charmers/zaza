@@ -62,21 +62,6 @@ if sys.argv[-1] == 'tag':
 
 
 setup(
-    name='zaza',
-    version=version,
-    description='Provides test automation for Openstack Charms',
-    classifiers=[
-        "Development Status :: 2 - Pre-Alpha",
-        "Intended Audience :: Developers",
-        "Topic :: System",
-        "Topic :: System :: Installation/Setup",
-        "Topic :: System :: Software Distribution",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
-        "License :: OSI Approved :: Apache Software License",
-    ],
     entry_points={
         'console_scripts': [
             'functest-run-suite = zaza.charm_lifecycle.func_test_runner:main',
@@ -89,9 +74,6 @@ setup(
             'tempest-config = zaza.tempest_config:main',
         ]
     },
-    url='https://github.com/openstack-charmers/zaza',
-    author='Chris MacNaughton',
-    author_email='chris.macnaughton@canonical.com',
     license='Apache-2.0: http://www.apache.org/licenses/LICENSE-2.0',
     packages=find_packages(exclude=["unit_tests"]),
     zip_safe=False,
