@@ -1,10 +1,10 @@
-#!/usr/bin/env python
-
 from .os_versions import (
     OPENSTACK_CODENAMES,
     SWIFT_CODENAMES,
     PACKAGE_CODENAMES,
 )
+
+from glanceclient import Client as GlanceClient
 
 from keystoneclient.v3 import client as keystoneclient_v3
 from keystoneauth1 import session
@@ -16,12 +16,14 @@ from novaclient import client as novaclient_client
 from neutronclient.v2_0 import client as neutronclient
 from neutronclient.common import exceptions as neutronexceptions
 
+import juju_wait
 import logging
 import os
 import re
 import six
 import sys
-import juju_wait
+import tenacity
+import urllib
 
 from zaza import model
 from zaza.charm_lifecycle import utils as lifecycle_utils
@@ -30,6 +32,9 @@ from zaza.utilities import (
     generic as generic_utils,
     juju as juju_utils,
 )
+
+CIRROS_RELEASE_URL = 'http://download.cirros-cloud.net/version/released'
+CIRROS_IMAGE_URL = 'http://download.cirros-cloud.net'
 
 CHARM_TYPES = {
     'neutron': {
@@ -114,6 +119,17 @@ def get_ks_creds(cloud_creds, scope='PROJECT'):
                 'project_name': cloud_creds['OS_PROJECT_NAME'],
             }
     return auth
+
+
+def get_glance_session_client(session):
+    """Return glanceclient authenticated by keystone session
+
+    :param session: Keystone session object
+    :type session: keystoneauth1.session.Session object
+    :returns: Authenticated glanceclient
+    :rtype: glanceclient.Client
+    """
+    return GlanceClient('2', session=session)
 
 
 def get_nova_session_client(session):
@@ -1269,3 +1285,179 @@ def get_overcloud_auth():
             'API_VERSION': 3,
         }
     return auth_settings
+
+
+def get_urllib_opener():
+    """Create a urllib opener taking into account proxy settings
+
+    Using urllib.request.urlopen will automatically handle proxies so none
+    of this function is needed except we are currently specifying proxies
+    via AMULET_HTTP_PROXY rather than http_proxy so a ProxyHandler is needed
+    explicitly stating the proxies.
+
+    :returns: An opener which opens URLs via BaseHandlers chained together
+    :rtype: urllib.request.OpenerDirector
+    """
+    http_proxy = os.getenv('AMULET_HTTP_PROXY')
+    logging.debug('AMULET_HTTP_PROXY: {}'.format(http_proxy))
+
+    if http_proxy:
+        handler = urllib.request.ProxyHandler({'http': http_proxy})
+    else:
+        handler = urllib.request.HTTPHandler()
+    return urllib.request.build_opener(handler)
+
+
+def find_cirros_image(arch):
+    """Return the url for the latest cirros image for the given architecture
+
+    :param arch: aarch64, arm, i386, x86_64 etc
+    :type arch: str
+    :returns: Unit matching given name
+    :rtype: juju.unit.Unit or None
+    """
+    opener = get_urllib_opener()
+    f = opener.open(CIRROS_RELEASE_URL)
+    version = f.read().strip().decode()
+    cirros_img = 'cirros-{}-{}-disk.img'.format(version, arch)
+    return '{}/{}/{}'.format(CIRROS_IMAGE_URL, version, cirros_img)
+
+
+def download_image(image_url, target_file):
+    """Download the image from the given url to the specified file
+
+    :param image_url: URL to download image from
+    :type image_url: str
+    :param target_file: Local file to savee image to
+    :type target_file: str
+    """
+    opener = get_urllib_opener()
+    urllib.request.install_opener(opener)
+    urllib.request.urlretrieve(image_url, target_file)
+
+
+@tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
+                reraise=True, stop=tenacity.stop_after_attempt(8))
+def resource_reaches_status(resource, resource_id,
+                            expected_stat='available',
+                            msg='resource'):
+    """Wait for an openstack resources status to reach an expected status
+       within a specified time. Useful to confirm that nova instances, cinder
+       vols, snapshots, glance images, heat stacks and other resources
+       eventually reach the expected status.
+
+    :param resource: pointer to os resource type, ex: heat_client.stacks
+    :type resource: str
+    :param resource_id: unique id for the openstack resource
+    :type resource_id: str
+    :param expected_stat: status to expect resource to reach
+    :type expected_stat: str
+    :param msg: text to identify purpose in logging
+    :type msy: str
+    :raises: AssertionError
+    """
+    resource_stat = resource.get(resource_id).status
+    assert resource_stat == expected_stat, (
+        "Resource in {} state, waiting for {}" .format(resource_stat,
+                                                       expected_stat,))
+
+
+@tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
+                reraise=True, stop=tenacity.stop_after_attempt(2))
+def resource_removed(resource, resource_id, msg="resource"):
+    """Wait for an openstack resource to no longer be present
+
+    :param resource: pointer to os resource type, ex: heat_client.stacks
+    :type resource: str
+    :param resource_id: unique id for the openstack resource
+    :type resource_id: str
+    :param msg: text to identify purpose in logging
+    :type msy: str
+    :raises: AssertionError
+    """
+    matching = [r for r in resource.list() if r.id == resource_id]
+    logging.debug("Resource {} still present".format(resource_id))
+    assert len(matching) == 0, "Resource {} still present".format(resource_id)
+
+
+def delete_resource(resource, resource_id, msg="resource"):
+    """Delete an openstack resource, such as one instance, keypair,
+    image, volume, stack, etc., and confirm deletion within max wait time.
+
+    :param resource: pointer to os resource type, ex:glance_client.images
+    :type resource: str
+    :param resource_id: unique name or id for the openstack resource
+    :type resource_id: str
+    :param msg: text to identify purpose in logging
+    :type msg: str
+    """
+    logging.debug('Deleting OpenStack resource '
+                  '{} ({})'.format(resource_id, msg))
+    resource.delete(resource_id)
+    resource_removed(resource, resource_id, msg)
+
+
+def delete_image(glance, img_id):
+    """Delete the given image from glance
+
+    :param glance: Authenticated glanceclient
+    :type glance: glanceclient.Client
+    :param img_id: unique name or id for the openstack resource
+    :type img_id: str
+    """
+    delete_resource(glance.images, img_id, msg="glance image")
+
+
+def upload_image_to_glance(glance, local_path, image_name):
+    """Upload the given image to glance and apply the given label
+
+    :param glance: Authenticated glanceclient
+    :type glance: glanceclient.Client
+    :param local_path: Path to local image
+    :type local_path: str
+    :param image_name: The label to give the image in glance
+    :type image_name: str
+    """
+    # Create glance image
+    image = glance.images.create(
+        name=image_name,
+        disk_format='qcow2',
+        visibility='public',
+        container_format='bare')
+    glance.images.upload(image.id, open(local_path, 'rb'))
+
+    resource_reaches_status(
+        glance.images,
+        image.id,
+        expected_stat='active',
+        msg='Image status wait')
+
+    return image
+
+
+def create_image(glance, image_url, image_name, image_cache_dir='tests'):
+    """Download the latest cirros image and upload it to glance,
+    validate and return a resource pointer.
+
+    :param glance: pointer to authenticated glance connection
+    :type glance: glanceclient.Client
+    :param image_url: URL to download image from
+    :type image_url: str
+    :param image_name: display name for new image
+    :type image_name: str
+    :param image_cache_dir: Directory to store image in before uploading
+    :type image_cache_dir: str
+    :returns: glance image pointer
+    :rtype: juju.unit.Unit or None
+    """
+    logging.debug('Creating glance cirros image '
+                  '({})...'.format(image_name))
+
+    img_name = os.path.basename(urllib.parse.urlparse(image_url).path)
+    local_path = os.path.join(image_cache_dir, img_name)
+
+    if not os.path.exists(local_path):
+        download_image(image_url, local_path)
+
+    image = upload_image_to_glance(glance, local_path, image_name)
+    return image
