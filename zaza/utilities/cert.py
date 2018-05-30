@@ -29,14 +29,17 @@ def generate_cert(common_name,
                   signing_key=None,
                   signing_key_password=None,
                   generate_ca=False):
-    """
-    Generate x.509 certificate
+    """Generate x.509 certificate
 
-    Example of how to create a certificate chain:
-        (cakey, cacert) = generate_cert('DivineAuthority', generate_ca=True)
-        (crkey, crcert) = generate_cert('test.com',
-                                        issuer_name='DivineAuthority',
-                                        signing_key=cakey)
+    Example of how to create a certificate chain::
+
+        (cakey, cacert) = generate_cert(
+            'DivineAuthority',
+            generate_ca=True)
+        (crkey, crcert) = generate_cert(
+            'test.com',
+            issuer_name='DivineAuthority',
+            signing_key=cakey)
 
     :param common_name: Common Name to use in generated certificate
     :type common_name: str
