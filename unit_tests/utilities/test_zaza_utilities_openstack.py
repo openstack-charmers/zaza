@@ -307,7 +307,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             self.resource_reaches_status.assert_called_once_with(
                 glance_mock.images,
                 '9d1125af',
-                expected_stat='active',
+                expected_status='active',
                 msg='Image status wait')
 
     def test_create_image(self):
