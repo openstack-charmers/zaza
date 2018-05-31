@@ -23,7 +23,7 @@ def skipIfNotHA(service_name):
     return _skipIfNotHA_inner_1
 
 
-class OpenStackAPITest(unittest.TestCase):
+class OpenStackBaseTest(unittest.TestCase):
     """Generic helpers for testing OpenStack API charms"""
 
     @classmethod
@@ -32,6 +32,10 @@ class OpenStackAPITest(unittest.TestCase):
         cls.model_name = lifecycle_utils.get_juju_model()
         cls.test_config = lifecycle_utils.get_charm_config()
         cls.application_name = cls.test_config['charm_name']
+        cls.first_unit = model.get_first_unit_name(
+            cls.model_name,
+            cls.application_name)
+        logging.debug('First unit is {}'.format(cls.first_unit))
 
     def restart_on_changed(self, config_file, default_config, alternate_config,
                            default_entry, alternate_entry, services):
@@ -48,19 +52,16 @@ class OpenStackAPITest(unittest.TestCase):
                               default_config
         :type default_entry: dict
         :param alternate_entry: Config file entries that correspond to
-        :type alternate_entry: alternate_config
+                                alternate_config
+        :type alternate_entry: dict
         :param services: Services expected to be restarted when config_file is
                          changed.
         :type services: list
         """
         # first_unit is only useed to grab a timestamp, the assumption being
         # that all the units times are in sync.
-        first_unit = model.get_first_unit_name(
-            self.model_name,
-            self.application_name)
-        logging.debug('First unit is {}'.format(first_unit))
 
-        mtime = model.get_unit_time(self.model_name, first_unit)
+        mtime = model.get_unit_time(self.model_name, self.first_unit)
         logging.debug('Remote unit timestamp {}'.format(mtime))
 
         logging.debug('Changing charm setting to {}'.format(alternate_config))
@@ -121,36 +122,34 @@ class OpenStackAPITest(unittest.TestCase):
                          changed.
         :type services: list
         """
-        first_unit = model.get_first_unit_name(
-            self.model_name,
-            self.application_name)
         model.block_until_service_status(
             self.model_name,
-            first_unit,
+            self.first_unit,
             services,
             'running')
         model.block_until_unit_wl_status(
             self.model_name,
-            first_unit,
+            self.first_unit,
             'active')
-        model.run_action(self.model_name, first_unit, 'pause', {})
+        model.run_action(self.model_name, self.first_unit, 'pause', {})
         model.block_until_unit_wl_status(
             self.model_name,
-            first_unit,
+            self.first_unit,
             'maintenance')
         model.block_until_all_units_idle(self.model_name)
         model.block_until_service_status(
             self.model_name,
-            first_unit,
+            self.first_unit,
             services,
             'stopped')
-        model.run_action(self.model_name, first_unit, 'resume', {})
+        model.run_action(self.model_name, self.first_unit, 'resume', {})
         model.block_until_unit_wl_status(
             self.model_name,
-            first_unit,
+            self.first_unit,
             'active')
         model.block_until_all_units_idle(self.model_name)
         model.block_until_service_status(
             self.model_name,
-            first_unit, services,
+            self.first_unit,
+            services,
             'running')

@@ -1313,8 +1313,8 @@ def find_cirros_image(arch):
 
     :param arch: aarch64, arm, i386, x86_64 etc
     :type arch: str
-    :returns: Unit matching given name
-    :rtype: juju.unit.Unit or None
+    :returns: URL for latest cirros image
+    :rtype: str
     """
     opener = get_urllib_opener()
     f = opener.open(CIRROS_RELEASE_URL)
@@ -1339,7 +1339,7 @@ def download_image(image_url, target_file):
 @tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
                 reraise=True, stop=tenacity.stop_after_attempt(8))
 def resource_reaches_status(resource, resource_id,
-                            expected_stat='available',
+                            expected_status='available',
                             msg='resource'):
     """Wait for an openstack resources status to reach an expected status
        within a specified time. Useful to confirm that nova instances, cinder
@@ -1350,16 +1350,16 @@ def resource_reaches_status(resource, resource_id,
     :type resource: str
     :param resource_id: unique id for the openstack resource
     :type resource_id: str
-    :param expected_stat: status to expect resource to reach
-    :type expected_stat: str
+    :param expected_status: status to expect resource to reach
+    :type expected_status: str
     :param msg: text to identify purpose in logging
     :type msy: str
     :raises: AssertionError
     """
-    resource_stat = resource.get(resource_id).status
-    assert resource_stat == expected_stat, (
-        "Resource in {} state, waiting for {}" .format(resource_stat,
-                                                       expected_stat,))
+    resource_status = resource.get(resource_id).status
+    assert resource_status == expected_status, (
+        "Resource in {} state, waiting for {}" .format(resource_status,
+                                                       expected_status,))
 
 
 @tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
@@ -1408,7 +1408,8 @@ def delete_image(glance, img_id):
     delete_resource(glance.images, img_id, msg="glance image")
 
 
-def upload_image_to_glance(glance, local_path, image_name):
+def upload_image_to_glance(glance, local_path, image_name, disk_format='qcow2',
+                           visibility='public', container_format='bare'):
     """Upload the given image to glance and apply the given label
 
     :param glance: Authenticated glanceclient
@@ -1417,13 +1418,23 @@ def upload_image_to_glance(glance, local_path, image_name):
     :type local_path: str
     :param image_name: The label to give the image in glance
     :type image_name: str
+    :param disk_format: The of the underlying disk image.
+    :type disk_format: str
+    :param visibility: Who can access image
+    :type visibility: str (public, private, shared or community)
+    :param container_format: Whether the virtual machine image is in a file
+                             format that also contains metadata about the
+                             actual virtual machine.
+    :type container_format: str
+    :returns: glance image pointer
+    :rtype: glanceclient.common.utils.RequestIdProxy
     """
     # Create glance image
     image = glance.images.create(
         name=image_name,
-        disk_format='qcow2',
-        visibility='public',
-        container_format='bare')
+        disk_format=disk_format,
+        visibility=visibility,
+        container_format=container_format)
     glance.images.upload(image.id, open(local_path, 'rb'))
 
     resource_reaches_status(
@@ -1439,7 +1450,7 @@ def create_image(glance, image_url, image_name, image_cache_dir='tests'):
     """Download the latest cirros image and upload it to glance,
     validate and return a resource pointer.
 
-    :param glance: pointer to authenticated glance connection
+    :param glance: Authenticated glanceclient
     :type glance: glanceclient.Client
     :param image_url: URL to download image from
     :type image_url: str
@@ -1448,7 +1459,7 @@ def create_image(glance, image_url, image_name, image_cache_dir='tests'):
     :param image_cache_dir: Directory to store image in before uploading
     :type image_cache_dir: str
     :returns: glance image pointer
-    :rtype: juju.unit.Unit or None
+    :rtype: glanceclient.common.utils.RequestIdProxy
     """
     logging.debug('Creating glance cirros image '
                   '({})...'.format(image_name))

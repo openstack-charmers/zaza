@@ -6,7 +6,7 @@ import zaza.utilities.openstack as openstack_utils
 import zaza.charm_tests.test_utils as test_utils
 
 
-class GlanceTest(test_utils.OpenStackAPITest):
+class GlanceTest(test_utils.OpenStackBaseTest):
 
     @classmethod
     def setUpClass(cls):
