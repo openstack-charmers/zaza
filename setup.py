@@ -16,6 +16,10 @@ install_require = [
     'juju-wait',
     'PyYAML',
     'tenacity',
+    'oslo.config',
+    'python-keystoneclient',
+    'python-novaclient',
+    'python-neutronclient',
 ]
 
 tests_require = [
