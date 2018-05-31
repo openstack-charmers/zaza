@@ -1440,7 +1440,7 @@ def upload_image_to_glance(glance, local_path, image_name, disk_format='qcow2',
     resource_reaches_status(
         glance.images,
         image.id,
-        expected_stat='active',
+        expected_status='active',
         msg='Image status wait')
 
     return image
