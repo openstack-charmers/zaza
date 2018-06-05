@@ -32,6 +32,12 @@ class VaultTest(unittest.TestCase):
             'vault')
         if 'get-csr' not in vault_actions:
             raise unittest.SkipTest('Action not defined')
+        try:
+            zaza.model.get_application(
+                lifecycle_utils.get_juju_model(),
+                'keystone')
+        except KeyError:
+            raise unittest.SkipTest('No client to test csr')
         action = vault_utils.run_charm_authorize(
             self.vault_creds['root_token'])
         action = vault_utils.run_get_csr()
