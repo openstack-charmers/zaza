@@ -28,5 +28,6 @@ python-swiftclient
 tenacity
 distro-info
 paramiko
-
-
+# Documentation requirements
+sphinx
+sphinxcontrib-trio
