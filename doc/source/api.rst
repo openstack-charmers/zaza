@@ -2,6 +2,12 @@
 Utilities API documentation
 ===========================
 
+Juju Model
+----------
+
+.. automodule:: zaza.model
+   :members:
+
 OpenStack Utilities
 -------------------
 

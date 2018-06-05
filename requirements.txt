@@ -30,4 +30,4 @@ distro-info
 paramiko
 # Documentation requirements
 sphinx
-sphinxcontrib-trio
+sphinxcontrib-asyncio
