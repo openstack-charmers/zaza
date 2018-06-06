@@ -48,7 +48,7 @@ def parse_args(args):
     :rtype: Namespace
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--model-name', help='Name of model to remove',
+    parser.add_argument('-m', '--model-name', help='Name of model to add',
                         required=True)
     return parser.parse_args(args)
 

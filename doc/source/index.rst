@@ -8,6 +8,8 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   runningcharmtests
+   addingcharmtests
    api
 
 Indices and tables
