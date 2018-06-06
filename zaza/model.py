@@ -206,8 +206,11 @@ get_unit_time = sync_wrapper(async_get_unit_time)
 
 async def async_get_unit_service_start_time(model_name, unit_name, service,
                                             timeout=None):
-    """Return the time (in seconds since Epoch) that the given service was
-       started on the given unit. If the service is not running return 0
+    """Return the time that the given service was started on a unit.
+
+    Return the time (in seconds since Epoch) that the given service was
+    started on the given unit. If the service is not running raise 
+    ServiceNotRunning exception.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -239,8 +242,7 @@ async def async_get_application(model_name, application_name):
     :type model_name: str
     :param application_name: Name of application to retrieve units for
     :type application_name: str
-
-    :returns: Appliction object
+    :returns: Application object
     :rtype: object
     """
     async with run_in_model(model_name) as model:
@@ -256,7 +258,6 @@ async def async_get_units(model_name, application_name):
     :type model_name: str
     :param application_name: Name of application to retrieve units for
     :type application_name: str
-
     :returns: List of juju units
     :rtype: [juju.unit.Unit, juju.unit.Unit,...]
     """
@@ -273,7 +274,6 @@ async def async_get_machines(model_name, application_name):
     :type model_name: str
     :param application_name: Name of application to retrieve units for
     :type application_name: str
-
     :returns: List of juju machines
     :rtype: [juju.machine.Machine, juju.machine.Machine,...]
     """
@@ -293,7 +293,6 @@ def get_first_unit_name(model_name, application_name):
     :type model_name: str
     :param application_name: Name of application
     :type application_name: str
-
     :returns: Name of lowest numbered unit
     :rtype: str
     """
@@ -307,7 +306,6 @@ def get_app_ips(model_name, application_name):
     :type model_name: str
     :param application_name: Name of application
     :type application_name: str
-
     :returns: List of ip addresses
     :rtype: [str, str,...]
     """
@@ -321,7 +319,6 @@ async def async_get_application_config(model_name, application_name):
     :type model_name: str
     :param application_name: Name of application
     :type application_name: str
-
     :returns: Dictionary of configuration
     :rtype: dict
     """
@@ -341,8 +338,6 @@ async def async_set_application_config(model_name, application_name,
     :type application_name: str
     :param configuration: Dictionary of configuration setting(s)
     :type configuration: dict
-    :returns: None
-    :rtype: None
     """
     async with run_in_model(model_name) as model:
         return await (model.applications[application_name]
@@ -356,7 +351,6 @@ async def async_get_status(model_name):
 
     :param model_name: Name of model to query.
     :type model_name: str
-
     :returns: dictionary of juju status
     :rtype: dict
     """
@@ -465,8 +459,9 @@ def check_model_for_hard_errors(model):
 
 def check_unit_workload_status(model, unit, state):
     """Check that the units workload status matches the supplied state.
-       This function has the side effect of also checking for *any* units
-       in an error state and aborting if any are found.
+
+    This function has the side effect of also checking for *any* units
+    in an error state and aborting if any are found.
 
     :param model: Model object to check in
     :type model: juju.Model
@@ -484,11 +479,13 @@ def check_unit_workload_status(model, unit, state):
 
 def check_unit_workload_status_message(model, unit, message=None,
                                        prefixes=None):
-    """Check that the units workload status message matches the supplied
-       message or starts with one of the supplied prefixes. Raises an exception
-       if neither prefixes or message is set. This function has the side effect
-       of also checking for *any* units in an error state and aborting if any
-       are found.
+    """Check that the units workload status message.
+
+    Check that the units workload status message matches the supplied
+    message or starts with one of the supplied prefixes. Raises an exception
+    if neither prefixes or message is set. This function has the side effect
+    of also checking for *any* units in an error state and aborting if any
+    are found.
 
     :param model: Model object to check in
     :type model: juju.Model
@@ -520,15 +517,15 @@ async def async_wait_for_application_states(model_name, states=None,
     message that starts with one of the approved_message_prefixes.
 
     Bespoke statuses and messages can be passed in with states. states takes
-    the form:
+    the form::
 
-    {
-        'app': {
-            'workload-status': 'blocked',
-            'workload-status-message': 'No requests without a prod'}
-        'anotherapp': {
-            'workload-status-message': 'Unit is super ready'}}
-
+        states = {
+            'app': {
+                'workload-status': 'blocked',
+                'workload-status-message': 'No requests without a prod'}
+            'anotherapp': {
+                'workload-status-message': 'Unit is super ready'}}
+        wait_for_application_states('modelname', states=states)
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -581,10 +578,14 @@ wait_for_application_states = sync_wrapper(async_wait_for_application_states)
 async def async_block_until_all_units_idle(model_name, timeout=2700):
     """Block until all units in the given model are idle
 
+    An example accessing this function via its sync wrapper::
+
+        block_until_all_units_idle('modelname')
+
     :param model_name: Name of model to query.
     :type model_name: str
     :param timeout: Time to wait for status to be achieved
-    :type timeout: int
+    :type timeout: float
     """
     async with run_in_model(model_name) as model:
         await model.block_until(
@@ -595,8 +596,16 @@ block_until_all_units_idle = sync_wrapper(async_block_until_all_units_idle)
 
 async def async_block_until_service_status(model_name, unit_name, services,
                                            target_status, timeout=2700):
-    """Block until all services on the unit are in the desired state (stopped
-       or running)
+    """Block until all services on the unit are in the desired state.
+
+    Block until all services on the unit are in the desired state (stopped
+    or running)::
+
+        block_until_service_status(
+            'modelname',
+            first_unit,
+            ['galnce-api'],
+            'running')
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -673,11 +682,11 @@ async def async_block_until(*conditions, timeout=None, wait_period=0.5,
 
     :param conditions: Functions to evaluate.
     :type conditions: functions
-    :param timeout: Timeout in secounds
+    :param timeout: Timeout in seconds
     :type timeout: float
-    :param wait_period: Time to wait between re-assing conditions.
+    :param wait_period: Time to wait between re-assessing conditions.
     :type wait_period: float
-    :param loop: The evnt loop to use
+    :param loop: The event loop to use
     :type loop: An event loop
     """
 
@@ -697,8 +706,11 @@ async def async_block_until(*conditions, timeout=None, wait_period=0.5,
 async def async_block_until_file_ready(model_name, application_name,
                                        remote_file, check_function,
                                        timeout=2700):
-    """Block until the check_function passes against the contents of the given
-       file on all units of the application
+    """Block until the check_function passes against.
+
+    Block until the check_function passes against the provided file. It is 
+    unlikely that a test would call this function directly, rather it is 
+    provided as scaffolding for tests with a more specialised purpose.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -738,8 +750,19 @@ async def async_block_until_file_ready(model_name, application_name,
 async def async_block_until_file_has_contents(model_name, application_name,
                                               remote_file, expected_contents,
                                               timeout=2700):
-    """Block until the expected_contents are in the given file on all units of
-       the application
+    """Block until the expected_contents are present on all units
+
+    Block until the given string (expected_contents) is present in the file
+    (remote_file) on all units of the given application.
+
+    An example accessing this function via its sync wrapper::
+
+        block_until_file_has_contents(
+            'modelname'
+            'keystone',
+            '/etc/apache2/apache2.conf',
+            'KeepAlive On')
+
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -766,9 +789,33 @@ async def async_block_until_oslo_config_entries_match(model_name,
                                                       remote_file,
                                                       expected_contents,
                                                       timeout=2700):
-    """Block until the expected_contents are in the given file on all units of
-       the application
+    """Block until dict is represented in the file using oslo.config parser
 
+    Block until the expected_contents are in the given file on all units of
+    the application. For example to check for the following configuration::
+
+        [DEFAULT]
+        debug = False
+
+        [glance_store]
+        filesystem_store_datadir = /var/lib/glance/images/
+        default_store = file
+
+    Call the check via its sync wrapper::
+
+        expected_contents = {
+            'DEFAULT': {
+                'debug': ['False']},
+            'glance_store': {
+                'filesystem_store_datadir': ['/var/lib/glance/images/'],
+                 'default_store': ['file']}}
+
+        block_until_oslo_config_entries_match(
+            'modelname',
+            'glance',
+            '/etc/glance/glance-api.conf',
+            expected_contents)
+ 
     :param model_name: Name of model to query.
     :type model_name: str
     :param application_name: Name of application
@@ -781,23 +828,6 @@ async def async_block_until_oslo_config_entries_match(model_name,
     :param timeout: Time to wait for contents to appear in file
     :type timeout: float
 
-    For example to check for,
-
-        [DEFAULT]
-        debug = False
-
-        [glance_store]
-        filesystem_store_datadir = /var/lib/glance/images/
-        default_store = file
-
-    use:
-
-        expected_contents = {
-            'DEFAULT': {
-                'debug': ['False']},
-            'glance_store': {
-                'filesystem_store_datadir': ['/var/lib/glance/images/'],
-                 'default_store': ['file']}}
     """
     def f(x):
         # Writing out the file that was just read is suboptimal
@@ -823,6 +853,15 @@ block_until_oslo_config_entries_match = sync_wrapper(
 async def async_block_until_services_restarted(model_name, application_name,
                                                mtime, services, timeout=2700):
     """Block until the given services have a start time later then mtime
+
+    For example to check that the glance-api service has been restarted::
+
+        block_until_services_restarted(
+            'modelname'
+            'glance',
+            1528294585,
+            ['glance-api'])
+
     :param model_name: Name of model to query.
     :type model_name: str
     :param application_name: Name of application
@@ -859,6 +898,15 @@ block_until_services_restarted = sync_wrapper(
 async def async_block_until_unit_wl_status(model_name, unit_name, status,
                                            timeout=2700):
     """Block until the given unit has the desired workload status
+
+    A units workload status may change during a given action. This function
+    blocks until the given unit has the desired workload status::
+
+         block_until_unit_wl_status(
+            'modelname',
+            aunit,
+            'active')
+ 
     :param model_name: Name of model to query.
     :type model_name: str
     :param unit_name: Name of unit to run action on
