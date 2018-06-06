@@ -99,6 +99,15 @@ class TestModel(ut_utils.BaseTestCase):
         async def _connect():
             return
 
+        async def _ctrl_connect():
+            return
+
+        async def _ctrl_add_model(model_name, config=None):
+            return
+
+        async def _ctrl_destroy_models(model_name):
+            return
+
         self.Model_mock.connect.side_effect = _connect
         self.Model_mock.connect_model.side_effect = _connect_model
         self.Model_mock.disconnect.side_effect = _disconnect
@@ -108,6 +117,36 @@ class TestModel(ut_utils.BaseTestCase):
             'app/4': self.unit2}
         self.model_name = "testmodel"
         self.Model_mock.info.name = self.model_name
+
+        self.Controller_mock = mock.MagicMock()
+        self.Controller_mock.connect.side_effect = _ctrl_connect
+        self.Controller_mock.add_model.side_effect = _ctrl_add_model
+        self.Controller_mock.destroy_models.side_effect = _ctrl_destroy_models
+
+    def test_add_model(self):
+        self.patch_object(model, 'Controller')
+        self.Controller.return_value = self.Controller_mock
+        model.add_model('newmodel')
+        self.Controller_mock.connect.assert_called_once_with()
+        self.Controller_mock.add_model.assert_called_once_with(
+            'newmodel',
+            config=None)
+
+    def test_add_model_config(self):
+        self.patch_object(model, 'Controller')
+        self.Controller.return_value = self.Controller_mock
+        model.add_model('newmodel', config={'run-faster': 'true'})
+        self.Controller_mock.connect.assert_called_once_with()
+        self.Controller_mock.add_model.assert_called_once_with(
+            'newmodel',
+            config={'run-faster': 'true'})
+
+    def test_destroy_model(self):
+        self.patch_object(model, 'Controller')
+        self.Controller.return_value = self.Controller_mock
+        model.destroy_model('newmodel')
+        self.Controller_mock.connect.assert_called_once_with()
+        self.Controller_mock.destroy_models.assert_called_once_with('newmodel')
 
     def test_run_in_model(self):
         self.patch_object(model, 'Model')
