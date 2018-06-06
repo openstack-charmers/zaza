@@ -45,7 +45,7 @@ the bundle.
 In addition to the specified bundle the overlay template directory will be
 searched for a corresponding template (\<bundle\_name\>.j2). If one is found
 then the overlay will be rendered using environment variables a specific set
-of environment variables as conext. Currently these are:
+of environment variables as context. Currently these are:
 
  * FIP\_RANGE
  * GATEWAY
@@ -87,7 +87,7 @@ To run manually::
       -h, --help
                             show this help message and exit
       -c CONFIGFUNCS, --configfuncs CONFIGFUNCS
-                            Space sperated list of config functions
+                            Space separated list of config functions
 
 
 4) Test
@@ -105,7 +105,7 @@ To run manually::
     optional arguments:
       -h, --help            show this help message and exit
       -t TESTS, --tests TESTS
-                            Space sperated list of test classes
+                            Space separated list of test classes
 
 
 5) Collect

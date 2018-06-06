@@ -36,7 +36,7 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--configfuncs', nargs='+',
-                        help='Space sperated list of config functions',
+                        help='Space separated list of config functions',
                         required=False)
     parser.add_argument('-m', '--model-name', help='Name of model to remove',
                         required=True)

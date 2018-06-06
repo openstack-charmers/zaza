@@ -37,7 +37,7 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('-t', '--tests', nargs='+',
-                        help='Space sperated list of test classes',
+                        help='Space separated list of test classes',
                         required=False)
     parser.add_argument('-m', '--model-name', help='Name of model to remove',
                         required=True)

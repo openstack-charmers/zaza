@@ -33,8 +33,8 @@ The bundles live in tests/bundles of the built charm, eg::
 
 The bundle may include overlay templates which are, currently, populated from
 environment variables. For example the xenial-ha template needs a VIP but
-the VIP will depend on the setup of the juju providor so will be different
-between test environments. To accomadate this an overlay is added::
+the VIP will depend on the setup of the juju provider so will be different
+between test environments. To accommodate this an overlay is added::
 
     tests/bundles/overlays/xenial-ha.yaml.j2
 
@@ -86,7 +86,7 @@ directory, named after the charm, inside **zaza/charm_tests**. Within the new
 directory define the tests in **tests.py** and any setup code in **setup.py**
 This code can then be referenced in the charms **tests.yaml**
 
-eg to add support for a new congress charm create a new directory in zaza::
+e.g. to add support for a new congress charm create a new directory in zaza::
 
     mkdir zaza/charm_tests/congress
 
@@ -104,7 +104,7 @@ Add test code into tests.py::
             policy = congress.create_policy()
             self.assertTrue(policy)
 
-These now need to be refenced in the congress charms tests.yaml. Additional
+These now need to be referenced in the congress charms tests.yaml. Additional
 setup is needed to run a useful congress tests, so congress' tests.yaml might
 look like::
 
