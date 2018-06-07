@@ -1,17 +1,8 @@
 import argparse
 import logging
-import subprocess
 import sys
 
-
-def destroy_model(model_name):
-    """Remove a model with the given name
-
-    :param model: Name of model to remove
-    :type bundle: str
-    """
-    logging.info("Remove model {}".format(model_name))
-    subprocess.check_call(['juju', 'destroy-model', '--yes', model_name])
+import zaza.model
 
 
 def destroy(model_name):
@@ -20,7 +11,7 @@ def destroy(model_name):
     :param model: Name of model to remove
     :type bundle: str
     """
-    destroy_model(model_name)
+    zaza.model.destroy_model(model_name)
 
 
 def parse_args(args):
