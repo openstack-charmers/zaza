@@ -209,7 +209,7 @@ async def async_get_unit_service_start_time(model_name, unit_name, service,
     """Return the time that the given service was started on a unit.
 
     Return the time (in seconds since Epoch) that the given service was
-    started on the given unit. If the service is not running raise 
+    started on the given unit. If the service is not running raise
     ServiceNotRunning exception.
 
     :param model_name: Name of model to query.
@@ -708,8 +708,8 @@ async def async_block_until_file_ready(model_name, application_name,
                                        timeout=2700):
     """Block until the check_function passes against.
 
-    Block until the check_function passes against the provided file. It is 
-    unlikely that a test would call this function directly, rather it is 
+    Block until the check_function passes against the provided file. It is
+    unlikely that a test would call this function directly, rather it is
     provided as scaffolding for tests with a more specialised purpose.
 
     :param model_name: Name of model to query.
@@ -815,7 +815,7 @@ async def async_block_until_oslo_config_entries_match(model_name,
             'glance',
             '/etc/glance/glance-api.conf',
             expected_contents)
- 
+
     :param model_name: Name of model to query.
     :type model_name: str
     :param application_name: Name of application
@@ -906,7 +906,7 @@ async def async_block_until_unit_wl_status(model_name, unit_name, status,
             'modelname',
             aunit,
             'active')
- 
+
     :param model_name: Name of model to query.
     :type model_name: str
     :param unit_name: Name of unit to run action on
