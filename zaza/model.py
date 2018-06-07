@@ -604,7 +604,7 @@ async def async_block_until_service_status(model_name, unit_name, services,
         block_until_service_status(
             'modelname',
             first_unit,
-            ['galnce-api'],
+            ['glance-api'],
             'running')
 
     :param model_name: Name of model to query.
@@ -822,7 +822,7 @@ async def async_block_until_oslo_config_entries_match(model_name,
     :type application_name: str
     :param remote_file: Remote path of file to transfer
     :type remote_file: str
-    :param expected_contents: The key values pairs in their corresponding
+    :param expected_contents: The key value pairs in their corresponding
                               sections to be looked for in the remote_file
     :type expected_contents: {}
     :param timeout: Time to wait for contents to appear in file
