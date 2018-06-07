@@ -365,8 +365,6 @@ def configure_gateway_ext_port(novaclient, neutronclient,
     :type dvr_mode: boolean
     :param net_id: Network ID
     :type net_id: string
-    :returns: Nothing: This fucntion is executed for its sideffect
-    :rtype: None
     """
 
     if dvr_mode:
@@ -630,8 +628,6 @@ def update_subnet_dns(neutron_client, subnet, dns_servers):
     :type subnet: dict
     :param dns_servers: Comma separted list of IP addresses
     :type project_id: string
-    :returns: Nothing: This fucntion is executed for its sideffect
-    :rtype: None
     """
 
     msg = {
@@ -681,8 +677,6 @@ def plug_extnet_into_router(neutron_client, router, network):
     :type router: dict
     :param network: Network object
     :type network: dict
-    :returns: Nothing: This fucntion is executed for its sideffect
-    :rtype: None
     """
 
     ports = neutron_client.list_ports(device_owner='network:router_gateway',
@@ -708,8 +702,6 @@ def plug_subnet_into_router(neutron_client, router, network, subnet):
     :type network: dict
     :param subnet: Subnet object
     :type subnet: dict
-    :returns: Nothing: This fucntion is executed for its sideffect
-    :rtype: None
     """
 
     routers = neutron_client.list_routers(name=router)
@@ -849,8 +841,6 @@ def add_network_to_bgp_speaker(neutron_client, bgp_speaker, network_name):
     :type bgp_speaker: dict
     :param network_name: Name of network to advertise
     :type network_name: string
-    :returns: Nothing: This fucntion is executed for its sideffect
-    :rtype: None
     """
 
     network_id = get_net_uuid(neutron_client, network_name)
@@ -913,8 +903,6 @@ def add_peer_to_bgp_speaker(neutron_client, bgp_speaker, bgp_peer):
     :type bgp_speaker: dict
     :param bpg_peer: BGP peer object
     :type bgp_peer: dict
-    :returns: Nothing: This fucntion is executed for its sideffect
-    :rtype: None
     """
 
     # Handle the expected exception if the peer is already on the
@@ -936,8 +924,6 @@ def add_neutron_secgroup_rules(neutron_client, project_id):
     :type neutron_client: neutronclient.Client object
     :param project_id: Project ID
     :type project_id: string
-    :returns: Nothing: This fucntion is executed for its sideffect
-    :rtype: None
     """
 
     secgroup = None
@@ -1447,8 +1433,10 @@ def upload_image_to_glance(glance, local_path, image_name, disk_format='qcow2',
 
 
 def create_image(glance, image_url, image_name, image_cache_dir='tests'):
-    """Download the latest cirros image and upload it to glance,
-    validate and return a resource pointer.
+    """Download the image and upload it to glance.
+
+    Download an image from image_url and upload it to glance labelling
+    the image with image_url, validate and return a resource pointer.
 
     :param glance: Authenticated glanceclient
     :type glance: glanceclient.Client

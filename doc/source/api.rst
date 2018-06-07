@@ -11,3 +11,4 @@ Utilities API documentation
     exception-utils
     generic-utils
     juju-utils
+    test-utils
