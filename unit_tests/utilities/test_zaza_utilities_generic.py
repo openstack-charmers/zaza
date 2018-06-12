@@ -48,15 +48,12 @@ class TestGenericUtils(ut_utils.BaseTestCase):
 
     def test_get_pkg_version(self):
         self.patch_object(generic_utils.model, "get_units")
-        self.patch_object(generic_utils.lifecycle_utils, "get_juju_model")
         self.patch_object(generic_utils.juju_utils, "remote_run")
         _pkg = "os-thingy"
         _version = "2:27.0.0-0ubuntu1~cloud0"
         _dpkg_output = ("ii {} {} all OpenStack thingy\n"
                         .format(_pkg, _version))
         self.remote_run.return_value = _dpkg_output
-        _model_name = "model-name"
-        self.get_juju_model.return_value = _model_name
         _unit1 = mock.MagicMock()
         _unit1.entity_id = "os-thingy/7"
         _unit2 = mock.MagicMock()

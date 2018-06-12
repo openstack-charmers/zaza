@@ -11,7 +11,6 @@ def skipIfNotHA(service_name):
     def _skipIfNotHA_inner_1(f):
         def _skipIfNotHA_inner_2(*args, **kwargs):
             ips = zaza.model.get_app_ips(
-                lifecycle_utils.get_juju_model(),
                 service_name)
             if len(ips) > 1:
                 return f(*args, **kwargs)
@@ -29,7 +28,7 @@ class OpenStackBaseTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.keystone_session = openstack_utils.get_overcloud_keystone_session()
-        cls.model_name = lifecycle_utils.get_juju_model()
+        cls.model_name = model.get_juju_model()
         cls.test_config = lifecycle_utils.get_charm_config()
         cls.application_name = cls.test_config['charm_name']
         cls.first_unit = model.get_first_unit_name(

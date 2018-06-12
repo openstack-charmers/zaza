@@ -225,7 +225,7 @@ def deploy(bundle, model, wait=True):
     if wait:
         test_config = utils.get_charm_config()
         logging.info("Waiting for environment to settle")
-        utils.set_juju_model(model)
+        zaza.model.set_juju_model(model)
         zaza.model.wait_for_application_states(
             model,
             test_config.get('target_deploy_status', {}))

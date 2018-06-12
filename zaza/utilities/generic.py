@@ -5,7 +5,6 @@ import os
 import yaml
 
 from zaza import model
-from zaza.charm_lifecycle import utils as lifecycle_utils
 from zaza.utilities import juju as juju_utils
 
 
@@ -63,8 +62,7 @@ def get_pkg_version(application, pkg):
     :rtype: list
     """
     versions = []
-    units = model.get_units(
-        lifecycle_utils.get_juju_model(), application)
+    units = model.get_units(application)
     for unit in units:
         cmd = 'dpkg -l | grep {}'.format(pkg)
         out = juju_utils.remote_run(unit.entity_id, cmd)

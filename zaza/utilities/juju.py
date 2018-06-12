@@ -22,7 +22,6 @@ from zaza import (
     model,
     controller,
 )
-from zaza.charm_lifecycle import utils as lifecycle_utils
 from zaza.utilities import generic as generic_utils
 
 
@@ -73,7 +72,7 @@ def get_full_juju_status():
     :returns: Full juju status output
     :rtype: dict
     """
-    status = model.get_status(lifecycle_utils.get_juju_model())
+    status = model.get_status()
     return status
 
 
@@ -165,10 +164,7 @@ def remote_run(unit, remote_cmd, timeout=None, fatal=None):
     """
     if fatal is None:
         fatal = True
-    result = model.run_on_unit(lifecycle_utils.get_juju_model(),
-                               unit,
-                               remote_cmd,
-                               timeout=timeout)
+    result = model.run_on_unit(unit, remote_cmd, timeout=timeout)
     if result:
         if int(result.get("Code")) == 0:
             return result.get("Stdout")
@@ -195,9 +191,7 @@ def _get_unit_names(names):
         if '/' in name:
             result.append(name)
         else:
-            result.append(
-                model.get_first_unit_name(lifecycle_utils.get_juju_model(),
-                                          name))
+            result.append(model.get_first_unit_name(name))
     return result
 
 
@@ -223,15 +217,12 @@ def get_relation_from_unit(entity, remote_entity, remote_interface_name):
     """
     application = entity.split('/')[0]
     remote_application = remote_entity.split('/')[0]
-    rid = model.get_relation_id(lifecycle_utils.get_juju_model(), application,
-                                remote_application,
+    rid = model.get_relation_id(application, remote_application,
                                 remote_interface_name=remote_interface_name)
     (unit, remote_unit) = _get_unit_names([entity, remote_entity])
     result = model.run_on_unit(
-        lifecycle_utils.get_juju_model(), unit,
-        'relation-get --format=yaml -r "{}" - "{}"'
-        .format(rid, remote_unit)
-    )
+        unit,
+        'relation-get --format=yaml -r "{}" - "{}"' .format(rid, remote_unit))
     if result and int(result.get('Code')) == 0:
         return yaml.load(result.get('Stdout'))
     else:

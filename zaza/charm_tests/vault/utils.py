@@ -10,7 +10,6 @@ import yaml
 
 import collections
 
-import zaza.charm_lifecycle.utils as utils
 import zaza.model
 
 AUTH_FILE = "vault_tests.yaml"
@@ -47,8 +46,7 @@ def get_vip_client():
     :rtype: CharmVaultClient or None
     """
     client = None
-    vault_config = zaza.model.get_application_config(
-        utils.get_juju_model(), 'vault')
+    vault_config = zaza.model.get_application_config('vault')
     vip = vault_config.get('vip', {}).get('value')
     if vip:
         client = CharmVaultClient(
@@ -82,7 +80,7 @@ def get_clients(units=None):
     :rtype: [CharmVaultClient, ...]
     """
     if not units:
-        units = zaza.model.get_app_ips(utils.get_juju_model(), 'vault')
+        units = zaza.model.get_app_ips('vault')
     clients = []
     for unit in units:
         vault_url = get_unit_api_url(unit)
@@ -124,11 +122,10 @@ def get_credentails():
     :returns: Tokens and keys for accessing test environment
     :rtype: dict
     """
-    unit = zaza.model.get_first_unit_name(utils.get_juju_model(), 'vault')
+    unit = zaza.model.get_first_unit_name('vault')
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmp_file = '{}/{}'.format(tmpdirname, AUTH_FILE)
         zaza.model.scp_from_unit(
-            utils.get_juju_model(),
             unit,
             '~/{}'.format(AUTH_FILE),
             tmp_file)
@@ -144,12 +141,11 @@ def store_credentails(creds):
     :param creds: Keys and token to store
     :type creds: dict
     """
-    unit = zaza.model.get_first_unit_name(utils.get_juju_model(), 'vault')
+    unit = zaza.model.get_first_unit_name('vault')
     with tempfile.NamedTemporaryFile(mode='w') as fp:
         fp.write(yaml.dump(creds))
         fp.flush()
         zaza.model.scp_to_unit(
-            utils.get_juju_model(),
             unit,
             fp.name,
             '~/{}'.format(AUTH_FILE))
@@ -205,7 +201,6 @@ def auth_all(clients, token):
 
 def run_charm_authorize(token):
     return zaza.model.run_action_on_leader(
-        utils.get_juju_model(),
         'vault',
         'authorize-charm',
         action_params={'token': token})
@@ -213,7 +208,6 @@ def run_charm_authorize(token):
 
 def run_get_csr():
     return zaza.model.run_action_on_leader(
-        utils.get_juju_model(),
         'vault',
         'get-csr',
         action_params={})
@@ -221,7 +215,6 @@ def run_get_csr():
 
 def run_upload_signed_csr(pem, root_ca, allowed_domains):
     return zaza.model.run_action_on_leader(
-        utils.get_juju_model(),
         'vault',
         'upload-signed-csr',
         action_params={

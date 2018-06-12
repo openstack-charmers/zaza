@@ -28,13 +28,11 @@ class VaultTest(unittest.TestCase):
 
     def test_csr(self):
         vault_actions = zaza.model.get_actions(
-            lifecycle_utils.get_juju_model(),
             'vault')
         if 'get-csr' not in vault_actions:
             raise unittest.SkipTest('Action not defined')
         try:
             zaza.model.get_application(
-                lifecycle_utils.get_juju_model(),
                 'keystone')
         except KeyError:
             raise unittest.SkipTest('No client to test csr')
@@ -59,15 +57,12 @@ class VaultTest(unittest.TestCase):
         test_config = lifecycle_utils.get_charm_config()
         del test_config['target_deploy_status']['vault']
         zaza.model.block_until_file_has_contents(
-            lifecycle_utils.get_juju_model(),
             'keystone',
             '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
             cacert.decode().strip())
         zaza.model.wait_for_application_states(
-            lifecycle_utils.get_juju_model(),
             test_config.get('target_deploy_status', {}))
         ip = zaza.model.get_app_ips(
-            lifecycle_utils.get_juju_model(),
             'keystone')[0]
         with tempfile.NamedTemporaryFile(mode='w') as fp:
             fp.write(cacert.decode())
@@ -127,7 +122,6 @@ class VaultTest(unittest.TestCase):
 
     def test_vault_authorize_charm_action(self):
         vault_actions = zaza.model.get_actions(
-            lifecycle_utils.get_juju_model(),
             'vault')
         if 'authorize-charm' not in vault_actions:
             raise unittest.SkipTest('Action not defined')
