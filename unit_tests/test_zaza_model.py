@@ -10,6 +10,11 @@ import zaza.model as model
 
 class TestModel(ut_utils.BaseTestCase):
 
+    def tearDown(self):
+        super(TestModel, self).tearDown()
+        # Clear cached model name
+        model.CURRENT_MODEL = None
+
     def setUp(self):
         super(TestModel, self).setUp()
 
@@ -126,7 +131,6 @@ class TestModel(ut_utils.BaseTestCase):
     def test_get_juju_model(self):
         self.patch_object(model.os, 'environ')
         self.patch_object(model, 'get_current_model')
-        model.CURRENT_MODEL = None
         self.get_current_model.return_value = 'modelsmodel'
 
         def _get_env(key):
@@ -137,6 +141,11 @@ class TestModel(ut_utils.BaseTestCase):
         # JUJU_ENV environment variable set
         self.assertEqual(model.get_juju_model(), 'envmodel')
         self.get_current_model.assert_not_called()
+
+    def test_get_juju_model_noenv(self):
+        self.patch_object(model.os, 'environ')
+        self.patch_object(model, 'get_current_model')
+        self.get_current_model.return_value = 'modelsmodel'
 
         # No envirnment variable
         self.environ.__getitem__.side_effect = KeyError

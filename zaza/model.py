@@ -15,6 +15,7 @@ from zaza import sync_wrapper
 
 CURRENT_MODEL = None
 
+
 def set_juju_model(model_name):
     """Point environment at the given model
 
@@ -33,6 +34,7 @@ def get_juju_model():
     :returns: In focus model name
     :rtype: str
     """
+    global CURRENT_MODEL
     if CURRENT_MODEL:
         return CURRENT_MODEL
     # LY: I think we should remove the KeyError handling. I don't think we
@@ -41,10 +43,11 @@ def get_juju_model():
     #     zaza will loose the ability to do concurrent runs.
     try:
         # Check the environment
-        return os.environ["JUJU_MODEL"]
+        CURRENT_MODEL = os.environ["JUJU_MODEL"]
     except KeyError:
         # If unset connect get the current active model
-        return get_current_model()
+        CURRENT_MODEL = get_current_model()
+    return CURRENT_MODEL
 
 
 async def deployed(filter=None):

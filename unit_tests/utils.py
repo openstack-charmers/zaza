@@ -47,7 +47,6 @@ class BaseTestCase(unittest.TestCase):
 
     def tearDown(self):
         for k, v in self._patches.items():
-            print("Stopping patch {} {}".format(k, v))
             v.stop()
             setattr(self, k, None)
         self._patches = None
@@ -66,7 +65,6 @@ class BaseTestCase(unittest.TestCase):
         if new is None:
             started.return_value = return_value
         self._patches_start[name] = started
-        print("Starting patch {}".format(name))
         setattr(self, name, started)
 
     def patch(self, item, return_value=None, name=None, new=None, **kwargs):
