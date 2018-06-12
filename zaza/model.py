@@ -324,7 +324,7 @@ def get_first_unit_name(application_name, model_name=None):
     :returns: Name of lowest numbered unit
     :rtype: str
     """
-    return get_units(model_name, application_name)[0].name
+    return get_units(application_name, model_name=model_name)[0].name
 
 
 def get_app_ips(application_name, model_name=None):
@@ -337,7 +337,8 @@ def get_app_ips(application_name, model_name=None):
     :returns: List of ip addresses
     :rtype: [str, str,...]
     """
-    return [u.public_address for u in get_units(model_name, application_name)]
+    return [u.public_address
+            for u in get_units(application_name, model_name=model_name)]
 
 
 async def async_get_application_config(application_name, model_name=None):

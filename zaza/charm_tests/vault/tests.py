@@ -61,7 +61,7 @@ class VaultTest(unittest.TestCase):
             '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
             cacert.decode().strip())
         zaza.model.wait_for_application_states(
-            test_config.get('target_deploy_status', {}))
+            states=test_config.get('target_deploy_status', {}))
         ip = zaza.model.get_app_ips(
             'keystone')[0]
         with tempfile.NamedTemporaryFile(mode='w') as fp:
