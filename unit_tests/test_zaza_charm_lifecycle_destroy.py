@@ -5,7 +5,7 @@ import unit_tests.utils as ut_utils
 class TestCharmLifecycleDestroy(ut_utils.BaseTestCase):
 
     def test_destroy(self):
-        self.patch_object(lc_destroy.zaza.model, 'destroy_model')
+        self.patch_object(lc_destroy.zaza.controller, 'destroy_model')
         lc_destroy.destroy('doomed')
         self.destroy_model.assert_called_once_with('doomed')
 

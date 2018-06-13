@@ -2,7 +2,7 @@ import argparse
 import logging
 import sys
 
-import zaza.model
+import zaza.controller
 
 
 def destroy(model_name):
@@ -11,7 +11,7 @@ def destroy(model_name):
     :param model: Name of model to remove
     :type bundle: str
     """
-    zaza.model.destroy_model(model_name)
+    zaza.controller.destroy_model(model_name)
 
 
 def parse_args(args):

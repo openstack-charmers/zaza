@@ -2,7 +2,7 @@ import argparse
 import logging
 import sys
 
-import zaza.model
+import zaza.controller
 
 MODEL_DEFAULTS = {
     # Model defaults from charm-test-infra
@@ -26,7 +26,7 @@ def prepare(model_name):
     :param model: Name of model to add
     :type bundle: str
     """
-    zaza.model.add_model(model_name, config=MODEL_DEFAULTS)
+    zaza.controller.add_model(model_name, config=MODEL_DEFAULTS)
 
 
 def parse_args(args):

@@ -8,37 +8,10 @@ import yaml
 from oslo_config import cfg
 
 from juju import loop
-from juju.controller import Controller
 from juju.errors import JujuError
 from juju.model import Model
 
 from zaza import sync_wrapper
-
-
-async def async_add_model(model_name, config=None):
-    """Add a model to the current controller
-
-    :param model_name: Name to give the new model.
-    :type model_name: str
-    :param config: Model configuration.
-    :type config: dict"""
-    controller = Controller()
-    await controller.connect()
-    await controller.add_model(model_name, config=config)
-
-add_model = sync_wrapper(async_add_model)
-
-
-async def async_destroy_model(model_name):
-    """Remove a model from the current controller
-
-    :param model_name: Name of model to remove
-    :type model_name: str"""
-    controller = Controller()
-    await controller.connect()
-    await controller.destroy_models(model_name)
-
-destroy_model = sync_wrapper(async_destroy_model)
 
 
 async def deployed(filter=None):
