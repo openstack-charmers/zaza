@@ -123,31 +123,6 @@ class TestModel(ut_utils.BaseTestCase):
         self.Controller_mock.add_model.side_effect = _ctrl_add_model
         self.Controller_mock.destroy_models.side_effect = _ctrl_destroy_models
 
-    def test_add_model(self):
-        self.patch_object(model, 'Controller')
-        self.Controller.return_value = self.Controller_mock
-        model.add_model('newmodel')
-        self.Controller_mock.connect.assert_called_once_with()
-        self.Controller_mock.add_model.assert_called_once_with(
-            'newmodel',
-            config=None)
-
-    def test_add_model_config(self):
-        self.patch_object(model, 'Controller')
-        self.Controller.return_value = self.Controller_mock
-        model.add_model('newmodel', config={'run-faster': 'true'})
-        self.Controller_mock.connect.assert_called_once_with()
-        self.Controller_mock.add_model.assert_called_once_with(
-            'newmodel',
-            config={'run-faster': 'true'})
-
-    def test_destroy_model(self):
-        self.patch_object(model, 'Controller')
-        self.Controller.return_value = self.Controller_mock
-        model.destroy_model('newmodel')
-        self.Controller_mock.connect.assert_called_once_with()
-        self.Controller_mock.destroy_models.assert_called_once_with('newmodel')
-
     def test_run_in_model(self):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock

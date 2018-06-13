@@ -19,7 +19,7 @@ class TestController(ut_utils.BaseTestCase):
         async def _list_models():
             return self.models
 
-        async def _add_model(model_name):
+        async def _add_model(model_name, config=None):
             return self.model1
 
         async def _destroy_model(model_name):
@@ -59,7 +59,19 @@ class TestController(ut_utils.BaseTestCase):
         self.assertEqual(controller.add_model(self.model1.info.name),
                          self.model1.info.name)
         self.Controller_mock.add_model.assert_called_once_with(
+            self.model1.info.name,
+            config=None)
+        self.model1.connect.assert_called_once()
+
+    def test_add_model_config(self):
+        self.assertEqual(
+            controller.add_model(
+                self.model1.info.name,
+                {'run-faster': 'true'}),
             self.model1.info.name)
+        self.Controller_mock.add_model.assert_called_once_with(
+            self.model1.info.name,
+            config={'run-faster': 'true'})
         self.model1.connect.assert_called_once()
 
     def test_destroy_model(self):

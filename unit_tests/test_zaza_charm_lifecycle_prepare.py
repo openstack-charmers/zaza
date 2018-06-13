@@ -5,7 +5,7 @@ import unit_tests.utils as ut_utils
 class TestCharmLifecyclePrepare(ut_utils.BaseTestCase):
 
     def test_prepare(self):
-        self.patch_object(lc_prepare.zaza.model, 'add_model')
+        self.patch_object(lc_prepare.zaza.controller, 'add_model')
         lc_prepare.prepare('newmodel')
         self.add_model.assert_called_once_with(
             'newmodel',

@@ -4,6 +4,7 @@ Utilities API documentation
 
 .. toctree::
 
+    controller-api
     model-api
     openstack-utils
     tls-cert-utils
