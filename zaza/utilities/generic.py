@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+"""Collection of functions that did not fit anywhere else."""
 
 import logging
 import os
@@ -10,20 +10,21 @@ from zaza.utilities import juju as juju_utils
 
 
 def dict_to_yaml(dict_data):
-    """Return YAML from dictionary
+    """Return YAML from dictionary.
 
     :param dict_data: Dictionary data
     :type dict_data: dict
     :returns: YAML dump
     :rtype: string
     """
-
     return yaml.dump(dict_data, default_flow_style=False)
 
 
 def get_network_config(net_topology, ignore_env_vars=False,
                        net_topology_file="network.yaml"):
-    """Get network info from network.yaml, override the values if specific
+    """Get network info from environment.
+
+    Get network info from network.yaml, override the values if specific
     environment variables are set for the undercloud.
 
     This function may be used when running network configuration from CLI to
@@ -36,7 +37,6 @@ def get_network_config(net_topology, ignore_env_vars=False,
     :returns: Dictionary of network configuration
     :rtype: dict
     """
-
     if os.path.exists(net_topology_file):
         net_info = get_yaml_config(net_topology_file)[net_topology]
     else:
@@ -53,7 +53,7 @@ def get_network_config(net_topology, ignore_env_vars=False,
 
 
 def get_pkg_version(application, pkg):
-    """Return package version
+    """Return package version.
 
     :param application: Application name
     :type application: string
@@ -62,7 +62,6 @@ def get_pkg_version(application, pkg):
     :returns: List of package version
     :rtype: list
     """
-
     versions = []
     units = model.get_units(
         lifecycle_utils.get_juju_model(), application)
@@ -76,7 +75,9 @@ def get_pkg_version(application, pkg):
 
 
 def get_undercloud_env_vars():
-    """ Get environment specific undercloud network configuration settings from
+    """Get environment specific undercloud network configuration settings.
+
+    Get environment specific undercloud network configuration settings from
     environment variables.
 
     For each testing substrate, specific undercloud network configuration
@@ -106,7 +107,6 @@ def get_undercloud_env_vars():
     :returns: Network environment variables
     :rtype: dict
     """
-
     # Handle backward compatibile OSCI enviornment variables
     _vars = {}
     _vars['net_id'] = os.environ.get('NET_ID')
@@ -141,14 +141,13 @@ def get_undercloud_env_vars():
 
 
 def get_yaml_config(config_file):
-    """Return configuration from YAML file
+    """Return configuration from YAML file.
 
     :param config_file: Configuration file name
     :type config_file: string
     :returns: Dictionary of configuration
     :rtype: dict
     """
-
     # Note in its original form get_mojo_config it would do a search pattern
     # through mojo stage directories. This version assumes the yaml file is in
     # the pwd.

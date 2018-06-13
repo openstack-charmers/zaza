@@ -1,3 +1,4 @@
+"""Run configuration phase."""
 import asyncio
 import argparse
 import logging
@@ -7,8 +8,10 @@ import zaza.charm_lifecycle.utils as utils
 
 
 def run_configure_list(functions):
-    """Run the configure scripts as defined in the list of test classes in
-       series.
+    """Run the configure scripts.
+
+    Run the configure scripts as defined in the list of test classes in
+    series.
 
     :param functions: List of configure functions functions
     :type tests: ['zaza.charms_tests.svc.setup', ...]
@@ -18,16 +21,17 @@ def run_configure_list(functions):
 
 
 def configure(model_name, functions):
-    """Run all post-deployment configuration steps
+    """Run all post-deployment configuration steps.
 
     :param functions: List of configure functions functions
-    :type tests: ['zaza.charms_tests.svc.setup', ...]"""
+    :type tests: ['zaza.charms_tests.svc.setup', ...]
+    """
     utils.set_juju_model(model_name)
     run_configure_list(functions)
 
 
 def parse_args(args):
-    """Parse command line arguments
+    """Parse command line arguments.
 
     :param args: List of configure functions functions
     :type list: [str1, str2,...] List of command line arguments
@@ -44,9 +48,12 @@ def parse_args(args):
 
 
 def main():
-    """Run the configuration defined by the command line args or if none were
-       provided read the configuration functions  from the charms tests.yaml
-       config file"""
+    """Run the configuration defined by the command line args.
+
+    Run the configuration defined by the command line args or if none were
+    provided read the configuration functions  from the charms tests.yaml
+    config file
+    """
     logging.basicConfig(level=logging.INFO)
     args = parse_args(sys.argv[1:])
     funcs = args.configfuncs or utils.get_charm_config()['configure']

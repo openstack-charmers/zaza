@@ -1,3 +1,7 @@
+"""Module for interacting with OpenStack.
+
+This module contains a number of functions for interacting with Openstack.
+"""
 from .os_versions import (
     OPENSTACK_CODENAMES,
     SWIFT_CODENAMES,
@@ -82,7 +86,7 @@ UPGRADE_SERVICES = [
 
 # Openstack Client helpers
 def get_ks_creds(cloud_creds, scope='PROJECT'):
-    """Return the credentials for authenticating against keystone
+    """Return the credentials for authenticating against keystone.
 
     :param cloud_creds: Openstack RC environment credentials
     :type cloud_creds: dict
@@ -91,7 +95,6 @@ def get_ks_creds(cloud_creds, scope='PROJECT'):
     :returns: Credentials dictionary
     :rtype: dict
     """
-
     if cloud_creds.get('API_VERSION', 2) == 2:
         auth = {
             'username': cloud_creds['OS_USERNAME'],
@@ -122,7 +125,7 @@ def get_ks_creds(cloud_creds, scope='PROJECT'):
 
 
 def get_glance_session_client(session):
-    """Return glanceclient authenticated by keystone session
+    """Return glanceclient authenticated by keystone session.
 
     :param session: Keystone session object
     :type session: keystoneauth1.session.Session object
@@ -133,36 +136,33 @@ def get_glance_session_client(session):
 
 
 def get_nova_session_client(session):
-    """Return novaclient authenticated by keystone session
+    """Return novaclient authenticated by keystone session.
 
     :param session: Keystone session object
     :type session: keystoneauth1.session.Session object
     :returns: Authenticated novaclient
     :rtype: novaclient.Client object
     """
-
     return novaclient_client.Client(2, session=session)
 
 
 def get_neutron_session_client(session):
-    """Return neutronclient authenticated by keystone session
+    """Return neutronclient authenticated by keystone session.
 
     :param session: Keystone session object
     :type session: keystoneauth1.session.Session object
     :returns: Authenticated neutronclient
     :rtype: neutronclient.Client object
     """
-
     return neutronclient.Client(session=session)
 
 
 def get_keystone_scope():
-    """Return Keystone scope based on OpenStack release
+    """Return Keystone scope based on OpenStack release.
 
     :returns: String keystone scope
     :rtype: string
     """
-
     os_version = get_current_os_versions("keystone")["keystone"]
     # Keystone policy.json shipped the charm with liberty requires a domain
     # scoped token. Bug #1649106
@@ -174,7 +174,7 @@ def get_keystone_scope():
 
 
 def get_keystone_session(opentackrc_creds, insecure=True, scope='PROJECT'):
-    """Return keystone session
+    """Return keystone session.
 
     :param openrc_creds: Openstack RC credentials
     :type openrc_creds: dict
@@ -185,7 +185,6 @@ def get_keystone_session(opentackrc_creds, insecure=True, scope='PROJECT'):
     :returns: Keystone session object
     :rtype: keystoneauth1.session.Session object
     """
-
     keystone_creds = get_ks_creds(opentackrc_creds, scope=scope)
     if opentackrc_creds.get('API_VERSION', 2) == 2:
         auth = v2.Password(**keystone_creds)
@@ -195,41 +194,38 @@ def get_keystone_session(opentackrc_creds, insecure=True, scope='PROJECT'):
 
 
 def get_overcloud_keystone_session():
-    """Return Over cloud keystone session
+    """Return Over cloud keystone session.
 
     :returns keystone_session: keystoneauth1.session.Session object
     :rtype: keystoneauth1.session.Session
     """
-
     return get_keystone_session(get_overcloud_auth(),
                                 scope=get_keystone_scope())
 
 
 def get_undercloud_keystone_session():
-    """Return Under cloud keystone session
+    """Return Under cloud keystone session.
 
     :returns keystone_session: keystoneauth1.session.Session object
     :rtype: keystoneauth1.session.Session
     """
-
     return get_keystone_session(get_undercloud_auth(),
                                 scope=get_keystone_scope())
 
 
 def get_keystone_session_client(session):
-    """Return keystoneclient authenticated by keystone session
+    """Return keystoneclient authenticated by keystone session.
 
     :param session: Keystone session object
     :type session: keystoneauth1.session.Session object
     :returns: Authenticated keystoneclient
     :rtype: keystoneclient.v3.Client object
     """
-
     return keystoneclient_v3.Client(session=session)
 
 
 def get_keystone_client(opentackrc_creds, insecure=True):
-    """Return authenticated keystoneclient and set auth_ref for service_catalog
+    """Return authenticated keystoneclient and set auth_ref for service_catalog.
 
     :param openrc_creds: Openstack RC credentials
     :type openrc_creds: dict
@@ -238,7 +234,6 @@ def get_keystone_client(opentackrc_creds, insecure=True):
     :returns: Authenticated keystoneclient
     :rtype: keystoneclient.v3.Client object
     """
-
     session = get_keystone_session(opentackrc_creds, insecure)
     client = get_keystone_session_client(session)
     keystone_creds = get_ks_creds(opentackrc_creds)
@@ -252,7 +247,7 @@ def get_keystone_client(opentackrc_creds, insecure=True):
 
 
 def get_project_id(ks_client, project_name, api_version=2, domain_name=None):
-    """Return project ID
+    """Return project ID.
 
     :param ks_client: Authenticated keystoneclient
     :type ks_client: keystoneclient.v3.Client object
@@ -265,7 +260,6 @@ def get_project_id(ks_client, project_name, api_version=2, domain_name=None):
     :returns: Project ID
     :rtype: string or None
     """
-
     domain_id = None
     if domain_name:
         domain_id = ks_client.domains.list(name=domain_name)[0].id
@@ -278,22 +272,20 @@ def get_project_id(ks_client, project_name, api_version=2, domain_name=None):
 
 # Neutron Helpers
 def get_gateway_uuids():
-    """Return machine uuids for neutron-gateway(s)
+    """Return machine uuids for neutron-gateway(s).
 
     :returns: List of uuids
     :rtype: list
     """
-
     return juju_utils.get_machine_uuids_for_application('neutron-gateway')
 
 
 def get_ovs_uuids():
-    """Return machine uuids for neutron-openvswitch(s)
+    """Return machine uuids for neutron-openvswitch(s).
 
     :returns: List of uuids
     :rtype: list
     """
-
     return (juju_utils
             .get_machine_uuids_for_application('neutron-openvswitch'))
 
@@ -303,14 +295,13 @@ NEW_STYLE_NETWORKING = 'physnet1:br-ex'
 
 
 def deprecated_external_networking(dvr_mode=False):
-    """Determine whether deprecated external network mode is in use
+    """Determine whether deprecated external network mode is in use.
 
     :param dvr_mode: Using DVR mode or not
     :type dvr_mode: boolean
     :returns: True or False
     :rtype: boolean
     """
-
     bridge_mappings = None
     if dvr_mode:
         bridge_mappings = get_application_config_option('neutron-openvswitch',
@@ -325,7 +316,7 @@ def deprecated_external_networking(dvr_mode=False):
 
 
 def get_net_uuid(neutron_client, net_name):
-    """Determine whether deprecated external network mode is in use
+    """Determine whether deprecated external network mode is in use.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -334,20 +325,18 @@ def get_net_uuid(neutron_client, net_name):
     :returns: Network ID
     :rtype: string
     """
-
     network = neutron_client.list_networks(name=net_name)['networks'][0]
     return network['id']
 
 
 def get_admin_net(neutron_client):
-    """Return admin netowrk
+    """Return admin netowrk.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
     :returns: Admin network object
     :rtype: dict
     """
-
     for net in neutron_client.list_networks()['networks']:
         if net['name'].endswith('_admin_net'):
             return net
@@ -355,7 +344,7 @@ def get_admin_net(neutron_client):
 
 def configure_gateway_ext_port(novaclient, neutronclient,
                                dvr_mode=None, net_id=None):
-    """Configure the neturong-gateway external port
+    """Configure the neturong-gateway external port.
 
     :param novaclient: Authenticated novaclient
     :type novaclient: novaclient.Client object
@@ -366,7 +355,6 @@ def configure_gateway_ext_port(novaclient, neutronclient,
     :param net_id: Network ID
     :type net_id: string
     """
-
     if dvr_mode:
         uuids = get_ovs_uuids()
     else:
@@ -432,7 +420,7 @@ def configure_gateway_ext_port(novaclient, neutronclient,
 
 def create_project_network(neutron_client, project_id, net_name='private',
                            shared=False, network_type='gre', domain=None):
-    """Create the project network
+    """Create the project network.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -449,7 +437,6 @@ def create_project_network(neutron_client, project_id, net_name='private',
     :returns: Network object
     :rtype: dict
     """
-
     networks = neutron_client.list_networks(name=net_name)
     if len(networks['networks']) == 0:
         logging.info('Creating network: %s',
@@ -473,7 +460,7 @@ def create_project_network(neutron_client, project_id, net_name='private',
 
 def create_external_network(neutron_client, project_id, dvr_mode,
                             net_name='ext_net'):
-    """Create the external network
+    """Create the external network.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -486,7 +473,6 @@ def create_external_network(neutron_client, project_id, dvr_mode,
     :returns: Network object
     :rtype: dict
     """
-
     networks = neutron_client.list_networks(name=net_name)
     if len(networks['networks']) == 0:
         logging.info('Configuring external network')
@@ -512,7 +498,7 @@ def create_external_network(neutron_client, project_id, dvr_mode,
 def create_project_subnet(neutron_client, project_id, network, cidr, dhcp=True,
                           subnet_name='private_subnet', domain=None,
                           subnetpool=None, ip_version=4, prefix_len=24):
-    """Create the project subnet
+    """Create the project subnet.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -537,7 +523,6 @@ def create_project_subnet(neutron_client, project_id, network, cidr, dhcp=True,
     :returns: Subnet object
     :rtype: dict
     """
-
     # Create subnet
     subnets = neutron_client.list_subnets(name=subnet_name)
     if len(subnets['subnets']) == 0:
@@ -567,7 +552,7 @@ def create_external_subnet(neutron_client, project_id, network,
                            default_gateway=None, cidr=None,
                            start_floating_ip=None, end_floating_ip=None,
                            subnet_name='ext_net_subnet'):
-    """Create the external subnet
+    """Create the external subnet.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -588,7 +573,6 @@ def create_external_subnet(neutron_client, project_id, network,
     :returns: Subnet object
     :rtype: dict
     """
-
     subnets = neutron_client.list_subnets(name=subnet_name)
     if len(subnets['subnets']) == 0:
         subnet_msg = {
@@ -620,7 +604,7 @@ def create_external_subnet(neutron_client, project_id, network,
 
 
 def update_subnet_dns(neutron_client, subnet, dns_servers):
-    """Update subnet DNS servers
+    """Update subnet DNS servers.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -629,7 +613,6 @@ def update_subnet_dns(neutron_client, subnet, dns_servers):
     :param dns_servers: Comma separted list of IP addresses
     :type project_id: string
     """
-
     msg = {
         'subnet': {
             'dns_nameservers': dns_servers.split(',')
@@ -641,7 +624,7 @@ def update_subnet_dns(neutron_client, subnet, dns_servers):
 
 
 def create_provider_router(neutron_client, project_id):
-    """Create the provider router
+    """Create the provider router.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -650,7 +633,6 @@ def create_provider_router(neutron_client, project_id):
     :returns: Router object
     :rtype: dict
     """
-
     routers = neutron_client.list_routers(name='provider-router')
     if len(routers['routers']) == 0:
         logging.info('Creating provider router for external network access')
@@ -669,7 +651,7 @@ def create_provider_router(neutron_client, project_id):
 
 
 def plug_extnet_into_router(neutron_client, router, network):
-    """Add external interface to virtual router
+    """Add external interface to virtual router.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -678,7 +660,6 @@ def plug_extnet_into_router(neutron_client, router, network):
     :param network: Network object
     :type network: dict
     """
-
     ports = neutron_client.list_ports(device_owner='network:router_gateway',
                                       network_id=network['id'])
     if len(ports['ports']) == 0:
@@ -692,7 +673,7 @@ def plug_extnet_into_router(neutron_client, router, network):
 
 
 def plug_subnet_into_router(neutron_client, router, network, subnet):
-    """Add subnet interface to virtual router
+    """Add subnet interface to virtual router.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -703,7 +684,6 @@ def plug_subnet_into_router(neutron_client, router, network, subnet):
     :param subnet: Subnet object
     :type subnet: dict
     """
-
     routers = neutron_client.list_routers(name=router)
     if len(routers['routers']) == 0:
         logging.error('Unable to locate provider router %s', router)
@@ -723,7 +703,7 @@ def plug_subnet_into_router(neutron_client, router, network, subnet):
 
 
 def create_address_scope(neutron_client, project_id, name, ip_version=4):
-    """Create address scope
+    """Create address scope.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -736,7 +716,6 @@ def create_address_scope(neutron_client, project_id, name, ip_version=4):
     :returns: Address scope object
     :rtype: dict
     """
-
     address_scopes = neutron_client.list_address_scopes(name=name)
     if len(address_scopes['address_scopes']) == 0:
         logging.info('Creating {} address scope'.format(name))
@@ -759,7 +738,7 @@ def create_address_scope(neutron_client, project_id, name, ip_version=4):
 
 def create_subnetpool(neutron_client, project_id, name, subnetpool_prefix,
                       address_scope, shared=True):
-    """Create subnet pool
+    """Create subnet pool.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -776,7 +755,6 @@ def create_subnetpool(neutron_client, project_id, name, subnetpool_prefix,
     :returns: Subnetpool object
     :rtype: dict
     """
-
     subnetpools = neutron_client.list_subnetpools(name=name)
     if len(subnetpools['subnetpools']) == 0:
         logging.info('Creating subnetpool: %s',
@@ -800,7 +778,7 @@ def create_subnetpool(neutron_client, project_id, name, subnetpool_prefix,
 
 def create_bgp_speaker(neutron_client, local_as=12345, ip_version=4,
                        name='bgp-speaker'):
-    """Create BGP speaker
+    """Create BGP speaker.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -813,7 +791,6 @@ def create_bgp_speaker(neutron_client, local_as=12345, ip_version=4,
     :returns: BGP speaker object
     :rtype: dict
     """
-
     bgp_speakers = neutron_client.list_bgp_speakers(name=name)
     if len(bgp_speakers['bgp_speakers']) == 0:
         logging.info('Creating BGP Speaker')
@@ -833,7 +810,7 @@ def create_bgp_speaker(neutron_client, local_as=12345, ip_version=4,
 
 
 def add_network_to_bgp_speaker(neutron_client, bgp_speaker, network_name):
-    """Advertise network on BGP Speaker
+    """Advertise network on BGP Speaker.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -842,7 +819,6 @@ def add_network_to_bgp_speaker(neutron_client, bgp_speaker, network_name):
     :param network_name: Name of network to advertise
     :type network_name: string
     """
-
     network_id = get_net_uuid(neutron_client, network_name)
     # There is no direct way to determine which networks have already
     # been advertised. For example list_route_advertised_from_bgp_speaker shows
@@ -859,7 +835,7 @@ def add_network_to_bgp_speaker(neutron_client, bgp_speaker, network_name):
 
 def create_bgp_peer(neutron_client, peer_application_name='quagga',
                     remote_as=10000, auth_type='none'):
-    """Create BGP peer
+    """Create BGP peer.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -872,7 +848,6 @@ def create_bgp_peer(neutron_client, peer_application_name='quagga',
     :returns: BGP peer object
     :rtype: dict
     """
-
     peer_unit = model.get_units(
         lifecycle_utils.get_juju_model(), peer_application_name)[0]
     peer_ip = peer_unit.public_address
@@ -895,7 +870,7 @@ def create_bgp_peer(neutron_client, peer_application_name='quagga',
 
 
 def add_peer_to_bgp_speaker(neutron_client, bgp_speaker, bgp_peer):
-    """Add BGP peer relationship to BGP speaker
+    """Add BGP peer relationship to BGP speaker.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -904,7 +879,6 @@ def add_peer_to_bgp_speaker(neutron_client, bgp_speaker, bgp_peer):
     :param bpg_peer: BGP peer object
     :type bgp_peer: dict
     """
-
     # Handle the expected exception if the peer is already on the
     # speaker
     try:
@@ -918,14 +892,13 @@ def add_peer_to_bgp_speaker(neutron_client, bgp_speaker, bgp_peer):
 
 
 def add_neutron_secgroup_rules(neutron_client, project_id):
-    """Add neutron security group rules
+    """Add neutron security group rules.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
     :param project_id: Project ID
     :type project_id: string
     """
-
     secgroup = None
     for group in neutron_client.list_security_groups().get('security_groups'):
         if (group.get('name') == 'default' and
@@ -968,7 +941,7 @@ def add_neutron_secgroup_rules(neutron_client, project_id):
 
 
 def create_port(neutron_client, name, network_name):
-    """Create port on network
+    """Create port on network.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -979,7 +952,6 @@ def create_port(neutron_client, name, network_name):
     :returns: Port object
     :rtype: dict
     """
-
     ports = neutron_client.list_ports(name=name)
     if len(ports['ports']) == 0:
         logging.info('Creating port: {}'.format(name))
@@ -999,7 +971,7 @@ def create_port(neutron_client, name, network_name):
 
 
 def create_floating_ip(neutron_client, network_name, port=None):
-    """Create floating IP on network and optionally associate to a port
+    """Create floating IP on network and optionally associate to a port.
 
     :param neutron_client: Authenticated neutronclient
     :type neutron_client: neutronclient.Client object
@@ -1010,7 +982,6 @@ def create_floating_ip(neutron_client, network_name, port=None):
     :returns: Floating IP object
     :rtype: dict
     """
-
     floatingips = neutron_client.list_floatingips()
     if len(floatingips['floatingips']) > 0:
         if port:
@@ -1038,20 +1009,19 @@ def create_floating_ip(neutron_client, network_name, port=None):
 
 # Codename and package versions
 def get_swift_codename(version):
-    """Determine OpenStack codename that corresponds to swift version
+    """Determine OpenStack codename that corresponds to swift version.
 
     :param version: Version of Swift
     :type version: string
     :returns: Codename for swift
     :rtype: string
     """
-
     codenames = [k for k, v in six.iteritems(SWIFT_CODENAMES) if version in v]
     return codenames[0]
 
 
 def get_os_code_info(package, pkg_version):
-    """Determine OpenStack codename that corresponds to package version
+    """Determine OpenStack codename that corresponds to package version.
 
     :param package: Package name
     :type package: string
@@ -1060,7 +1030,6 @@ def get_os_code_info(package, pkg_version):
     :returns: Codename for package
     :rtype: string
     """
-
     # {'code_num': entry, 'code_name': OPENSTACK_CODENAMES[entry]}
     # Remove epoch if it exists
     if ':' in pkg_version:
@@ -1090,14 +1059,13 @@ def get_os_code_info(package, pkg_version):
 
 
 def get_current_os_versions(deployed_applications):
-    """Determine OpenStack codename of deployed applications
+    """Determine OpenStack codename of deployed applications.
 
     :param deployed_applications: List of deployed applications
     :type deployed_applications: list
     :returns: List of aplication to codenames dictionaries
     :rtype: list
     """
-
     versions = {}
     for application in UPGRADE_SERVICES:
         if application['name'] not in deployed_applications:
@@ -1111,21 +1079,20 @@ def get_current_os_versions(deployed_applications):
 
 
 def get_application_config_keys(application):
-    """Return application configuration keys
+    """Return application configuration keys.
 
     :param application: Name of application
     :type application: string
     :returns: List of aplication configuration keys
     :rtype: list
     """
-
     application_config = model.get_application_config(
         lifecycle_utils.get_juju_model(), application)
     return list(application_config.keys())
 
 
 def get_application_config_option(application, option):
-    """Return application configuration
+    """Return application configuration.
 
     :param application: Name of application
     :type application: string
@@ -1134,7 +1101,6 @@ def get_application_config_option(application, option):
     :returns: Value of configuration option
     :rtype: Configuration option value type
     """
-
     application_config = model.get_application_config(
         lifecycle_utils.get_juju_model(), application)
     try:
@@ -1144,13 +1110,11 @@ def get_application_config_option(application, option):
 
 
 def get_undercloud_auth():
-    """Get the undercloud OpenStack authentication settings from the
-    environment.
+    """Get undercloud OpenStack authentication settings from environment.
 
     :returns: Dictionary of authentication settings
     :rtype: dict
     """
-
     os_auth_url = os.environ.get('OS_AUTH_URL')
     if os_auth_url:
         api_version = os_auth_url.split('/')[-1].replace('v', '')
@@ -1213,6 +1177,11 @@ def get_undercloud_auth():
 
 # Openstack Client helpers
 def get_keystone_ip():
+    """Return the IP address to use when communicating with keystone api.
+
+    :returns: IP address
+    :rtype: str
+    """
     if get_application_config_option('keystone', 'vip'):
         return get_application_config_option('keystone', 'vip')
     unit = model.get_units(
@@ -1221,13 +1190,11 @@ def get_keystone_ip():
 
 
 def get_overcloud_auth():
-    """Get the overcloud OpenStack authentication settings from the
-    environment.
+    """Get overcloud OpenStack authentication from the environment.
 
     :returns: Dictionary of authentication settings
     :rtype: dict
     """
-
     if get_application_config_option('keystone', 'use-https').lower() == 'yes':
         transport = 'https'
         port = 35357
@@ -1274,7 +1241,7 @@ def get_overcloud_auth():
 
 
 def get_urllib_opener():
-    """Create a urllib opener taking into account proxy settings
+    """Create a urllib opener taking into account proxy settings.
 
     Using urllib.request.urlopen will automatically handle proxies so none
     of this function is needed except we are currently specifying proxies
@@ -1295,7 +1262,7 @@ def get_urllib_opener():
 
 
 def find_cirros_image(arch):
-    """Return the url for the latest cirros image for the given architecture
+    """Return the url for the latest cirros image for the given architecture.
 
     :param arch: aarch64, arm, i386, x86_64 etc
     :type arch: str
@@ -1310,7 +1277,7 @@ def find_cirros_image(arch):
 
 
 def download_image(image_url, target_file):
-    """Download the image from the given url to the specified file
+    """Download the image from the given url to the specified file.
 
     :param image_url: URL to download image from
     :type image_url: str
@@ -1327,7 +1294,9 @@ def download_image(image_url, target_file):
 def resource_reaches_status(resource, resource_id,
                             expected_status='available',
                             msg='resource'):
-    """Wait for an openstack resources status to reach an expected status
+    """Wait for an openstack resources status to reach an expected status.
+
+       Wait for an openstack resources status to reach an expected status
        within a specified time. Useful to confirm that nova instances, cinder
        vols, snapshots, glance images, heat stacks and other resources
        eventually reach the expected status.
@@ -1351,7 +1320,7 @@ def resource_reaches_status(resource, resource_id,
 @tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
                 reraise=True, stop=tenacity.stop_after_attempt(2))
 def resource_removed(resource, resource_id, msg="resource"):
-    """Wait for an openstack resource to no longer be present
+    """Wait for an openstack resource to no longer be present.
 
     :param resource: pointer to os resource type, ex: heat_client.stacks
     :type resource: str
@@ -1367,7 +1336,9 @@ def resource_removed(resource, resource_id, msg="resource"):
 
 
 def delete_resource(resource, resource_id, msg="resource"):
-    """Delete an openstack resource, such as one instance, keypair,
+    """Delete an openstack resource.
+
+    Delete an openstack resource, such as one instance, keypair,
     image, volume, stack, etc., and confirm deletion within max wait time.
 
     :param resource: pointer to os resource type, ex:glance_client.images
@@ -1384,7 +1355,7 @@ def delete_resource(resource, resource_id, msg="resource"):
 
 
 def delete_image(glance, img_id):
-    """Delete the given image from glance
+    """Delete the given image from glance.
 
     :param glance: Authenticated glanceclient
     :type glance: glanceclient.Client
@@ -1396,7 +1367,7 @@ def delete_image(glance, img_id):
 
 def upload_image_to_glance(glance, local_path, image_name, disk_format='qcow2',
                            visibility='public', container_format='bare'):
-    """Upload the given image to glance and apply the given label
+    """Upload the given image to glance and apply the given label.
 
     :param glance: Authenticated glanceclient
     :type glance: glanceclient.Client

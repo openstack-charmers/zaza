@@ -1,3 +1,4 @@
+"""Run test phase."""
 import asyncio
 import argparse
 import logging
@@ -22,13 +23,13 @@ def run_test_list(tests):
 
 
 def test(model_name, tests):
-    """Run all steps to execute tests against the model"""
+    """Run all steps to execute tests against the model."""
     utils.set_juju_model(model_name)
     run_test_list(tests)
 
 
 def parse_args(args):
-    """Parse command line arguments
+    """Parse command line arguments.
 
     :param args: List of configure functions functions
     :type list: [str1, str2,...] List of command line arguments
@@ -45,8 +46,11 @@ def parse_args(args):
 
 
 def main():
-    """Run the tests defined by the command line args or if none were provided
-       read the tests from the charms tests.yaml config file"""
+    """Run the tests defined by the command line args.
+
+    Run the tests defined by the command line args or if none were provided
+    read the tests from the charms tests.yaml config file
+    """
     logging.basicConfig(level=logging.INFO)
     args = parse_args(sys.argv[1:])
     tests = args.tests or utils.get_charm_config()['tests']

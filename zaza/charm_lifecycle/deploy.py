@@ -1,3 +1,4 @@
+"""Run deploy phase."""
 import argparse
 import jinja2
 import logging
@@ -26,7 +27,7 @@ applications:
 
 
 def is_valid_env_key(key):
-    """Check if key is a valid environment variable name for use with template
+    """Check if key is a valid environment variable name for use with template.
 
     :param key: List of configure functions functions
     :type key: str
@@ -42,8 +43,7 @@ def is_valid_env_key(key):
 
 
 def get_template_context_from_env():
-    """Return environment variables from the current environment that can be
-       used for template rendering.
+    """Return environment vars from the current env for template rendering.
 
     :returns: Environment variable key values for use with template rendering
     :rtype: dict
@@ -52,7 +52,7 @@ def get_template_context_from_env():
 
 
 def get_charm_config_context():
-    """Return settings from charm config file
+    """Return settings from charm config file.
 
     :returns: Context for template rendering
     :rtype: dict
@@ -65,7 +65,7 @@ def get_charm_config_context():
 
 
 def get_template_overlay_context():
-    """Combine contexts which can be used for overlay template rendering
+    """Combine contexts which can be used for overlay template rendering.
 
     :returns: Context for template rendering
     :rtype: dict
@@ -101,8 +101,10 @@ def get_jinja2_env():
 
 
 def get_template_name(target_file):
-    """Return the expected name of the template used to generate the
-       target_file
+    """Return the template name for target_file.
+
+    Return the expected name of the template used to generate the
+    target_file
 
     :param target_file: File to be rendered
     :type target_file: str
@@ -113,7 +115,7 @@ def get_template_name(target_file):
 
 
 def get_template(target_file):
-    """Return the jinja2 template for the given file
+    """Return the jinja2 template for the given file.
 
     :returns: Template object used to generate target_file
     :rtype: jinja2.Template
@@ -127,7 +129,7 @@ def get_template(target_file):
 
 
 def render_template(template, target_file):
-    """Render the template to the file supplied
+    """Render the template to the file supplied.
 
     :param template: Template to be rendered
     :type template: jinja2.Template
@@ -140,7 +142,7 @@ def render_template(template, target_file):
 
 
 def render_overlay(overlay_name, target_dir):
-    """Render the overlay template in the directory supplied
+    """Render the overlay template in the directory supplied.
 
     :param overlay_name: Name of overlay to be rendered
     :type overlay_name: str
@@ -160,7 +162,7 @@ def render_overlay(overlay_name, target_dir):
 
 
 def render_local_overlay(target_dir):
-    """Render the local overlay template in the directory supplied
+    """Render the local overlay template in the directory supplied.
 
     :param target_dir: Directory to render overlay in
     :type overlay_name: str
@@ -177,7 +179,7 @@ def render_local_overlay(target_dir):
 
 
 def render_overlays(bundle, target_dir):
-    """Render the overlays for the given bundle in the directory provided
+    """Render the overlays for the given bundle in the directory provided.
 
     :param bundle: Name of bundle being deployed
     :type bundle: str
@@ -194,7 +196,7 @@ def render_overlays(bundle, target_dir):
 
 
 def deploy_bundle(bundle, model):
-    """Deploy the given bundle file in the specified model
+    """Deploy the given bundle file in the specified model.
 
     :param bundle: Path to bundle file
     :type bundle: str
@@ -210,7 +212,7 @@ def deploy_bundle(bundle, model):
 
 
 def deploy(bundle, model, wait=True):
-    """Run all steps to complete deployment
+    """Run all steps to complete deployment.
 
     :param bundle: Path to bundle file
     :type bundle: str
@@ -230,7 +232,7 @@ def deploy(bundle, model, wait=True):
 
 
 def parse_args(args):
-    """Parse command line arguments
+    """Parse command line arguments.
 
     :param args: List of configure functions functions
     :type list: [str1, str2,...] List of command line arguments
@@ -252,7 +254,7 @@ def parse_args(args):
 
 
 def main():
-    """Deploy bundle"""
+    """Deploy bundle."""
     logging.basicConfig(level=logging.INFO)
     args = parse_args(sys.argv[1:])
     deploy(args.bundle, args.model, wait=args.wait)

@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Module for interacting with juju."""
 import os
 from pathlib import Path
 import yaml
@@ -26,7 +27,7 @@ from zaza.utilities import generic as generic_utils
 
 
 def get_application_status(application=None, unit=None):
-    """Return the juju status for an application
+    """Return the juju status for an application.
 
     :param application: Application name
     :type application: string
@@ -35,7 +36,6 @@ def get_application_status(application=None, unit=None):
     :returns: Juju status output for an application
     :rtype: dict
     """
-
     status = get_full_juju_status()
 
     if unit and not application:
@@ -49,7 +49,7 @@ def get_application_status(application=None, unit=None):
 
 
 def get_cloud_configs(cloud=None):
-    """Get cloud configuration from local clouds.yaml
+    """Get cloud configuration from local clouds.yaml.
 
     libjuju does not yet have cloud information implemented.
     Use libjuju as soon as possible.
@@ -59,7 +59,6 @@ def get_cloud_configs(cloud=None):
     :returns: Dictionary of cloud configuration
     :rtype: dict
     """
-
     home = str(Path.home())
     cloud_config = os.path.join(home, ".local", "share", "juju", "clouds.yaml")
     if cloud:
@@ -69,25 +68,23 @@ def get_cloud_configs(cloud=None):
 
 
 def get_full_juju_status():
-    """Return the full juju status output
+    """Return the full juju status output.
 
     :returns: Full juju status output
     :rtype: dict
     """
-
     status = model.get_status(lifecycle_utils.get_juju_model())
     return status
 
 
 def get_machines_for_application(application):
-    """Return machines for a given application
+    """Return machines for a given application.
 
     :param application: Application name
     :type application: string
     :returns: List of machines for an application
     :rtype: list
     """
-
     status = get_application_status(application)
 
     # libjuju juju status no longer has units for subordinate charms
@@ -103,7 +100,7 @@ def get_machines_for_application(application):
 
 
 def get_machine_status(machine, key=None):
-    """Return the juju status for a machine
+    """Return the juju status for a machine.
 
     :param machine: Machine number
     :type machine: string
@@ -112,7 +109,6 @@ def get_machine_status(machine, key=None):
     :returns: Juju status output for a machine
     :rtype: dict
     """
-
     status = get_full_juju_status()
     status = status.machines.get(machine)
     if key:
@@ -121,14 +117,13 @@ def get_machine_status(machine, key=None):
 
 
 def get_machine_uuids_for_application(application):
-    """Return machine uuids for a given application
+    """Return machine uuids for a given application.
 
     :param application: Application name
     :type application: string
     :returns: List of machine uuuids for an application
     :rtype: list
     """
-
     uuids = []
     for machine in get_machines_for_application(application):
         uuids.append(get_machine_status(machine, key="instance-id"))
@@ -136,12 +131,11 @@ def get_machine_uuids_for_application(application):
 
 
 def get_provider_type():
-    """Get the type of the undercloud
+    """Get the type of the undercloud.
 
     :returns: Name of the undercloud type
     :rtype: string
     """
-
     cloud = controller.get_cloud()
     if cloud:
         # If the controller was deployed from this system with
@@ -155,7 +149,7 @@ def get_provider_type():
 
 
 def remote_run(unit, remote_cmd, timeout=None, fatal=None):
-    """Run command on unit and return the output
+    """Run command on unit and return the output.
 
     NOTE: This function is pre-deprecated. As soon as libjuju unit.run is able
     to return output this functionality should move to model.run_on_unit.
@@ -186,7 +180,8 @@ def remote_run(unit, remote_cmd, timeout=None, fatal=None):
 
 
 def _get_unit_names(names):
-    """
+    """Resolve given application names to first unit name of said application.
+
     Helper function that resolves application names to first unit name of
     said application.  Any already resolved unit names are returned as-is.
 
@@ -207,7 +202,8 @@ def _get_unit_names(names):
 
 
 def get_relation_from_unit(entity, remote_entity, remote_interface_name):
-    """
+    """Get relation data passed between two units.
+
     Get relation data for relation with `remote_interface_name` between
     `entity` and `remote_entity` from the perspective of `entity`.
 

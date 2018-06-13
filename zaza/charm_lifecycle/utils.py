@@ -1,3 +1,4 @@
+"""Utilities to support running lifecycle phases."""
 import importlib
 import os
 import yaml
@@ -9,7 +10,7 @@ DEFAULT_TEST_CONFIG = "./tests/tests.yaml"
 
 
 def get_charm_config(yaml_file=None):
-    """Read the yaml test config file and return the resulting config
+    """Read the yaml test config file and return the resulting config.
 
     :param yaml_file: File to be read
     :type yaml_file: str
@@ -23,10 +24,10 @@ def get_charm_config(yaml_file=None):
 
 
 def get_class(class_str):
-    """Get the class represented by the given string
+    """Get the class represented by the given string.
 
-       For example, get_class('zaza.charms_tests.svc.TestSVCClass1')
-       returns zaza.charms_tests.svc.TestSVCClass1
+    For example, get_class('zaza.charms_tests.svc.TestSVCClass1')
+    returns zaza.charms_tests.svc.TestSVCClass1
 
     :param class_str: Class to be returned
     :type class_str: str
@@ -40,7 +41,7 @@ def get_class(class_str):
 
 
 def set_juju_model(model_name):
-    """Point environment at the given model
+    """Point environment at the given model.
 
     :param model_name: Model to point environment at
     :type model_name: str
@@ -49,7 +50,7 @@ def set_juju_model(model_name):
 
 
 def get_juju_model():
-    """Retrieve current model
+    """Retrieve current model.
 
     First check the environment for JUJU_MODEL. If this is not set, get the
     current active model.
@@ -57,7 +58,6 @@ def get_juju_model():
     :returns: In focus model name
     :rtype: str
     """
-
     try:
         # Check the environment
         return os.environ["JUJU_MODEL"]
