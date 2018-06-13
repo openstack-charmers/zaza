@@ -1,3 +1,10 @@
+"""Module for interacting with a juju model.
+
+This module contains a number of functions for interacting with a Juju model
+mostly via libjuju. Async function also provice a non-async alternative via
+'sync_wrapper'.
+"""
+
 import asyncio
 from async_generator import async_generator, yield_, asynccontextmanager
 import logging
@@ -8,6 +15,7 @@ import yaml
 from oslo_config import cfg
 
 from juju import loop
+from juju.controller import Controller
 from juju.errors import JujuError
 from juju.model import Model
 
@@ -18,7 +26,6 @@ CURRENT_MODEL = None
 
 def set_juju_model(model_name):
     """Point environment at the given model
-
     :param model_name: Model to point environment at
     :type model_name: str
     """
@@ -50,7 +57,8 @@ def get_juju_model():
     return CURRENT_MODEL
 
 
-async def deployed(filter=None):
+async def deployed():
+    """List deployed applications."""
     # Create a Model instance. We need to connect our Model to a Juju api
     # server before we can use it.
     model = Model()
@@ -65,7 +73,7 @@ async def deployed(filter=None):
 
 
 def get_unit_from_name(unit_name, model):
-    """Return the units that corresponds to the name in the given model
+    """Return the units that corresponds to the name in the given model.
 
     :param unit_name: Name of unit to match
     :type unit_name: str
@@ -88,7 +96,8 @@ def get_unit_from_name(unit_name, model):
 @asynccontextmanager
 @async_generator
 async def run_in_model(model_name):
-    """Context manager for executing code inside a libjuju model
+    """Context manager for executing code inside a libjuju model.
+
        Example of using run_in_model:
            async with run_in_model(model_name) as model:
                model.do_something()
@@ -136,7 +145,7 @@ scp_to_unit = sync_wrapper(async_scp_to_unit)
 async def async_scp_to_all_units(application_name, source, destination,
                                  model_name=None, user='ubuntu', proxy=False,
                                  scp_opts=''):
-    """Transfer files from to all units of an application
+    """Transfer files from to all units of an application.
 
     :param model_name: Name of model unit is in
     :type model_name: str
@@ -191,7 +200,7 @@ scp_from_unit = sync_wrapper(async_scp_from_unit)
 
 
 async def async_run_on_unit(unit_name, command, model_name=None, timeout=None):
-    """Juju run on unit
+    """Juju run on unit.
 
     :param model_name: Name of model unit is in
     :type model_name: str
@@ -216,7 +225,7 @@ run_on_unit = sync_wrapper(async_run_on_unit)
 
 
 async def async_get_unit_time(unit_name, model_name=None, timeout=None):
-    """ Get the current time (in seconds since Epoch) on the given unit
+    """Get the current time (in seconds since Epoch) on the given unit.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -267,7 +276,7 @@ get_unit_service_start_time = sync_wrapper(async_get_unit_service_start_time)
 
 
 async def async_get_application(application_name, model_name=None):
-    """Return an application object
+    """Return an application object.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -283,7 +292,7 @@ get_application = sync_wrapper(async_get_application)
 
 
 async def async_get_units(application_name, model_name=None):
-    """Return all the units of a given application
+    """Return all the units of a given application.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -299,7 +308,7 @@ get_units = sync_wrapper(async_get_units)
 
 
 async def async_get_machines(application_name, model_name=None):
-    """Return all the machines of a given application
+    """Return all the machines of a given application.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -318,7 +327,7 @@ get_machines = sync_wrapper(async_get_machines)
 
 
 def get_first_unit_name(application_name, model_name=None):
-    """Return name of lowest numbered unit of given application
+    """Return name of lowest numbered unit of given application.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -331,7 +340,7 @@ def get_first_unit_name(application_name, model_name=None):
 
 
 def get_app_ips(application_name, model_name=None):
-    """Return public address of all units of an application
+    """Return public address of all units of an application.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -345,7 +354,7 @@ def get_app_ips(application_name, model_name=None):
 
 
 async def async_get_application_config(application_name, model_name=None):
-    """Return application configuration
+    """Return application configuration.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -362,7 +371,7 @@ get_application_config = sync_wrapper(async_get_application_config)
 
 async def async_set_application_config(application_name, configuration,
                                        model_name=None):
-    """Set application configuration
+    """Set application configuration.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -379,7 +388,7 @@ set_application_config = sync_wrapper(async_set_application_config)
 
 
 async def async_get_status(model_name=None):
-    """Return full status
+    """Return full status.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -394,7 +403,7 @@ get_status = sync_wrapper(async_get_status)
 
 async def async_run_action(unit_name, action_name, model_name=None,
                            action_params=None):
-    """Run action on given unit
+    """Run action on given unit.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -418,7 +427,7 @@ run_action = sync_wrapper(async_run_action)
 
 async def async_run_action_on_leader(application_name, action_name,
                                      model_name=None, action_params=None):
-    """Run action on lead unit of the given application
+    """Run action on lead unit of the given application.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -444,26 +453,26 @@ run_action_on_leader = sync_wrapper(async_run_action_on_leader)
 
 
 class UnitError(Exception):
-    """Exception raised for units in error state
-    """
+    """Exception raised for units in error state."""
 
     def __init__(self, units):
+        """Set units in error state in messgae and raise."""
         message = "Units {} in error state".format(
             ','.join([u.entity_id for u in units]))
         super(UnitError, self).__init__(message)
 
 
 class ServiceNotRunning(Exception):
-    """Exception raised when service not running
-    """
+    """Exception raised when service not running."""
 
     def __init__(self, service):
+        """Set not running services in messgae and raise."""
         message = "Service {} not running".format(service)
         super(ServiceNotRunning, self).__init__(message)
 
 
 def units_with_wl_status_state(model, state):
-    """Return a list of unit which have a matching workload status
+    """Return a list of unit which have a matching workload status.
 
     :returns: Units in error state
     :rtype: [juju.Unit, ...]
@@ -477,7 +486,7 @@ def units_with_wl_status_state(model, state):
 
 
 def check_model_for_hard_errors(model):
-    """Check model for any hard errors that should halt a deployment
+    """Check model for any hard errors that should halt a deployment.
 
        The only check currently implemented is checking for units in an
        error state
@@ -542,7 +551,7 @@ def check_unit_workload_status_message(model, unit, message=None,
 
 async def async_wait_for_application_states(model_name=None, states=None,
                                             timeout=2700):
-    """Wait for model to achieve the desired state
+    """Wait for model to achieve the desired state.
 
     Check the workload status and workload status message for every unit of
     every application. By default look for an 'active' workload status and a
@@ -608,7 +617,7 @@ wait_for_application_states = sync_wrapper(async_wait_for_application_states)
 
 
 async def async_block_until_all_units_idle(model_name=None, timeout=2700):
-    """Block until all units in the given model are idle
+    """Block until all units in the given model are idle.
 
     An example accessing this function via its sync wrapper::
 
@@ -670,7 +679,7 @@ block_until_service_status = sync_wrapper(async_block_until_service_status)
 
 
 def get_actions(application_name, model_name=None):
-    """Get the actions an applications supports
+    """Get the actions an applications supports.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -689,14 +698,13 @@ def get_actions(application_name, model_name=None):
 
 
 async def async_get_current_model():
-    """Return the current active model name
+    """Return the current active model name.
 
     Connect to the current active model and return its name.
 
     :returns: String curenet model name
     :rtype: str
     """
-
     model = Model()
     await model.connect()
     model_name = model.info.name
@@ -723,7 +731,6 @@ async def async_block_until(*conditions, timeout=None, wait_period=0.5,
     :param loop: The event loop to use
     :type loop: An event loop
     """
-
     async def _block():
         while True:
             evaluated = []
@@ -784,7 +791,7 @@ async def async_block_until_file_ready(application_name, remote_file,
 async def async_block_until_file_has_contents(application_name, remote_file,
                                               expected_contents,
                                               model_name=None, timeout=2700):
-    """Block until the expected_contents are present on all units
+    """Block until the expected_contents are present on all units.
 
     Block until the given string (expected_contents) is present in the file
     (remote_file) on all units of the given application.
@@ -827,7 +834,7 @@ async def async_block_until_oslo_config_entries_match(application_name,
                                                       expected_contents,
                                                       model_name=None,
                                                       timeout=2700):
-    """Block until dict is represented in the file using oslo.config parser
+    """Block until dict is represented in the file using oslo.config parser.
 
     Block until the expected_contents are in the given file on all units of
     the application. For example to check for the following configuration::
@@ -895,7 +902,7 @@ block_until_oslo_config_entries_match = sync_wrapper(
 async def async_block_until_services_restarted(application_name, mtime,
                                                services, model_name=None,
                                                timeout=2700):
-    """Block until the given services have a start time later then mtime
+    """Block until the given services have a start time later then mtime.
 
     For example to check that the glance-api service has been restarted::
 
@@ -940,7 +947,7 @@ block_until_services_restarted = sync_wrapper(
 
 async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
                                            timeout=2700):
-    """Block until the given unit has the desired workload status
+    """Block until the given unit has the desired workload status.
 
     A units workload status may change during a given action. This function
     blocks until the given unit has the desired workload status::
@@ -974,7 +981,7 @@ async def async_get_relation_id(application_name, remote_application_name,
                                 model_name=None,
                                 remote_interface_name=None):
     """
-    Get relation id of relation from model
+    Get relation id of relation from model.
 
     :param model_name: Name of model to operate on
     :type model_name: str
@@ -997,13 +1004,3 @@ async def async_get_relation_id(application_name, remote_application_name,
                 return(rel.id)
 
 get_relation_id = sync_wrapper(async_get_relation_id)
-
-
-def main():
-    # Run the deploy coroutine in an asyncio event loop, using a helper
-    # that abstracts loop creation and teardown.
-    print("Current applications: {}".format(", ".join(loop.run(deployed()))))
-
-
-if __name__ == '__main__':
-    main()
