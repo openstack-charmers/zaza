@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 #
 # Copyright 2018 Canonical Ltd.
 #
@@ -13,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Module for working with x.509 certificates."""
 
 import cryptography
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -29,7 +29,7 @@ def generate_cert(common_name,
                   signing_key=None,
                   signing_key_password=None,
                   generate_ca=False):
-    """Generate x.509 certificate
+    """Generate x.509 certificate.
 
     Example of how to create a certificate chain::
 

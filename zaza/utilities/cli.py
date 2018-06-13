@@ -1,11 +1,11 @@
-#!/usr/bin/env python3
+"""Module containing utilities for working with commandline tools."""
 
 import logging
 import os
 
 
 def parse_arg(options, arg, multiargs=False):
-    """Parse argparse argments
+    """Parse argparse argments.
 
     :param options: Argparse options
     :type options: argparse object
@@ -16,7 +16,6 @@ def parse_arg(options, arg, multiargs=False):
     :returns: Argparse atrribute value
     :rtype: string
     """
-
     if arg.upper() in os.environ:
         if multiargs:
             return os.environ[arg.upper()].split()
@@ -27,12 +26,11 @@ def parse_arg(options, arg, multiargs=False):
 
 
 def setup_logging():
-    """Setup zaza logging
+    """Do setup for logging.
 
     :returns: Nothing: This fucntion is executed for its sideffect
     :rtype: None
     """
-
     logFormatter = logging.Formatter(
         fmt="%(asctime)s [%(levelname)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S")

@@ -1,3 +1,4 @@
+"""Run destroy phase."""
 import argparse
 import logging
 import sys
@@ -6,7 +7,7 @@ import zaza.model
 
 
 def destroy(model_name):
-    """Run all steps to cleaup after a test run
+    """Run all steps to cleaup after a test run.
 
     :param model: Name of model to remove
     :type bundle: str
@@ -15,7 +16,7 @@ def destroy(model_name):
 
 
 def parse_args(args):
-    """Parse command line arguments
+    """Parse command line arguments.
 
     :param args: List of configure functions functions
     :type list: [str1, str2,...] List of command line arguments
@@ -29,7 +30,7 @@ def parse_args(args):
 
 
 def main():
-    """Cleanup after test run"""
+    """Cleanup after test run."""
     logging.basicConfig(level=logging.INFO)
     args = parse_args(sys.argv[1:])
     destroy(args.model_name)

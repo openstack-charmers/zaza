@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+"""Run configuration phase."""
 
 import zaza.charm_tests.vault.utils as vault_utils
 

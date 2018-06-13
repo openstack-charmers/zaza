@@ -1,3 +1,4 @@
+"""Run full test lifecycle."""
 import argparse
 import asyncio
 import logging
@@ -14,11 +15,16 @@ import zaza.charm_lifecycle.test as test
 
 
 def generate_model_name():
+    """Generate a unique model name.
+
+    :returns: Model name
+    :rtype: str
+    """
     return 'zaza-{}'.format(str(uuid.uuid4())[-12:])
 
 
 def func_test_runner(keep_model=False, smoke=False, bundle=None):
-    """Deploy the bundles and run the tests as defined by the charms tests.yaml
+    """Deploy the bundles and run the tests as defined by the charms tests.yaml.
 
     :param keep_model: Whether to destroy model at end of run
     :type keep_model: boolean
@@ -58,7 +64,7 @@ def func_test_runner(keep_model=False, smoke=False, bundle=None):
 
 
 def parse_args(args):
-    """Parse command line arguments
+    """Parse command line arguments.
 
     :param args: List of configure functions functions
     :type list: [str1, str2,...] List of command line arguments
@@ -82,6 +88,7 @@ def parse_args(args):
 
 
 def main():
+    """Execute full test run."""
     args = parse_args(sys.argv[1:])
 
     level = getattr(logging, args.loglevel.upper(), None)

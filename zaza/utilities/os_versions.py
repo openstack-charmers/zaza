@@ -1,3 +1,4 @@
+"""Module containing data about OpenStack versions."""
 from collections import OrderedDict
 
 
