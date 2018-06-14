@@ -4,6 +4,7 @@ import argparse
 import logging
 import sys
 
+import zaza.model
 import zaza.charm_lifecycle.utils as utils
 
 
@@ -26,7 +27,7 @@ def configure(model_name, functions):
     :param functions: List of configure functions functions
     :type tests: ['zaza.charms_tests.svc.setup', ...]
     """
-    utils.set_juju_model(model_name)
+    zaza.model.set_juju_model(model_name)
     run_configure_list(functions)
 
 

@@ -27,9 +27,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
 
         # Model
         self.patch_object(juju_utils, "model")
-        self.patch_object(juju_utils.lifecycle_utils, "get_juju_model")
         self.model_name = "model-name"
-        self.get_juju_model.return_value = self.model_name
         self.model.get_status.return_value = self.juju_status
         self.run_output = {"Code": "0", "Stderr": "", "Stdout": "RESULT"}
         self.error_run_output = {"Code": "1", "Stderr": "ERROR", "Stdout": ""}
@@ -80,7 +78,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
 
     def test_get_full_juju_status(self):
         self.assertEqual(juju_utils.get_full_juju_status(), self.juju_status)
-        self.model.get_status.assert_called_once_with(self.model_name)
+        self.model.get_status.assert_called_once_with()
 
     def test_get_machines_for_application(self):
         self.patch_object(juju_utils, "get_application_status")
@@ -145,7 +143,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.assertEqual(juju_utils.remote_run(self.unit, _cmd),
                          self.run_output["Stdout"])
         self.model.run_on_unit.assert_called_once_with(
-            self.model_name, self.unit, _cmd, timeout=None)
+            self.unit, _cmd, timeout=None)
 
         # Non-fatal failure
         self.model.run_on_unit.return_value = self.error_run_output
@@ -168,7 +166,6 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.model.get_first_unit_name.assert_called()
 
     def test_get_relation_from_unit(self):
-        self.patch_object(juju_utils, 'lifecycle_utils')
         self.patch_object(juju_utils, '_get_unit_names')
         self.patch_object(juju_utils, 'yaml')
         self.patch_object(juju_utils, 'model')
@@ -179,12 +176,11 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         juju_utils.get_relation_from_unit('aunit/0', 'otherunit/0',
                                           'arelation')
         self.model.run_on_unit.assert_called_with(
-            self.lifecycle_utils.get_juju_model(), 'aunit/0',
+            'aunit/0',
             'relation-get --format=yaml -r "42" - "otherunit/0"')
         self.yaml.load.assert_called_with(str(data))
 
     def test_get_relation_from_unit_fails(self):
-        self.patch_object(juju_utils, 'lifecycle_utils')
         self.patch_object(juju_utils, '_get_unit_names')
         self.patch_object(juju_utils, 'yaml')
         self.patch_object(juju_utils, 'model')
@@ -195,6 +191,6 @@ class TestJujuUtils(ut_utils.BaseTestCase):
             juju_utils.get_relation_from_unit('aunit/0', 'otherunit/0',
                                               'arelation')
         self.model.run_on_unit.assert_called_with(
-            self.lifecycle_utils.get_juju_model(), 'aunit/0',
+            'aunit/0',
             'relation-get --format=yaml -r "42" - "otherunit/0"')
         self.assertFalse(self.yaml.load.called)

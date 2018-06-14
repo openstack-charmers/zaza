@@ -10,6 +10,11 @@ import zaza.model as model
 
 class TestModel(ut_utils.BaseTestCase):
 
+    def tearDown(self):
+        super(TestModel, self).tearDown()
+        # Clear cached model name
+        model.CURRENT_MODEL = None
+
     def setUp(self):
         super(TestModel, self).setUp()
 
@@ -123,6 +128,30 @@ class TestModel(ut_utils.BaseTestCase):
         self.Controller_mock.add_model.side_effect = _ctrl_add_model
         self.Controller_mock.destroy_models.side_effect = _ctrl_destroy_models
 
+    def test_get_juju_model(self):
+        self.patch_object(model.os, 'environ')
+        self.patch_object(model, 'get_current_model')
+        self.get_current_model.return_value = 'modelsmodel'
+
+        def _get_env(key):
+            return _env.get(key)
+        self.environ.__getitem__.side_effect = _get_env
+        _env = {"JUJU_MODEL": 'envmodel'}
+
+        # JUJU_ENV environment variable set
+        self.assertEqual(model.get_juju_model(), 'envmodel')
+        self.get_current_model.assert_not_called()
+
+    def test_get_juju_model_noenv(self):
+        self.patch_object(model.os, 'environ')
+        self.patch_object(model, 'get_current_model')
+        self.get_current_model.return_value = 'modelsmodel'
+
+        # No envirnment variable
+        self.environ.__getitem__.side_effect = KeyError
+        self.assertEqual(model.get_juju_model(), 'modelsmodel')
+        self.get_current_model.assert_called_once()
+
     def test_run_in_model(self):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
@@ -135,47 +164,53 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model_mock.disconnect.assert_called_once_with()
 
     def test_scp_to_unit(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        model.scp_to_unit('modelname', 'app/1', '/tmp/src', '/tmp/dest')
+        model.scp_to_unit('app/1', '/tmp/src', '/tmp/dest')
         self.unit1.scp_to.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
 
     def test_scp_to_all_units(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        model.scp_to_all_units('modelname', 'app', '/tmp/src', '/tmp/dest')
+        model.scp_to_all_units('app', '/tmp/src', '/tmp/dest')
         self.unit1.scp_to.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
         self.unit2.scp_to.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
 
     def test_scp_from_unit(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        model.scp_from_unit('modelname', 'app/1', '/tmp/src', '/tmp/dest')
+        model.scp_from_unit('app/1', '/tmp/src', '/tmp/dest')
         self.unit1.scp_from.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
 
     def test_get_units(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.assertEqual(
-            model.get_units('modelname', 'app'),
+            model.get_units('app'),
             self.units)
 
     def test_get_machines(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.assertEqual(
-            model.get_machines('modelname', 'app'),
+            model.get_machines('app'),
             ['machine3', 'machine7'])
 
     def test_get_first_unit_name(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'get_units')
         self.get_units.return_value = self.units
         self.assertEqual(
@@ -183,62 +218,76 @@ class TestModel(ut_utils.BaseTestCase):
             'app/2')
 
     def test_get_unit_from_name(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.assertEqual(
             model.get_unit_from_name('app/4', self.mymodel),
             self.unit2)
 
     def test_get_app_ips(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'get_units')
         self.get_units.return_value = self.units
         self.assertEqual(model.get_app_ips('model', 'app'), ['ip1', 'ip2'])
 
     def test_run_on_unit(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         expected = {'Code': '0', 'Stderr': '', 'Stdout': 'RESULT'}
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', 'modelname', cmd),
+        self.assertEqual(model.run_on_unit('app/2', cmd),
                          expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
 
     def test_get_relation_id(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.get_relation_id('testmodel', 'app', 'app'), 42)
+        self.assertEqual(model.get_relation_id('app', 'app'), 42)
 
     def test_get_relation_id_interface(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.get_relation_id('testmodel', 'app', 'app',
-                                               'interface'), 51)
+        self.assertEqual(
+            model.get_relation_id('app', 'app',
+                                  remote_interface_name='interface'),
+            51)
 
     def test_run_action(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        model.run_action('app/2', 'modelname', 'backup',
-                         {'backup_dir': '/dev/null'})
+        model.run_action(
+            'app/2',
+            'backup',
+            action_params={'backup_dir': '/dev/null'})
         self.unit1.run_action.assert_called_once_with(
             'backup',
             backup_dir='/dev/null')
 
     def test_get_actions(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model.subprocess, 'check_output')
         self.check_output.return_value = 'action: "action desc"'
         self.assertEqual(
-            model.get_actions('mname', 'myapp'),
+            model.get_actions('myapp'),
             {'action': "action desc"})
         self.check_output.assert_called_once_with(
             ['juju', 'actions', '-m', 'mname', 'myapp', '--format', 'yaml'])
 
     def test_run_action_on_leader(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        model.run_action_on_leader('modelname', 'app', 'backup',
-                                   {'backup_dir': '/dev/null'})
+        model.run_action_on_leader(
+            'app',
+            'backup',
+            action_params={'backup_dir': '/dev/null'})
         self.assertFalse(self.unit1.called)
         self.unit2.run_action.assert_called_once_with(
             'backup',
@@ -419,6 +468,7 @@ class TestModel(ut_utils.BaseTestCase):
     def test_block_until_file_has_contents(self):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch("builtins.open",
                    new_callable=mock.mock_open(),
                    name="_open")
@@ -426,7 +476,6 @@ class TestModel(ut_utils.BaseTestCase):
         _fileobj.__enter__().read.return_value = "somestring"
         self._open.return_value = _fileobj
         model.block_until_file_has_contents(
-            'modelname',
             'app',
             '/tmp/src/myfile.txt',
             'somestring',
@@ -439,6 +488,7 @@ class TestModel(ut_utils.BaseTestCase):
     def test_block_until_file_has_contents_missing(self):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch("builtins.open",
                    new_callable=mock.mock_open(),
                    name="_open")
@@ -447,7 +497,6 @@ class TestModel(ut_utils.BaseTestCase):
         self._open.return_value = _fileobj
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.block_until_file_has_contents(
-                'modelname',
                 'app',
                 '/tmp/src/myfile.txt',
                 'somestring',
@@ -503,35 +552,35 @@ class TestModel(ut_utils.BaseTestCase):
         self.async_block_until.side_effect = _block_until
 
     def test_block_until_service_status_check_running(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.block_until_service_status_base({'Stdout': '152 409 54'})
         model.block_until_service_status(
-            'modelname',
             'app/2',
             ['test_svc'],
             'running')
 
     def test_block_until_service_status_check_running_fail(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.block_until_service_status_base({'Stdout': ''})
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.block_until_service_status(
-                'modelname',
                 'app/2',
                 ['test_svc'],
                 'running')
 
     def test_block_until_service_status_check_stopped(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.block_until_service_status_base({'Stdout': ''})
         model.block_until_service_status(
-            'modelname',
             'app/2',
             ['test_svc'],
             'stopped')
 
     def test_block_until_service_status_check_stopped_fail(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.block_until_service_status_base({'Stdout': '152 409 54'})
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.block_until_service_status(
-                'modelname',
                 'app/2',
                 ['test_svc'],
                 'stopped')
@@ -542,7 +591,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'async_run_on_unit')
         self.async_run_on_unit.side_effect = _run_on_unit
         self.assertEqual(
-            model.get_unit_time('mymodel', 'app/2'),
+            model.get_unit_time('app/2'),
             1524409654)
 
     def test_get_unit_service_start_time(self):
@@ -551,8 +600,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'async_run_on_unit')
         self.async_run_on_unit.side_effect = _run_on_unit
         self.assertEqual(
-            model.get_unit_service_start_time('mymodel', 'app/2', 'mysvc1'),
-            1524409654)
+            model.get_unit_service_start_time('app/2', 'mysvc1'), 1524409654)
 
     def test_get_unit_service_start_time_not_running(self):
         async def _run_on_unit(model_name, unit_name, cmd, timeout=None):
@@ -560,7 +608,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'async_run_on_unit')
         self.async_run_on_unit.side_effect = _run_on_unit
         with self.assertRaises(model.ServiceNotRunning):
-            model.get_unit_service_start_time('mymodel', 'app/2', 'mysvc1')
+            model.get_unit_service_start_time('app/2', 'mysvc1')
 
     def block_until_oslo_config_entries_match_base(self, file_contents,
                                                    expected_contents):
@@ -568,11 +616,11 @@ class TestModel(ut_utils.BaseTestCase):
             with open('{}/myfile.txt'.format(tmpdir), 'w') as f:
                 f.write(file_contents)
         self.patch_object(model, 'Model')
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.Model.return_value = self.Model_mock
         self.unit1.scp_from.side_effect = _scp_from
         self.unit2.scp_from.side_effect = _scp_from
         model.block_until_oslo_config_entries_match(
-            'modelname',
             'app',
             '/tmp/src/myfile.txt',
             expected_contents,
@@ -706,6 +754,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
                 raise model.ServiceNotRunning('sv1')
             else:
                 return gu_return
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'async_get_unit_service_start_time')
         self.async_get_unit_service_start_time.side_effect = \
             _async_get_unit_service_start_time
@@ -715,7 +764,6 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
     def test_block_until_services_restarted(self):
         self.block_until_services_restarted_base(gu_return=10)
         model.block_until_services_restarted(
-            'modelname',
             'app',
             8,
             ['svc1', 'svc2'])
@@ -724,7 +772,6 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.block_until_services_restarted_base(gu_return=10)
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.block_until_services_restarted(
-                'modelname',
                 'app',
                 12,
                 ['svc1', 'svc2'])
@@ -733,7 +780,6 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.block_until_services_restarted_base(gu_raise_exception=True)
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.block_until_services_restarted(
-                'modelname',
                 'app',
                 12,
                 ['svc1', 'svc2'])
@@ -742,6 +788,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         async def _block_until(f, timeout=None):
             if not f():
                 raise asyncio.futures.TimeoutError
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.Model_mock.block_until.side_effect = _block_until
@@ -749,7 +796,6 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.get_unit_from_name.return_value = mock.MagicMock(
             workload_status='active')
         model.block_until_unit_wl_status(
-            'modelname',
             'app/2',
             'active',
             timeout=0.1)
@@ -758,6 +804,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         async def _block_until(f, timeout=None):
             if not f():
                 raise asyncio.futures.TimeoutError
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.Model_mock.block_until.side_effect = _block_until
@@ -766,7 +813,6 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             workload_status='maintenance')
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.block_until_unit_wl_status(
-                'modelname',
                 'app/2',
                 'active',
                 timeout=0.1)

@@ -30,22 +30,3 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
                                     'test_zaza_charm_lifecycle_utils.'
                                     'TestCharmLifecycleUtils')()),
             type(self))
-
-    def test_get_juju_model(self):
-        self.patch_object(lc_utils.os, 'environ')
-        self.patch_object(lc_utils.model, 'get_current_model')
-        self.get_current_model.return_value = 'modelsmodel'
-
-        def _get_env(key):
-            return _env.get(key)
-        self.environ.__getitem__.side_effect = _get_env
-        _env = {"JUJU_MODEL": 'envmodel'}
-
-        # JUJU_ENV environment variable set
-        self.assertEqual(lc_utils.get_juju_model(), 'envmodel')
-        self.get_current_model.assert_not_called()
-
-        # No envirnment variable
-        self.environ.__getitem__.side_effect = KeyError
-        self.assertEqual(lc_utils.get_juju_model(), 'modelsmodel')
-        self.get_current_model.assert_called_once()

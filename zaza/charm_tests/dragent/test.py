@@ -6,7 +6,6 @@ import sys
 import tenacity
 
 from zaza import model
-from zaza.charm_lifecycle import utils as lifecycle_utils
 from zaza.utilities import (
     cli as cli_utils,
     juju as juju_utils,
@@ -35,8 +34,7 @@ def test_bgp_routes(peer_application_name="quagga", keystone_session=None):
         keystone_session)
 
     # Get the peer unit
-    peer_unit = model.get_units(
-        lifecycle_utils.get_juju_model(), peer_application_name)[0].entity_id
+    peer_unit = model.get_units(peer_application_name)[0].entity_id
 
     # Get expected advertised routes
     private_cidr = neutron_client.list_subnets(

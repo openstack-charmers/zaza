@@ -30,7 +30,6 @@ import tenacity
 import urllib
 
 from zaza import model
-from zaza.charm_lifecycle import utils as lifecycle_utils
 from zaza.utilities import (
     exceptions,
     generic as generic_utils,
@@ -413,7 +412,7 @@ def configure_gateway_ext_port(novaclient, neutronclient,
             logging.info('Config already set to value')
             return
         model.set_application_config(
-            lifecycle_utils.get_juju_model(), application_name,
+            application_name,
             configuration={config_key: ext_br_macs_str})
         juju_wait.wait(wait_for_workload=True)
 
@@ -848,8 +847,7 @@ def create_bgp_peer(neutron_client, peer_application_name='quagga',
     :returns: BGP peer object
     :rtype: dict
     """
-    peer_unit = model.get_units(
-        lifecycle_utils.get_juju_model(), peer_application_name)[0]
+    peer_unit = model.get_units(peer_application_name)[0]
     peer_ip = peer_unit.public_address
     bgp_peers = neutron_client.list_bgp_peers(name=peer_application_name)
     if len(bgp_peers['bgp_peers']) == 0:
@@ -1086,8 +1084,7 @@ def get_application_config_keys(application):
     :returns: List of aplication configuration keys
     :rtype: list
     """
-    application_config = model.get_application_config(
-        lifecycle_utils.get_juju_model(), application)
+    application_config = model.get_application_config(application)
     return list(application_config.keys())
 
 
@@ -1101,8 +1098,7 @@ def get_application_config_option(application, option):
     :returns: Value of configuration option
     :rtype: Configuration option value type
     """
-    application_config = model.get_application_config(
-        lifecycle_utils.get_juju_model(), application)
+    application_config = model.get_application_config(application)
     try:
         return application_config.get(option).get('value')
     except AttributeError:
@@ -1184,8 +1180,7 @@ def get_keystone_ip():
     """
     if get_application_config_option('keystone', 'vip'):
         return get_application_config_option('keystone', 'vip')
-    unit = model.get_units(
-        lifecycle_utils.get_juju_model(), 'keystone')[0]
+    unit = model.get_units('keystone')[0]
     return unit.public_address
 
 

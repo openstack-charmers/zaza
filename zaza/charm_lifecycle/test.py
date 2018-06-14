@@ -5,6 +5,7 @@ import logging
 import unittest
 import sys
 
+import zaza.model
 import zaza.charm_lifecycle.utils as utils
 
 
@@ -24,7 +25,7 @@ def run_test_list(tests):
 
 def test(model_name, tests):
     """Run all steps to execute tests against the model."""
-    utils.set_juju_model(model_name)
+    zaza.model.set_juju_model(model_name)
     run_test_list(tests)
 
 
