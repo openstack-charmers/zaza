@@ -14,8 +14,6 @@ import tempfile
 import yaml
 from oslo_config import cfg
 
-from juju import loop
-from juju.controller import Controller
 from juju.errors import JujuError
 from juju.model import Model
 
@@ -25,7 +23,8 @@ CURRENT_MODEL = None
 
 
 def set_juju_model(model_name):
-    """Point environment at the given model
+    """Point environment at the given model.
+
     :param model_name: Model to point environment at
     :type model_name: str
     """
@@ -33,7 +32,7 @@ def set_juju_model(model_name):
 
 
 def get_juju_model():
-    """Retrieve current model
+    """Retrieve current model.
 
     First check the environment for JUJU_MODEL. If this is not set, get the
     current active model.
