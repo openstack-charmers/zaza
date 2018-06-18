@@ -1,3 +1,4 @@
+"""Module containg base class for implementing charm tests."""
 import logging
 import unittest
 import zaza.model
@@ -8,6 +9,7 @@ import zaza.utilities.openstack as openstack_utils
 
 
 def skipIfNotHA(service_name):
+    """Run decorator to skip tests if application not in HA configuration."""
     def _skipIfNotHA_inner_1(f):
         def _skipIfNotHA_inner_2(*args, **kwargs):
             ips = zaza.model.get_app_ips(
@@ -23,10 +25,11 @@ def skipIfNotHA(service_name):
 
 
 class OpenStackBaseTest(unittest.TestCase):
-    """Generic helpers for testing OpenStack API charms"""
+    """Generic helpers for testing OpenStack API charms."""
 
     @classmethod
     def setUpClass(cls):
+        """Run setup for test class to create common resourcea."""
         cls.keystone_session = openstack_utils.get_overcloud_keystone_session()
         cls.model_name = model.get_juju_model()
         cls.test_config = lifecycle_utils.get_charm_config()
@@ -38,8 +41,10 @@ class OpenStackBaseTest(unittest.TestCase):
 
     def restart_on_changed(self, config_file, default_config, alternate_config,
                            default_entry, alternate_entry, services):
-        """Test that changing config results in config file being updates and
-           services restarted. Return config to default_config afterwards
+        """Run restart on change tests.
+
+        Test that changing config results in config file being updates and
+        services restarted. Return config to default_config afterwards
 
         :param config_file: Config file to check for settings
         :type config_file: str
@@ -114,8 +119,10 @@ class OpenStackBaseTest(unittest.TestCase):
             self.test_config.get('target_deploy_status', {}))
 
     def pause_resume(self, services):
-        """Pause and then resume a unit checking that services are in the
-           required state after each action
+        """Run Pause and resume tests.
+
+        Pause and then resume a unit checking that services are in the
+        required state after each action
 
         :param services: Services expected to be restarted when config_file is
                          changed.

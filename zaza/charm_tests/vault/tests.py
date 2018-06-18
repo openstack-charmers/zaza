@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Collection of tests for vault."""
 
 import hvac
 import time
@@ -15,9 +16,11 @@ import zaza.model
 
 
 class VaultTest(unittest.TestCase):
+    """Encapsulate vault tests."""
 
     @classmethod
     def setUpClass(cls):
+        """Run setup for Vault tests."""
         cls.clients = vault_utils.get_clients()
         cls.vip_client = vault_utils.get_vip_client()
         if cls.vip_client:
@@ -27,6 +30,7 @@ class VaultTest(unittest.TestCase):
         vault_utils.auth_all(cls.clients, cls.vault_creds['root_token'])
 
     def test_csr(self):
+        """Test generating a csr and uploading a signed certificate."""
         vault_actions = zaza.model.get_actions(
             'vault')
         if 'get-csr' not in vault_actions:
@@ -70,6 +74,7 @@ class VaultTest(unittest.TestCase):
             requests.get('https://{}:5000'.format(ip), verify=fp.name)
 
     def test_all_clients_authenticated(self):
+        """Check all vault clients are authenticated."""
         for client in self.clients:
             for i in range(1, 10):
                 try:
@@ -82,12 +87,14 @@ class VaultTest(unittest.TestCase):
                 self.assertTrue(client.hvac_client.is_authenticated())
 
     def check_read(self, key, value):
+        """Check reading the key from all vault units."""
         for client in self.clients:
             self.assertEqual(
                 client.hvac_client.read('secret/uuids')['data']['uuid'],
                 value)
 
     def test_consistent_read_write(self):
+        """Test reading and writing data to vault."""
         key = 'secret/uuids'
         for client in self.clients:
             value = str(uuid.uuid1())
@@ -97,6 +104,7 @@ class VaultTest(unittest.TestCase):
 
     @test_utils.skipIfNotHA('vault')
     def test_vault_ha_statuses(self):
+        """Check Vault charm HA status."""
         leader = []
         leader_address = []
         leader_cluster_address = []
@@ -116,11 +124,13 @@ class VaultTest(unittest.TestCase):
         self.assertEqual(len(set(leader_cluster_address)), 1)
 
     def test_check_vault_status(self):
+        """Check Vault charm status."""
         for client in self.clients:
             self.assertFalse(client.hvac_client.seal_status['sealed'])
             self.assertTrue(client.hvac_client.seal_status['cluster_name'])
 
     def test_vault_authorize_charm_action(self):
+        """Test the authorize_charm action."""
         vault_actions = zaza.model.get_actions(
             'vault')
         if 'authorize-charm' not in vault_actions:

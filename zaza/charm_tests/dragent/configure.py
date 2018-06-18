@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Setup for BGP deployments."""
 
 from zaza.configure import (
     network,
@@ -42,7 +43,7 @@ DEFAULT_UNDERCLOUD_NETWORK_CONFIG = {
 
 
 def setup():
-    """Setup BGP networking
+    """Run setup for BGP networking.
 
     Configure the following:
         The overcloud network using subnet pools
@@ -54,7 +55,6 @@ def setup():
     :returns: None
     :rtype: None
     """
-
     cli_utils.setup_logging()
 
     # Get network configuration settings

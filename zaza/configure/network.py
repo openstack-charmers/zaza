@@ -1,17 +1,6 @@
 #!/usr/bin/env python3
 
-import argparse
-import logging
-import sys
-
-from zaza.utilities import (
-    cli as cli_utils,
-    generic as generic_utils,
-    juju as juju_utils,
-    openstack as openstack_utils,
-)
-
-"""Configure network
+"""Configure network.
 
 For these network configuration functions there are two distinct sets of
 settings. There is the configuration of the overcloud's network, the network
@@ -75,9 +64,20 @@ As a script from CLI with a YAML file of configuration:
     ./network toploogy_name -f network.yaml
 """
 
+import argparse
+import logging
+import sys
+
+from zaza.utilities import (
+    cli as cli_utils,
+    generic as generic_utils,
+    juju as juju_utils,
+    openstack as openstack_utils,
+)
+
 
 def setup_sdn(network_config, keystone_session=None):
-    """Setup Software Defined Network
+    """Perform setup for Software Defined Network.
 
     :param network_config: Network configuration settings dictionary
     :type network_config: dict
@@ -86,7 +86,6 @@ def setup_sdn(network_config, keystone_session=None):
     :returns: None
     :rtype: None
     """
-
     # If a session has not been provided, acquire one
     if not keystone_session:
         keystone_session = openstack_utils.get_overcloud_keystone_session()
@@ -168,8 +167,9 @@ def setup_sdn(network_config, keystone_session=None):
 
 
 def setup_gateway_ext_port(network_config, keystone_session=None):
-    """Setup external port on Neutron Gateway.
-    For OpenStack on OpenStack scenarios
+    """Perform setup external port on Neutron Gateway.
+
+    For OpenStack on OpenStack scenarios.
 
     :param network_config: Network configuration dictionary
     :type network_config: dict
@@ -178,7 +178,6 @@ def setup_gateway_ext_port(network_config, keystone_session=None):
     :returns: None
     :rtype: None
     """
-
     # If a session has not been provided, acquire one
     if not keystone_session:
         keystone_session = openstack_utils.get_undercloud_keystone_session()
@@ -204,7 +203,7 @@ def setup_gateway_ext_port(network_config, keystone_session=None):
 
 
 def run_from_cli(**kwargs):
-    """Run network configurations from CLI
+    """Run network configurations from CLI.
 
     Use a YAML file of network configuration settings to configure the
     overcloud network. YAML file of the form:
@@ -225,7 +224,6 @@ def run_from_cli(**kwargs):
     :returns: None
     :rtype: None
     """
-
     cli_utils.setup_logging()
     parser = argparse.ArgumentParser()
     parser.add_argument("net_topology",

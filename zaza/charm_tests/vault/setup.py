@@ -4,6 +4,7 @@ import zaza.charm_tests.vault.utils as vault_utils
 
 
 def basic_setup():
+    """Run basic setup for vault tests."""
     clients = vault_utils.get_clients()
     vip_client = vault_utils.get_vip_client()
     if vip_client:
