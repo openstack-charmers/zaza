@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Module of functions for interfacing with vault and the vault charm."""
 
 import base64
 import hvac
@@ -18,7 +19,7 @@ CharmVaultClient = collections.namedtuple(
 
 
 def get_unit_api_url(ip):
-    """Return URL for api access
+    """Return URL for api access.
 
     :param unit_ip: IP address to use in vault url
     :type unit_ip: str
@@ -29,7 +30,7 @@ def get_unit_api_url(ip):
 
 
 def get_hvac_client(vault_url):
-    """Return an hvac client for the given URL
+    """Return an hvac client for the given URL.
 
     :param vault_url: Vault url to point client at
     :type vault_url: str
@@ -40,7 +41,7 @@ def get_hvac_client(vault_url):
 
 
 def get_vip_client():
-    """Return CharmVaultClient for the vip if a vip is being used
+    """Return CharmVaultClient for the vip if a vip is being used.
 
     :returns: CharmVaultClient
     :rtype: CharmVaultClient or None
@@ -57,7 +58,7 @@ def get_vip_client():
 
 
 def init_vault(client, shares=1, threshold=1):
-    """Initialise vault
+    """Initialise vault.
 
     :param client: Client to use for initiliasation
     :type client: CharmVaultClient
@@ -72,7 +73,7 @@ def init_vault(client, shares=1, threshold=1):
 
 
 def get_clients(units=None):
-    """Create a list of clients, one per vault server
+    """Create a list of clients, one per vault server.
 
     :param units: List of IP addresses of vault endpoints
     :type units: [str, str, ...]
@@ -92,7 +93,7 @@ def get_clients(units=None):
 
 
 def is_initialized(client):
-    """Check if vault is initialized
+    """Check if vault is initialized.
 
     :param client: Client to use to check if vault is initialized
     :type client: CharmVaultClient
@@ -116,8 +117,10 @@ def is_initialized(client):
 
 
 def get_credentails():
-    """Retrieve vault token and keys from unit. These are stored on a unit
-       during functional tests.
+    """Retrieve vault token and keys from unit.
+
+    Retrieve vault token and keys from unit. These are stored on a unit
+    during functional tests.
 
     :returns: Tokens and keys for accessing test environment
     :rtype: dict
@@ -135,8 +138,10 @@ def get_credentails():
 
 
 def store_credentails(creds):
-    """Store the supplied credentials on a vault unit. ONLY USE FOR FUNCTIONAL
-       TESTING.
+    """Store the supplied credentials.
+
+    Store the supplied credentials on a vault unit. ONLY USE FOR FUNCTIONAL
+    TESTING.
 
     :param creds: Keys and token to store
     :type creds: dict
@@ -152,7 +157,7 @@ def store_credentails(creds):
 
 
 def get_credentails_from_file(auth_file):
-    """Read the vault credentials from the auth_file
+    """Read the vault credentials from the auth_file.
 
     :param auth_file: Path to file with credentials
     :type auth_file: str
@@ -165,7 +170,7 @@ def get_credentails_from_file(auth_file):
 
 
 def write_credentails(auth_file, vault_creds):
-    """Write the vault credentials to the auth_file
+    """Write the vault credentials to the auth_file.
 
     :param auth_file: Path to file to write credentials
     :type auth_file: str
@@ -175,7 +180,7 @@ def write_credentails(auth_file, vault_creds):
 
 
 def unseal_all(clients, key):
-    """Unseal all the vaults with the given clients with the provided key
+    """Unseal all the vaults with the given clients with the provided key.
 
     :param clients: List of clients
     :type clients: [CharmVaultClient, ...]
@@ -188,7 +193,7 @@ def unseal_all(clients, key):
 
 
 def auth_all(clients, token):
-    """Authenticate all the given clients with the provided token
+    """Authenticate all the given clients with the provided token.
 
     :param clients: List of clients
     :type clients: [CharmVaultClient, ...]
@@ -200,6 +205,16 @@ def auth_all(clients, token):
 
 
 def run_charm_authorize(token):
+    """Authorize charm to perfom certain actions.
+
+    Run vault charm action to authorize the charm to perform a limited
+    set of calls against the vault API.
+
+    :param token: Token to authorize action against vault.
+    :type token: str
+    :returns: Action object
+    :rtype: juju.action.Action
+    """
     return zaza.model.run_action_on_leader(
         'vault',
         'authorize-charm',
@@ -207,6 +222,13 @@ def run_charm_authorize(token):
 
 
 def run_get_csr():
+    """Retrieve CSR from vault.
+
+    Run vault charm action to retrieve CSR from vault.
+
+    :returns: Action object
+    :rtype: juju.action.Action
+    """
     return zaza.model.run_action_on_leader(
         'vault',
         'get-csr',
@@ -214,6 +236,18 @@ def run_get_csr():
 
 
 def run_upload_signed_csr(pem, root_ca, allowed_domains):
+    """Upload signed cert to vault.
+
+    :param pem: Signed certificate text
+    :type pem: str
+    :param token: Root CA text.
+    :type token: str
+    :param allowed_domains: List of domains that may have certs issued from
+                            certificate.
+    :type allowed_domains: list
+    :returns: Action object
+    :rtype: juju.action.Action
+    """
     return zaza.model.run_action_on_leader(
         'vault',
         'upload-signed-csr',

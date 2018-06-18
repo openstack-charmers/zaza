@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Run BGP tests."""
 
 import argparse
 import logging
@@ -14,7 +15,7 @@ from zaza.utilities import (
 
 
 def test_bgp_routes(peer_application_name="quagga", keystone_session=None):
-    """Test BGP routes
+    """Test BGP routes.
 
     :param peer_application_name: String name of BGP peer application
     :type peer_application_name: string
@@ -24,7 +25,6 @@ def test_bgp_routes(peer_application_name="quagga", keystone_session=None):
     :returns: None
     :rtype: None
     """
-
     # If a session has not been provided, acquire one
     if not keystone_session:
         keystone_session = openstack_utils.get_overcloud_keystone_session()
@@ -66,12 +66,11 @@ def test_bgp_routes(peer_application_name="quagga", keystone_session=None):
 
 
 def run_from_cli():
-    """Run test for BGP routes from CLI
+    """Run test for BGP routes from CLI.
 
     :returns: None
     :rtype: None
     """
-
     cli_utils.setup_logging()
     parser = argparse.ArgumentParser()
     parser.add_argument("--peer-application", "-a",

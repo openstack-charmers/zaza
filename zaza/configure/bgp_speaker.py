@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Module to setup BGP speaker configuration."""
 
 import argparse
 import logging
@@ -16,7 +17,7 @@ FIP_TEST = "FIP TEST"
 
 
 def setup_bgp_speaker(peer_application_name, keystone_session=None):
-    """Setup BGP Speaker
+    """Perform BGP Speaker setup.
 
     :param peer_application_name: String name of BGP peer application
     :type peer_application_name: string
@@ -84,12 +85,11 @@ def setup_bgp_speaker(peer_application_name, keystone_session=None):
 
 
 def run_from_cli():
-    """Run BGP Speaker setup from CLI
+    """Run BGP Speaker setup from CLI.
 
     :returns: None
     :rtype: None
     """
-
     cli_utils.setup_logging()
     parser = argparse.ArgumentParser()
     parser.add_argument("--peer-application", "-a",

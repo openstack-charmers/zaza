@@ -1,8 +1,9 @@
+"""Functions to support converting async function to a sync equivalent."""
 import asyncio
 
 
 def run(*steps):
-    """Run the given steps in an asyncio loop
+    """Run the given steps in an asyncio loop.
 
     :returns: The result of the asyncio.Task
     :rtype: Any
@@ -18,7 +19,7 @@ def run(*steps):
 
 
 def sync_wrapper(f):
-    """Convert the given async function into a sync function
+    """Convert the given async function into a sync function.
 
     :returns: The de-async'd function
     :rtype: function

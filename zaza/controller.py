@@ -1,15 +1,18 @@
+"""Module for interacting with a juju controller."""
+
 import logging
 from juju.controller import Controller
 from zaza import sync_wrapper
 
 
 async def async_add_model(model_name, config=None):
-    """Add a model to the current controller
+    """Add a model to the current controller.
 
     :param model_name: Name to give the new model.
     :type model_name: str
     :param config: Model configuration.
-    :type config: dict"""
+    :type config: dict
+    """
     controller = Controller()
     await controller.connect()
     logging.debug("Adding model {}".format(model_name))
@@ -24,10 +27,11 @@ add_model = sync_wrapper(async_add_model)
 
 
 async def async_destroy_model(model_name):
-    """Remove a model from the current controller
+    """Remove a model from the current controller.
 
     :param model_name: Name of model to remove
-    :type model_name: str"""
+    :type model_name: str
+    """
     controller = Controller()
     await controller.connect()
     logging.debug("Destroying model {}".format(model_name))
@@ -38,7 +42,7 @@ destroy_model = sync_wrapper(async_destroy_model)
 
 
 async def async_get_cloud():
-    """Return the name of the current cloud
+    """Return the name of the current cloud.
 
     :returns: Name of cloud
     :rtype: str
@@ -53,7 +57,7 @@ get_cloud = sync_wrapper(async_get_cloud)
 
 
 async def async_list_models():
-    """Return a list of tha available clouds
+    """Return a list of tha available clouds.
 
     :returns: List of clouds
     :rtype: list
