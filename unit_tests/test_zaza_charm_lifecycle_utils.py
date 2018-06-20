@@ -1,3 +1,4 @@
+"""Module containing unit tests for zaza.charm_lifecycle.utils."""
 import mock
 
 import zaza.charm_lifecycle.utils as lc_utils
@@ -5,8 +6,10 @@ import unit_tests.utils as ut_utils
 
 
 class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
+    """Unit tests for zaza.charm_lifecycle.utils."""
 
     def test_get_charm_config(self):
+        """Test get_charm_config."""
         self.patch("builtins.open",
                    new_callable=mock.mock_open(),
                    name="_open")
@@ -25,6 +28,7 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         self.yaml.load.assert_called_once_with(_yaml)
 
     def test_get_class(self):
+        """Test get_class."""
         self.assertEqual(
             type(lc_utils.get_class('unit_tests.'
                                     'test_zaza_charm_lifecycle_utils.'

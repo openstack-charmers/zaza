@@ -1,20 +1,26 @@
+"""Module containing tests for zaza.utilities.generic."""
 import mock
 import unit_tests.utils as ut_utils
+
 from zaza.utilities import generic as generic_utils
 
 
 class TestGenericUtils(ut_utils.BaseTestCase):
+    """Tests for zaza.utilities.generic."""
 
     def setUp(self):
+        """Run setup for testing zaza.utilities.generic."""
         super(TestGenericUtils, self).setUp()
 
     def test_dict_to_yaml(self):
+        """Test running dict_to_yaml."""
         _dict_data = {"key": "value"}
         _str_data = "key: value\n"
         self.assertEqual(generic_utils.dict_to_yaml(_dict_data),
                          _str_data)
 
     def test_get_network_config(self):
+        """Test running get_network_config."""
         self.patch_object(generic_utils.os.path, "exists")
         self.patch_object(generic_utils, "get_yaml_config")
         self.patch_object(generic_utils, "get_undercloud_env_vars")
@@ -47,6 +53,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         self.get_undercloud_env_vars.assert_called_once_with()
 
     def test_get_pkg_version(self):
+        """Test running get_pkg_version."""
         self.patch_object(generic_utils.model, "get_units")
         self.patch_object(generic_utils.juju_utils, "remote_run")
         _pkg = "os-thingy"
@@ -73,6 +80,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             generic_utils.get_pkg_version(_pkg, _pkg)
 
     def test_get_undercloud_env_vars(self):
+        """Test running get_undercloud_env_vars."""
         self.patch_object(generic_utils.os.environ, "get")
 
         def _get_env(key):
@@ -106,6 +114,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
                          _expected_result)
 
     def test_get_yaml_config(self):
+        """Test running get_yaml_config."""
         self.patch("builtins.open",
                    new_callable=mock.mock_open(),
                    name="_open")

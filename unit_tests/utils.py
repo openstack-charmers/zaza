@@ -15,6 +15,8 @@
 # sys.modules['charmhelpers.contrib.openstack.utils'] = mock.MagicMock()
 # sys.modules['charmhelpers.contrib.network.ip'] = mock.MagicMock()
 
+"""Module to provide helper for writing unit tests."""
+
 import contextlib
 import io
 import mock
@@ -23,10 +25,13 @@ import unittest
 
 @contextlib.contextmanager
 def patch_open():
-    '''Patch open() to allow mocking both open() itself and the file that is
+    """Patch open().
+
+    Patch open() to allow mocking both open() itself and the file that is
     yielded.
 
-    Yields the mock for "open" and "file", respectively.'''
+    Yields the mock for "open" and "file", respectively.
+    """
     mock_open = mock.MagicMock(spec=open)
     mock_file = mock.MagicMock(spec=io.FileIO)
 
@@ -40,12 +45,15 @@ def patch_open():
 
 
 class BaseTestCase(unittest.TestCase):
+    """Base class for creating classes of unit tests."""
 
     def setUp(self):
+        """Run setup of patches."""
         self._patches = {}
         self._patches_start = {}
 
     def tearDown(self):
+        """Run teardown of patches."""
         for k, v in self._patches.items():
             v.stop()
             setattr(self, k, None)
@@ -54,6 +62,7 @@ class BaseTestCase(unittest.TestCase):
 
     def patch_object(self, obj, attr, return_value=None, name=None, new=None,
                      **kwargs):
+        """Patch the given object."""
         if name is None:
             name = attr
         if new is not None:
@@ -68,6 +77,7 @@ class BaseTestCase(unittest.TestCase):
         setattr(self, name, started)
 
     def patch(self, item, return_value=None, name=None, new=None, **kwargs):
+        """Patch the given item."""
         if name is None:
             raise RuntimeError("Must pass 'name' to .patch()")
         if new is not None:

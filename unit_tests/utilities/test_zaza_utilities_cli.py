@@ -1,14 +1,18 @@
+"""Module containing unit tests for zaza.utilities.cli."""
 import mock
 import unit_tests.utils as ut_utils
 from zaza.utilities import cli as cli_utils
 
 
 class TestCLIUtils(ut_utils.BaseTestCase):
+    """Unit tests for zaza.utilities.cli."""
 
     def setUp(self):
+        """Run setup for zaza.utilities.cli tests."""
         super(TestCLIUtils, self).setUp()
 
     def test_parse_arg(self):
+        """Test parse_arg."""
         _options = mock.MagicMock()
         _arg_property = "property-value"
         _options.property = _arg_property
@@ -32,6 +36,7 @@ class TestCLIUtils(ut_utils.BaseTestCase):
                 _multi_value.split())
 
     def test_setup_logging(self):
+        """Test setup_logging."""
         self.patch_object(cli_utils, "logging")
         _logformatter = mock.MagicMock()
         _logger = mock.MagicMock()
