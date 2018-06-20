@@ -134,9 +134,23 @@ class TestModel(ut_utils.BaseTestCase):
         self.get_current_model.return_value = 'modelsmodel'
 
         def _get_env(key):
-            return _env.get(key)
+            return _env[key]
         self.environ.__getitem__.side_effect = _get_env
         _env = {"JUJU_MODEL": 'envmodel'}
+
+        # JUJU_ENV environment variable set
+        self.assertEqual(model.get_juju_model(), 'envmodel')
+        self.get_current_model.assert_not_called()
+
+    def test_get_juju_model_alt(self):
+        self.patch_object(model.os, 'environ')
+        self.patch_object(model, 'get_current_model')
+        self.get_current_model.return_value = 'modelsmodel'
+
+        def _get_env(key):
+            return _env[key]
+        self.environ.__getitem__.side_effect = _get_env
+        _env = {"MODEL_NAME": 'envmodel'}
 
         # JUJU_ENV environment variable set
         self.assertEqual(model.get_juju_model(), 'envmodel')
