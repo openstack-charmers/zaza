@@ -52,7 +52,7 @@ def get_juju_model():
         CURRENT_MODEL = os.environ["JUJU_MODEL"]
     except KeyError:
         try:
-            CURRENT_MODEL = os.environ["MODEL_NAME"]:
+            CURRENT_MODEL = os.environ["MODEL_NAME"]
         except KeyError:
             # If unset connect get the current active model
             CURRENT_MODEL = get_current_model()
