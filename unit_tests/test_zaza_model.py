@@ -1,4 +1,4 @@
-"""Module containing unit tests for zaza.model"""
+"""Module containing unit tests for zaza.model."""
 import aiounittest
 import asyncio.futures
 import mock
