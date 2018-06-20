@@ -134,7 +134,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.get_current_model.return_value = 'modelsmodel'
 
         def _get_env(key):
-            return _env.get(key)
+            return _env[key]
         self.environ.__getitem__.side_effect = _get_env
         _env = {"JUJU_MODEL": 'envmodel'}
 
@@ -148,7 +148,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.get_current_model.return_value = 'modelsmodel'
 
         def _get_env(key):
-            return _env.get(key)
+            return _env[key]
         self.environ.__getitem__.side_effect = _get_env
         _env = {"MODEL_NAME": 'envmodel'}
 
