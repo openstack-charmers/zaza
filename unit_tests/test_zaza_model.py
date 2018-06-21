@@ -148,6 +148,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.get_current_model.assert_not_called()
 
     def test_get_juju_model_alt(self):
+        """Test get_juju_model with fallback env var MODEL_NAME."""
         self.patch_object(model.os, 'environ')
         self.patch_object(model, 'get_current_model')
         self.get_current_model.return_value = 'modelsmodel'
