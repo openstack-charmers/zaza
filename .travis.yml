@@ -29,4 +29,4 @@ script:
     sudo su travis -c 'juju status -m $(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/)';
     fi
 after_success:
-  - codecov
+  - codecov --gcov-root zaza
