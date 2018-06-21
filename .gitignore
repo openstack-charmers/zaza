@@ -4,5 +4,6 @@ build/
 dist/
 .local
 zaza.egg-info/
+.coverage
 # Sphinx
 doc/build
