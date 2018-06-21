@@ -1,3 +1,4 @@
+"""Module containing unit tests for zaza.model."""
 import aiounittest
 import asyncio.futures
 import mock
@@ -9,13 +10,16 @@ import zaza.model as model
 
 
 class TestModel(ut_utils.BaseTestCase):
+    """Unit tests for zaza.model."""
 
     def tearDown(self):
+        """Run teardown of mocks."""
         super(TestModel, self).tearDown()
         # Clear cached model name
         model.CURRENT_MODEL = None
 
     def setUp(self):
+        """Run setup of mocks for testing juju.model."""
         super(TestModel, self).setUp()
 
         async def _scp_to(source, destination, user=None, proxy=None,
@@ -129,6 +133,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.Controller_mock.destroy_models.side_effect = _ctrl_destroy_models
 
     def test_get_juju_model(self):
+        """Test get_juju_model."""
         self.patch_object(model.os, 'environ')
         self.patch_object(model, 'get_current_model')
         self.get_current_model.return_value = 'modelsmodel'
@@ -143,6 +148,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.get_current_model.assert_not_called()
 
     def test_get_juju_model_alt(self):
+        """Test get_juju_model with fallback env var MODEL_NAME."""
         self.patch_object(model.os, 'environ')
         self.patch_object(model, 'get_current_model')
         self.get_current_model.return_value = 'modelsmodel'
@@ -157,6 +163,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.get_current_model.assert_not_called()
 
     def test_get_juju_model_noenv(self):
+        """Test get_juju_model, JUJU_MODEL not set."""
         self.patch_object(model.os, 'environ')
         self.patch_object(model, 'get_current_model')
         self.get_current_model.return_value = 'modelsmodel'
@@ -167,6 +174,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.get_current_model.assert_called_once()
 
     def test_run_in_model(self):
+        """Test run_in_model."""
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
 
@@ -178,6 +186,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model_mock.disconnect.assert_called_once_with()
 
     def test_scp_to_unit(self):
+        """Test scp_to_unit."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
@@ -188,6 +197,7 @@ class TestModel(ut_utils.BaseTestCase):
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
 
     def test_scp_to_all_units(self):
+        """Test scp_to_all_units."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
@@ -198,6 +208,7 @@ class TestModel(ut_utils.BaseTestCase):
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
 
     def test_scp_from_unit(self):
+        """Test scp_from_unit."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
@@ -208,6 +219,7 @@ class TestModel(ut_utils.BaseTestCase):
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
 
     def test_get_units(self):
+        """Test get_units."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
@@ -216,6 +228,7 @@ class TestModel(ut_utils.BaseTestCase):
             self.units)
 
     def test_get_machines(self):
+        """Test get_machines."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
@@ -224,6 +237,7 @@ class TestModel(ut_utils.BaseTestCase):
             ['machine3', 'machine7'])
 
     def test_get_first_unit_name(self):
+        """Test get_first_unit_name."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'get_units')
         self.get_units.return_value = self.units
@@ -232,18 +246,21 @@ class TestModel(ut_utils.BaseTestCase):
             'app/2')
 
     def test_get_unit_from_name(self):
+        """Test get_unit_from_name."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.assertEqual(
             model.get_unit_from_name('app/4', self.mymodel),
             self.unit2)
 
     def test_get_app_ips(self):
+        """Test get_app_ips."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'get_units')
         self.get_units.return_value = self.units
         self.assertEqual(model.get_app_ips('model', 'app'), ['ip1', 'ip2'])
 
     def test_run_on_unit(self):
+        """Test run_on_unit."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         expected = {'Code': '0', 'Stderr': '', 'Stdout': 'RESULT'}
         self.cmd = cmd = 'somecommand someargument'
@@ -256,12 +273,14 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
 
     def test_get_relation_id(self):
+        """Test get_relation_id."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.assertEqual(model.get_relation_id('app', 'app'), 42)
 
     def test_get_relation_id_interface(self):
+        """Test get_relation_id with remote_interface_name."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
@@ -271,6 +290,7 @@ class TestModel(ut_utils.BaseTestCase):
             51)
 
     def test_run_action(self):
+        """Test run_action."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
@@ -285,6 +305,7 @@ class TestModel(ut_utils.BaseTestCase):
             backup_dir='/dev/null')
 
     def test_get_actions(self):
+        """Test get_actions."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model.subprocess, 'check_output')
         self.check_output.return_value = 'action: "action desc"'
@@ -295,6 +316,7 @@ class TestModel(ut_utils.BaseTestCase):
             ['juju', 'actions', '-m', 'mname', 'myapp', '--format', 'yaml'])
 
     def test_run_action_on_leader(self):
+        """Test run_action_on_leader."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
@@ -308,6 +330,7 @@ class TestModel(ut_utils.BaseTestCase):
             backup_dir='/dev/null')
 
     def _application_states_setup(self, setup, units_idle=True):
+        """Create mocks for testing workload statuses."""
         self.system_ready = True
 
         async def _block_until(f, timeout=None):
@@ -332,6 +355,7 @@ class TestModel(ut_utils.BaseTestCase):
         type(self.unit2).workload_status_message = p_mock_wsmsg
 
     def test_units_with_wl_status_state(self):
+        """Test units_with_wl_status_state, match."""
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Unit is ready'})
@@ -341,6 +365,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertIn(self.unit2, units)
 
     def test_units_with_wl_status_state_no_match(self):
+        """Test units_with_wl_status_state, no match."""
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Unit is ready'})
@@ -348,18 +373,21 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertTrue(len(units) == 0)
 
     def test_check_model_for_hard_errors(self):
+        """Test check_model_for_hard_errors, errors not found."""
         self.patch_object(model, 'units_with_wl_status_state')
         self.units_with_wl_status_state.return_value = []
         # Test will fail if an Exception is raised
         model.check_model_for_hard_errors(self.Model_mock)
 
     def test_check_model_for_hard_errors_found(self):
+        """Test check_model_for_hard_errors, errors found."""
         self.patch_object(model, 'units_with_wl_status_state')
         self.units_with_wl_status_state.return_value = [self.unit1]
         with self.assertRaises(model.UnitError):
             model.check_model_for_hard_errors(self.Model_mock)
 
     def test_check_unit_workload_status(self):
+        """Test workload_status_message."""
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'active',
@@ -369,6 +397,7 @@ class TestModel(ut_utils.BaseTestCase):
                                              self.unit1, 'active'))
 
     def test_check_unit_workload_status_no_match(self):
+        """Test workload_status_message, no match."""
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
@@ -378,6 +407,7 @@ class TestModel(ut_utils.BaseTestCase):
                                              self.unit1, 'active'))
 
     def test_check_unit_workload_status_message_message(self):
+        """Test workload_status_message, bespoke message match."""
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
@@ -388,6 +418,7 @@ class TestModel(ut_utils.BaseTestCase):
                                                      message='Unit is ready'))
 
     def test_check_unit_workload_status_message_message_not_found(self):
+        """Test workload_status_message, bespoke message not found."""
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
@@ -398,6 +429,7 @@ class TestModel(ut_utils.BaseTestCase):
                                                      message='Unit is ready'))
 
     def test_check_unit_workload_status_message_prefix(self):
+        """Test workload_status_message, use prefix."""
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
@@ -409,6 +441,7 @@ class TestModel(ut_utils.BaseTestCase):
                 prefixes=('Readyish', 'Unit is ready')))
 
     def test_check_unit_workload_status_message_prefix_no_match(self):
+        """Test workload_status_message, use prefix, no match."""
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
@@ -420,6 +453,7 @@ class TestModel(ut_utils.BaseTestCase):
                 prefixes=('Readyish', 'Unit is ready')))
 
     def test_wait_for_application_states(self):
+        """Test wait_for_application_states."""
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Unit is ready'})
@@ -427,6 +461,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertTrue(self.system_ready)
 
     def test_wait_for_application_states_not_ready_ws(self):
+        """Test wait_for_application_states, not ready wls."""
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Unit is ready'})
@@ -434,6 +469,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertFalse(self.system_ready)
 
     def test_wait_for_application_states_not_ready_wsmsg(self):
+        """Test wait_for_application_states, not ready wls message."""
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Unit is not ready'})
@@ -441,6 +477,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertFalse(self.system_ready)
 
     def test_wait_for_application_states_blocked_ok(self):
+        """Test wait_for_application_states, check blocked."""
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Unit is ready'})
@@ -452,6 +489,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertTrue(self.system_ready)
 
     def test_wait_for_application_states_bespoke_msg(self):
+        """Test wait_for_application_states, bespoke message."""
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Sure, I could do something'})
@@ -463,6 +501,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertTrue(self.system_ready)
 
     def test_wait_for_application_states_bespoke_msg_bloked_ok(self):
+        """Test wait_for_application_states, bespoke message, bespoke state."""
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Sure, I could do something'})
@@ -475,11 +514,13 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertTrue(self.system_ready)
 
     def test_get_current_model(self):
+        """Test get_current_model."""
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.assertEqual(model.get_current_model(), self.model_name)
 
     def test_block_until_file_has_contents(self):
+        """Test block_until_file_has_contents."""
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -500,6 +541,7 @@ class TestModel(ut_utils.BaseTestCase):
             '/tmp/src/myfile.txt', mock.ANY)
 
     def test_block_until_file_has_contents_missing(self):
+        """Test block_until_file_has_contents, contents missing."""
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -519,7 +561,7 @@ class TestModel(ut_utils.BaseTestCase):
             '/tmp/src/myfile.txt', mock.ANY)
 
     def test_async_block_until_all_units_idle(self):
-
+        """Test block_until_all_units_idle."""
         async def _block_until(f, timeout=None):
             if not f():
                 raise asyncio.futures.TimeoutError
@@ -534,7 +576,7 @@ class TestModel(ut_utils.BaseTestCase):
         model.block_until_all_units_idle('modelname')
 
     def test_async_block_until_all_units_idle_false(self):
-
+        """Test block_until_all_units_idle, timeout."""
         async def _block_until(f, timeout=None):
             if not f():
                 raise asyncio.futures.TimeoutError
@@ -550,7 +592,7 @@ class TestModel(ut_utils.BaseTestCase):
             model.block_until_all_units_idle('modelname')
 
     def block_until_service_status_base(self, rou_return):
-
+        """Run mocks for testing block_until_service_status."""
         async def _block_until(f, timeout=None):
             rc = await f()
             if not rc:
@@ -566,6 +608,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.async_block_until.side_effect = _block_until
 
     def test_block_until_service_status_check_running(self):
+        """Test block_until_service_status, check running."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.block_until_service_status_base({'Stdout': '152 409 54'})
         model.block_until_service_status(
@@ -574,6 +617,7 @@ class TestModel(ut_utils.BaseTestCase):
             'running')
 
     def test_block_until_service_status_check_running_fail(self):
+        """Test block_until_service_status, check running timeout."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.block_until_service_status_base({'Stdout': ''})
         with self.assertRaises(asyncio.futures.TimeoutError):
@@ -583,6 +627,7 @@ class TestModel(ut_utils.BaseTestCase):
                 'running')
 
     def test_block_until_service_status_check_stopped(self):
+        """Test block_until_service_status, check stopped."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.block_until_service_status_base({'Stdout': ''})
         model.block_until_service_status(
@@ -591,6 +636,7 @@ class TestModel(ut_utils.BaseTestCase):
             'stopped')
 
     def test_block_until_service_status_check_stopped_fail(self):
+        """Test block_until_service_status, check stopped but timeout."""
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.block_until_service_status_base({'Stdout': '152 409 54'})
         with self.assertRaises(asyncio.futures.TimeoutError):
@@ -600,6 +646,7 @@ class TestModel(ut_utils.BaseTestCase):
                 'stopped')
 
     def test_get_unit_time(self):
+        """Test test_get_unit_time."""
         async def _run_on_unit(model_name, unit_name, cmd, timeout=None):
             return {'Stdout': '1524409654'}
         self.patch_object(model, 'async_run_on_unit')
@@ -609,6 +656,7 @@ class TestModel(ut_utils.BaseTestCase):
             1524409654)
 
     def test_get_unit_service_start_time(self):
+        """Test get_unit_service_start_time."""
         async def _run_on_unit(model_name, unit_name, cmd, timeout=None):
             return {'Stdout': '1524409654'}
         self.patch_object(model, 'async_run_on_unit')
@@ -617,6 +665,7 @@ class TestModel(ut_utils.BaseTestCase):
             model.get_unit_service_start_time('app/2', 'mysvc1'), 1524409654)
 
     def test_get_unit_service_start_time_not_running(self):
+        """Test get_unit_service_start_time, service not running."""
         async def _run_on_unit(model_name, unit_name, cmd, timeout=None):
             return {'Stdout': ''}
         self.patch_object(model, 'async_run_on_unit')
@@ -626,6 +675,7 @@ class TestModel(ut_utils.BaseTestCase):
 
     def block_until_oslo_config_entries_match_base(self, file_contents,
                                                    expected_contents):
+        """Create mocks for testing block_until_oslo_config_entries_match."""
         async def _scp_from(remote_file, tmpdir):
             with open('{}/myfile.txt'.format(tmpdir), 'w') as f:
                 f.write(file_contents)
@@ -641,6 +691,7 @@ class TestModel(ut_utils.BaseTestCase):
             timeout=0.1)
 
     def test_block_until_oslo_config_entries_match(self):
+        """Test block_until_oslo_config_entries_match."""
         file_contents = """
 [DEFAULT]
 verbose = False
@@ -672,6 +723,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             '/tmp/src/myfile.txt', mock.ANY)
 
     def test_block_until_oslo_config_entries_match_fail(self):
+        """Test block_until_oslo_config_entries_match, match fail."""
         file_contents = """
 [DEFAULT]
 verbose = False
@@ -702,6 +754,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             '/tmp/src/myfile.txt', mock.ANY)
 
     def test_block_until_oslo_config_entries_match_missing_entry(self):
+        """Test block_until_oslo_config_entries_match, with entry missing."""
         file_contents = """
 [DEFAULT]
 verbose = False
@@ -731,6 +784,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             '/tmp/src/myfile.txt', mock.ANY)
 
     def test_block_until_oslo_config_entries_match_missing_section(self):
+        """Test block_until_oslo_config_entries_match, with section missing."""
         file_contents = """
 [DEFAULT]
 verbose = False
@@ -756,6 +810,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
 
     def block_until_services_restarted_base(self, gu_return=None,
                                             gu_raise_exception=False):
+        """Run setup mocks for testing block_until_services_restarted."""
         async def _block_until(f, timeout=None):
             rc = await f()
             if not rc:
@@ -776,6 +831,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.Model.return_value = self.Model_mock
 
     def test_block_until_services_restarted(self):
+        """Test block_until_services_restarted."""
         self.block_until_services_restarted_base(gu_return=10)
         model.block_until_services_restarted(
             'app',
@@ -783,6 +839,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             ['svc1', 'svc2'])
 
     def test_block_until_services_restarted_fail(self):
+        """Test model.block_until_services_restarted timeout."""
         self.block_until_services_restarted_base(gu_return=10)
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.block_until_services_restarted(
@@ -791,6 +848,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
                 ['svc1', 'svc2'])
 
     def test_block_until_services_restarted_not_running(self):
+        """Test block_until_services_restarted_not_running timeout."""
         self.block_until_services_restarted_base(gu_raise_exception=True)
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.block_until_services_restarted(
@@ -799,6 +857,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
                 ['svc1', 'svc2'])
 
     def test_block_until_unit_wl_status(self):
+        """Test block_until_unit_wl_status."""
         async def _block_until(f, timeout=None):
             if not f():
                 raise asyncio.futures.TimeoutError
@@ -815,6 +874,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             timeout=0.1)
 
     def test_block_until_unit_wl_status_fail(self):
+        """Test block_until_unit_wl_status timeout."""
         async def _block_until(f, timeout=None):
             if not f():
                 raise asyncio.futures.TimeoutError
@@ -833,9 +893,10 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
 
 
 class AsyncModelTests(aiounittest.AsyncTestCase):
+    """Run juju.model tests using async unit test framework."""
 
     async def test_async_block_until_timeout(self):
-
+        """Test async_block_until_pass, timeout."""
         async def _f():
             return False
 
@@ -846,7 +907,7 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
             await model.async_block_until(_f, _g, timeout=0.1)
 
     async def test_async_block_until_pass(self):
-
+        """Test async_block_until_pass."""
         async def _f():
             return True
 

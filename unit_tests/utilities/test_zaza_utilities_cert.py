@@ -1,3 +1,4 @@
+"""Module containing unit tests for zaza.utilities.cert."""
 import mock
 
 import unit_tests.utils as ut_utils
@@ -5,8 +6,10 @@ import zaza.utilities.cert as cert
 
 
 class TestUtilitiesCert(ut_utils.BaseTestCase):
+    """Collection of unit tests for zaza.utilities.cert."""
 
     def test_generate_cert(self):
+        """Test generate_cert."""
         self.patch_object(cert, 'serialization')
         self.patch_object(cert, 'rsa')
         self.patch_object(cert, 'cryptography')
@@ -26,6 +29,7 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         )
 
     def test_generate_cert_san(self):
+        """Test generate_cert with SANs."""
         self.patch_object(cert, 'serialization')
         self.patch_object(cert, 'rsa')
         self.patch_object(cert, 'cryptography')
@@ -50,6 +54,7 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         )
 
     def test_generate_cert_password(self):
+        """Test generate_cert_password."""
         self.patch_object(cert, 'serialization')
         self.patch_object(cert, 'rsa')
         self.patch_object(cert, 'cryptography')
@@ -69,6 +74,7 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         )
 
     def test_generate_cert_issuer_name(self):
+        """Test generate_cert with an issuer_name."""
         self.patch_object(cert, 'serialization')
         self.patch_object(cert, 'rsa')
         self.patch_object(cert, 'cryptography')
@@ -82,6 +88,7 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         )
 
     def test_generate_cert_signing_key(self):
+        """Test generate_cert with a provided signing key."""
         self.patch_object(cert, 'serialization')
         self.patch_object(cert, 'rsa')
         self.patch_object(cert, 'cryptography')
@@ -106,6 +113,7 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         )
 
     def test_generate_cert_signing_key_signing_key_password(self):
+        """Test generate_cert with a password protected key."""
         self.patch_object(cert, 'serialization')
         self.patch_object(cert, 'rsa')
         self.patch_object(cert, 'cryptography')
@@ -134,6 +142,7 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         )
 
     def test_generate_cert_generate_ca(self):
+        """Test generate_cert for a CA."""
         self.patch_object(cert, 'serialization')
         self.patch_object(cert, 'rsa')
         self.patch_object(cert, 'cryptography')
@@ -153,6 +162,7 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         )
 
     def sign_csr_mocks(self):
+        """Run setup of mocks needed for sign_csr testing."""
         self.patch_object(cert, 'serialization')
         self.patch_object(cert, 'cryptography')
         self.expect_bend = self.cryptography.hazmat.backends.default_backend()
@@ -171,6 +181,7 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         self.cryptography.x509.BasicConstraints.side_effect = self.bcons_mock
 
     def test_sign_csr(self):
+        """Test running sign_csr."""
         self.sign_csr_mocks()
         cert.sign_csr('acsr', 'secretkey', ca_cert='cacert')
         self.serialization.load_pem_private_key.assert_called_with(
@@ -185,6 +196,7 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
             self.expect_bend)
 
     def test_sign_csr_key_password(self):
+        """Test running sign_csr with password protected key."""
         self.sign_csr_mocks()
         cert.sign_csr('acsr', 'secretkey', ca_cert='cacert',
                       ca_private_key_password='bob')
@@ -204,6 +216,7 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
             critical=True)
 
     def test_sign_csr_issuer_name(self):
+        """Test running sign_csr using issuer_name."""
         self.sign_csr_mocks()
         cert.sign_csr('acsr', 'secretkey', issuer_name='issuer')
         self.serialization.load_pem_private_key.assert_called_with(
@@ -220,6 +233,7 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
             critical=True)
 
     def test_sign_csr_generate_ca(self):
+        """Test running sign_csr for a CA cert."""
         self.sign_csr_mocks()
         cert.sign_csr('acsr', 'secretkey', issuer_name='issuer',
                       generate_ca=True)

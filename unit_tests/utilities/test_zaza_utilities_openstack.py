@@ -1,3 +1,5 @@
+"""Unit test definitions for for zaza.utilities.openstack."""
+
 import copy
 import mock
 import tenacity
@@ -7,8 +9,10 @@ from zaza.utilities import openstack as openstack_utils
 
 
 class TestOpenStackUtils(ut_utils.BaseTestCase):
+    """Run unit tests for zaza.utilities.openstack."""
 
     def setUp(self):
+        """Run test setup."""
         super(TestOpenStackUtils, self).setUp()
         self.port_name = "port_name"
         self.net_uuid = "net_uuid"
@@ -62,6 +66,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.neutronclient.create_network.return_value = self.network
 
     def test_create_port(self):
+        """Test calling create_port."""
         self.patch_object(openstack_utils, "get_net_uuid")
         self.get_net_uuid.return_value = self.net_uuid
 
@@ -80,6 +85,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.neutronclient.create_port.assert_called_once_with(self.port)
 
     def test_create_floating_ip(self):
+        """Test calling create_floating_ip."""
         self.patch_object(openstack_utils, "get_net_uuid")
         self.get_net_uuid.return_value = self.net_uuid
 
@@ -99,6 +105,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             self.floatingip)
 
     def test_create_address_scope(self):
+        """Test calling create_address_scope."""
         self.patch_object(openstack_utils, "get_net_uuid")
         self.get_net_uuid.return_value = self.net_uuid
 
@@ -120,6 +127,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             address_scope_msg)
 
     def test_create_external_network(self):
+        """Test calling create_external_network."""
         self.patch_object(openstack_utils, "get_net_uuid")
         self.get_net_uuid.return_value = self.net_uuid
 
@@ -141,6 +149,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             network_msg)
 
     def test_get_keystone_scope(self):
+        """Test calling get_keystone_scope."""
         self.patch_object(openstack_utils, "get_current_os_versions")
 
         # <= Liberty
@@ -151,6 +160,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.assertEqual(openstack_utils.get_keystone_scope(), "PROJECT")
 
     def test_get_overcloud_keystone_session(self):
+        """Test calling get_overcloud_keystone_session."""
         self.patch_object(openstack_utils, "get_keystone_session")
         self.patch_object(openstack_utils, "get_keystone_scope")
         self.patch_object(openstack_utils, "get_overcloud_auth")
@@ -163,6 +173,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.get_keystone_session.assert_called_once_with(_auth, scope=_scope)
 
     def test_get_undercloud_keystone_session(self):
+        """Test calling get_undercloud_keystone_session."""
         self.patch_object(openstack_utils, "get_keystone_session")
         self.patch_object(openstack_utils, "get_keystone_scope")
         self.patch_object(openstack_utils, "get_undercloud_auth")
@@ -175,6 +186,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.get_keystone_session.assert_called_once_with(_auth, scope=_scope)
 
     def test_get_urllib_opener(self):
+        """Test calling get_urllib_opener."""
         self.patch_object(openstack_utils.urllib.request, "ProxyHandler")
         self.patch_object(openstack_utils.urllib.request, "HTTPHandler")
         self.patch_object(openstack_utils.urllib.request, "build_opener")
@@ -187,6 +199,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.HTTPHandler.assert_called_once_with()
 
     def test_get_urllib_opener_proxy(self):
+        """Test calling get_urllib_opener with a proxy."""
         self.patch_object(openstack_utils.urllib.request, "ProxyHandler")
         self.patch_object(openstack_utils.urllib.request, "HTTPHandler")
         self.patch_object(openstack_utils.urllib.request, "build_opener")
@@ -199,6 +212,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.ProxyHandler.assert_called_once_with({'http': 'http://squidy'})
 
     def test_find_cirros_image(self):
+        """Test calling find_cirros_image."""
         urllib_opener_mock = mock.MagicMock()
         self.patch_object(openstack_utils, "get_urllib_opener")
         self.get_urllib_opener.return_value = urllib_opener_mock
@@ -208,6 +222,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             'http://download.cirros-cloud.net/12/cirros-12-aarch64-disk.img')
 
     def test_download_image(self):
+        """Test calling download_image."""
         urllib_opener_mock = mock.MagicMock()
         self.patch_object(openstack_utils, "get_urllib_opener")
         self.get_urllib_opener.return_value = urllib_opener_mock
@@ -219,11 +234,13 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             'http://cirros/c.img', '/tmp/c1.img')
 
     def test_resource_reaches_status(self):
+        """Test resource_reaches_status when status is reached."""
         resource_mock = mock.MagicMock()
         resource_mock.get.return_value = mock.MagicMock(status='available')
         openstack_utils.resource_reaches_status(resource_mock, 'e01df65a')
 
     def test_resource_reaches_status_fail(self):
+        """Test resource_reaches_status when status is not reached."""
         openstack_utils.resource_reaches_status.retry.wait = \
             tenacity.wait_none()
         resource_mock = mock.MagicMock()
@@ -234,6 +251,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
                 'e01df65a')
 
     def test_resource_reaches_status_bespoke(self):
+        """Test resource_reaches_status when bespoke status is reached."""
         resource_mock = mock.MagicMock()
         resource_mock.get.return_value = mock.MagicMock(status='readyish')
         openstack_utils.resource_reaches_status(
@@ -242,6 +260,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             'readyish')
 
     def test_resource_reaches_status_bespoke_fail(self):
+        """Test resource_reaches_status when bespoke status is not reached."""
         openstack_utils.resource_reaches_status.retry.wait = \
             tenacity.wait_none()
         resource_mock = mock.MagicMock()
@@ -253,11 +272,13 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
                 'readyish')
 
     def test_resource_removed(self):
+        """Test calling resource_removed."""
         resource_mock = mock.MagicMock()
         resource_mock.list.return_value = [mock.MagicMock(id='ba8204b0')]
         openstack_utils.resource_removed(resource_mock, 'e01df65a')
 
     def test_resource_removed_fail(self):
+        """Test how resource_removed handles failures."""
         openstack_utils.resource_reaches_status.retry.wait = \
             tenacity.wait_none()
         resource_mock = mock.MagicMock()
@@ -266,6 +287,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             openstack_utils.resource_removed(resource_mock, 'e01df65a')
 
     def test_delete_resource(self):
+        """Test calling delete_resource."""
         resource_mock = mock.MagicMock()
         self.patch_object(openstack_utils, "resource_removed")
         openstack_utils.delete_resource(resource_mock, 'e01df65a')
@@ -276,6 +298,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             'resource')
 
     def test_delete_image(self):
+        """Test calling delete_image."""
         self.patch_object(openstack_utils, "delete_resource")
         glance_mock = mock.MagicMock()
         openstack_utils.delete_image(glance_mock, 'b46c2d83')
@@ -285,6 +308,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             msg="glance image")
 
     def test_upload_image_to_glance(self):
+        """Test calling upload_image_to_glance."""
         self.patch_object(openstack_utils, "resource_reaches_status")
         glance_mock = mock.MagicMock()
         image_mock = mock.MagicMock(id='9d1125af')
@@ -311,6 +335,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
                 msg='Image status wait')
 
     def test_create_image(self):
+        """Test calling create_image."""
         glance_mock = mock.MagicMock()
         self.patch_object(openstack_utils.os.path, "exists")
         self.patch_object(openstack_utils, "download_image")

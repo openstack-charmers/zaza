@@ -1,3 +1,4 @@
+"""Module containing unit tests for zaza.charm_lifecycle.func_test_runner."""
 import mock
 
 import zaza.charm_lifecycle.func_test_runner as lc_func_test_runner
@@ -5,14 +6,17 @@ import unit_tests.utils as ut_utils
 
 
 class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
+    """Define unit tests for zaza.charm_lifecycle.func_test_runner."""
 
     def test_generate_model_name(self):
+        """Test generate_model_name."""
         self.patch_object(lc_func_test_runner.uuid, "uuid4")
         self.uuid4.return_value = "longer-than-12characters"
         self.assertEqual(lc_func_test_runner.generate_model_name(),
                          "zaza-12characters")
 
     def test_parser(self):
+        """Test parse_args."""
         # Test defaults
         args = lc_func_test_runner.parse_args([])
         self.assertFalse(args.keep_model)
@@ -29,6 +33,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.assertEqual(args.loglevel, 'DEBUG')
 
     def test_func_test_runner(self):
+        """Test func_test_runner."""
         self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
         self.patch_object(lc_func_test_runner, 'generate_model_name')
         self.patch_object(lc_func_test_runner.prepare, 'prepare')
@@ -77,6 +82,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.destroy.assert_has_calls(destroy_calls)
 
     def test_func_test_runner_smoke(self):
+        """Test func_test_runner smoke test."""
         self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
         self.patch_object(lc_func_test_runner, 'generate_model_name')
         self.patch_object(lc_func_test_runner.prepare, 'prepare')
@@ -101,6 +107,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.deploy.assert_has_calls(deploy_calls)
 
     def test_func_test_runner_specify_bundle(self):
+        """Test func_test_runner with explicit bundle."""
         self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
         self.patch_object(lc_func_test_runner, 'generate_model_name')
         self.patch_object(lc_func_test_runner.prepare, 'prepare')
@@ -125,6 +132,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.deploy.assert_has_calls(deploy_calls)
 
     def test_main_loglevel(self):
+        """Test running main setting log level."""
         self.patch_object(lc_func_test_runner, 'parse_args')
         self.patch_object(lc_func_test_runner, 'logging')
         self.patch_object(lc_func_test_runner, 'func_test_runner')
@@ -137,6 +145,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.logging.basicConfig.assert_called_with(level=10)
 
     def test_main_loglevel_invalid(self):
+        """Test running main with invalid log level."""
         self.patch_object(lc_func_test_runner, 'parse_args')
         self.patch_object(lc_func_test_runner, 'logging')
         self.patch_object(lc_func_test_runner, 'func_test_runner')

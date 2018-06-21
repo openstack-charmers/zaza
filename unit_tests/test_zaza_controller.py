@@ -1,3 +1,4 @@
+"""Module defining unit tests for zaza.controller."""
 import mock
 
 import unit_tests.utils as ut_utils
@@ -6,8 +7,10 @@ import zaza.controller as controller
 
 
 class TestController(ut_utils.BaseTestCase):
+    """Unit tests for zaza.controller."""
 
     def setUp(self):
+        """Run setup for zaza.controller unit tests."""
         super(TestController, self).setUp()
 
         async def _disconnect():
@@ -56,6 +59,7 @@ class TestController(ut_utils.BaseTestCase):
         self.Controller.return_value = self.Controller_mock
 
     def test_add_model(self):
+        """Test add_model."""
         self.assertEqual(controller.add_model(self.model1.info.name),
                          self.model1.info.name)
         self.Controller_mock.add_model.assert_called_once_with(
@@ -64,6 +68,7 @@ class TestController(ut_utils.BaseTestCase):
         self.model1.connect.assert_called_once()
 
     def test_add_model_config(self):
+        """Test add_model, with supplied config."""
         self.assertEqual(
             controller.add_model(
                 self.model1.info.name,
@@ -75,17 +80,20 @@ class TestController(ut_utils.BaseTestCase):
         self.model1.connect.assert_called_once()
 
     def test_destroy_model(self):
+        """Test destroy_model."""
         controller.destroy_model(self.model1.info.name)
         self.Controller_mock.destroy_model.assert_called_once_with(
             self.model1.info.name)
 
     def test_get_cloud(self):
+        """Test get_cloud."""
         self.assertEqual(
             controller.get_cloud(),
             self.cloud)
         self.Controller_mock.get_cloud.assert_called_once()
 
     def test_list_models(self):
+        """Test list_models."""
         self.assertEqual(
             controller.list_models(),
             self.models)
