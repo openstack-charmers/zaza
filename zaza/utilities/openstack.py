@@ -172,13 +172,16 @@ def get_keystone_scope():
     return scope
 
 
-def get_keystone_session(opentackrc_creds, insecure=True, scope='PROJECT'):
+def get_keystone_session(opentackrc_creds, scope='PROJECT', verify=None):
     """Return keystone session.
 
     :param openrc_creds: Openstack RC credentials
     :type openrc_creds: dict
-    :param insecure: Allow insecure HTTPS connections
-    :type insecure: boolean
+    :param verify: Control TLS certificate verification behaviour
+    :type verify: any (True  - use system certs,
+                       False - do not verify,
+                       None  - defer to requests library to find certs,
+                       str   - path to a CA cert bundle)
     :param scope: Authentication scope: PROJECT or DOMAIN
     :type scope: string
     :returns: Keystone session object
@@ -189,27 +192,33 @@ def get_keystone_session(opentackrc_creds, insecure=True, scope='PROJECT'):
         auth = v2.Password(**keystone_creds)
     else:
         auth = v3.Password(**keystone_creds)
-    return session.Session(auth=auth, verify=not insecure)
+    return session.Session(auth=auth, verify=verify)
 
 
-def get_overcloud_keystone_session():
+def get_overcloud_keystone_session(verify=None):
     """Return Over cloud keystone session.
 
+    :param verify: Control TLS certificate verification behaviour
+    :type verify: any
     :returns keystone_session: keystoneauth1.session.Session object
     :rtype: keystoneauth1.session.Session
     """
     return get_keystone_session(get_overcloud_auth(),
-                                scope=get_keystone_scope())
+                                scope=get_keystone_scope(),
+                                verify=verify)
 
 
-def get_undercloud_keystone_session():
+def get_undercloud_keystone_session(verify=None):
     """Return Under cloud keystone session.
 
+    :param verify: Control TLS certificate verification behaviour
+    :type verify: any
     :returns keystone_session: keystoneauth1.session.Session object
     :rtype: keystoneauth1.session.Session
     """
     return get_keystone_session(get_undercloud_auth(),
-                                scope=get_keystone_scope())
+                                scope=get_keystone_scope(),
+                                verify=verify)
 
 
 def get_keystone_session_client(session):
@@ -223,17 +232,17 @@ def get_keystone_session_client(session):
     return keystoneclient_v3.Client(session=session)
 
 
-def get_keystone_client(opentackrc_creds, insecure=True):
+def get_keystone_client(opentackrc_creds, verify=None):
     """Return authenticated keystoneclient and set auth_ref for service_catalog.
 
     :param openrc_creds: Openstack RC credentials
     :type openrc_creds: dict
-    :param insecure: Allow insecure HTTPS connections
-    :type insecure: boolean
+    :param verify: Control TLS certificate verification behaviour
+    :type verify: any
     :returns: Authenticated keystoneclient
     :rtype: keystoneclient.v3.Client object
     """
-    session = get_keystone_session(opentackrc_creds, insecure)
+    session = get_keystone_session(opentackrc_creds, verify=verify)
     client = get_keystone_session_client(session)
     keystone_creds = get_ks_creds(opentackrc_creds)
     if opentackrc_creds.get('API_VERSION', 2) == 2:
@@ -1190,7 +1199,10 @@ def get_overcloud_auth():
     :returns: Dictionary of authentication settings
     :rtype: dict
     """
-    if get_application_config_option('keystone', 'use-https').lower() == 'yes':
+    tls_rid = model.get_relation_id('keystone', 'vault',
+                                    remote_interface_name='tls-certificates')
+    ssl_config = get_application_config_option('keystone', 'ssl_cert')
+    if tls_rid or ssl_config:
         transport = 'https'
         port = 35357
     else:

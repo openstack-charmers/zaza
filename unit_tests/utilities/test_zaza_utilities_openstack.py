@@ -150,6 +150,77 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.get_current_os_versions.return_value = {"keystone": "mitaka"}
         self.assertEqual(openstack_utils.get_keystone_scope(), "PROJECT")
 
+    def _test_get_overcloud_auth(self, tls_relation=False, ssl_cert=False,
+                                 v2_api=False):
+        self.patch_object(openstack_utils.model, 'get_relation_id')
+        self.patch_object(openstack_utils, 'get_application_config_option')
+        self.patch_object(openstack_utils, 'get_keystone_ip')
+        self.patch_object(openstack_utils, "get_current_os_versions")
+
+        self.get_keystone_ip.return_value = '127.0.0.1'
+        self.get_relation_id.return_value = None
+        self.get_application_config_option.return_value = None
+        if tls_relation or ssl_cert:
+            port = 35357
+            transport = 'https'
+            if tls_relation:
+                self.get_relation_id.return_value = 'tls-certificates:1'
+            if ssl_cert:
+                self.get_application_config_option.side_effect = [
+                    'FAKECRTDATA',
+                    None,
+                ]
+        else:
+            port = 5000
+            transport = 'http'
+        if v2_api:
+            str_api = 'v2.0'
+            self.get_current_os_versions.return_value = {"keystone": "mitaka"}
+            expect = {
+                'OS_AUTH_URL': '{}://127.0.0.1:{}/{}'
+                               .format(transport, port, str_api),
+                'OS_TENANT_NAME': 'admin',
+                'OS_USERNAME': 'admin',
+                'OS_PASSWORD': 'openstack',
+                'OS_REGION_NAME': 'RegionOne',
+                'API_VERSION': 2,
+            }
+        else:
+            str_api = 'v3'
+            self.get_current_os_versions.return_value = {"keystone": "queens"}
+            expect = {
+                'OS_AUTH_URL': '{}://127.0.0.1:{}/{}'
+                               .format(transport, port, str_api),
+                'OS_USERNAME': 'admin',
+                'OS_PASSWORD': 'openstack',
+                'OS_REGION_NAME': 'RegionOne',
+                'OS_DOMAIN_NAME': 'admin_domain',
+                'OS_USER_DOMAIN_NAME': 'admin_domain',
+                'OS_PROJECT_NAME': 'admin',
+                'OS_PROJECT_DOMAIN_NAME': 'admin_domain',
+                'API_VERSION': 3,
+            }
+        self.assertEqual(openstack_utils.get_overcloud_auth(),
+                         expect)
+
+    def test_get_overcloud_auth(self):
+        self._test_get_overcloud_auth()
+
+    def test_get_overcloud_auth_v2(self):
+        self._test_get_overcloud_auth(v2_api=True)
+
+    def test_get_overcloud_auth_tls_relation(self):
+        self._test_get_overcloud_auth(tls_relation=True)
+
+    def test_get_overcloud_auth_tls_relation_v2(self):
+        self._test_get_overcloud_auth(v2_api=True, tls_relation=True)
+
+    def test_get_overcloud_auth_ssl_cert(self):
+        self._test_get_overcloud_auth(ssl_cert=True)
+
+    def test_get_overcloud_auth_ssl_cert_v2(self):
+        self._test_get_overcloud_auth(v2_api=True, ssl_cert=True)
+
     def test_get_overcloud_keystone_session(self):
         self.patch_object(openstack_utils, "get_keystone_session")
         self.patch_object(openstack_utils, "get_keystone_scope")
@@ -160,7 +231,8 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.get_overcloud_auth.return_value = _auth
 
         openstack_utils.get_overcloud_keystone_session()
-        self.get_keystone_session.assert_called_once_with(_auth, scope=_scope)
+        self.get_keystone_session.assert_called_once_with(_auth, scope=_scope,
+                                                          verify=None)
 
     def test_get_undercloud_keystone_session(self):
         self.patch_object(openstack_utils, "get_keystone_session")
@@ -172,7 +244,8 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.get_undercloud_auth.return_value = _auth
 
         openstack_utils.get_undercloud_keystone_session()
-        self.get_keystone_session.assert_called_once_with(_auth, scope=_scope)
+        self.get_keystone_session.assert_called_once_with(_auth, scope=_scope,
+                                                          verify=None)
 
     def test_get_urllib_opener(self):
         self.patch_object(openstack_utils.urllib.request, "ProxyHandler")
