@@ -236,6 +236,8 @@ def run_from_cli(**kwargs):
     parser.add_argument("--net_topology_file", "-f",
                         help="Network topology file location",
                         default="network.yaml")
+    parser.add_argument("--cacert", help="Path to CA certificate bundle file",
+                        default=None)
     # Handle CLI options
     options = parser.parse_args()
     net_topology = (kwargs.get('net_toplogoy') or
@@ -244,6 +246,8 @@ def run_from_cli(**kwargs):
                          cli_utils.parse_arg(options, "net_topology_file"))
     ignore_env_vars = (kwargs.get('ignore_env_vars') or
                        cli_utils.parse_arg(options, "ignore_env_vars"))
+    cacert = (kwargs.get('cacert') or
+              cli_utils.parse_arg(options, "cacert"))
 
     logging.info("Setting up %s network" % (net_topology))
     network_config = generic_utils.get_network_config(
@@ -251,9 +255,14 @@ def run_from_cli(**kwargs):
 
     # Handle network for Openstack-on-Openstack scenarios
     if juju_utils.get_provider_type() == "openstack":
-        setup_gateway_ext_port(network_config)
+        undercloud_ks_sess = openstack_utils.get_undercloud_keystone_session(
+            verify=cacert)
+        setup_gateway_ext_port(network_config,
+                               keystone_session=undercloud_ks_sess)
 
-    setup_sdn(network_config)
+    overcloud_ks_sess = openstack_utils.get_overcloud_keystone_session(
+        verify=cacert)
+    setup_sdn(network_config, keystone_session=overcloud_ks_sess)
 
 
 if __name__ == "__main__":
