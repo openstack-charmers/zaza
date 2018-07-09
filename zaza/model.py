@@ -543,9 +543,9 @@ def check_unit_workload_status_message(model, unit, message=None,
     :rtype: bool
     """
     check_model_for_hard_errors(model)
-    if message:
+    if message is not None:
         return unit.workload_status_message == message
-    elif prefixes:
+    elif prefixes is not None:
         return unit.workload_status_message.startswith(prefixes)
     else:
         raise ValueError("Must be called with message or prefixes")
@@ -604,7 +604,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
                 check_msg = check_info.get('workload-status-message')
                 logging.info("Checking workload status message of {}".format(
                     unit.entity_id))
-                if check_msg:
+                if check_msg is not None:
                     prefixes = (check_msg)
                 else:
                     prefixes = approved_message_prefixes
