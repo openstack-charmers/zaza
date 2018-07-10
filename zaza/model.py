@@ -28,7 +28,9 @@ def set_juju_model(model_name):
     :param model_name: Model to point environment at
     :type model_name: str
     """
+    global CURRENT_MODEL
     os.environ["JUJU_MODEL"] = model_name
+    CURRENT_MODEL = model_name
 
 
 def get_juju_model():
