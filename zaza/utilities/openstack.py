@@ -83,6 +83,24 @@ UPGRADE_SERVICES = [
 ]
 
 
+WORKLOAD_STATUS_EXCEPTIONS = {
+    'vault': {
+        'workload-status': 'blocked',
+        'workload-status-message': 'Vault needs to be initialized'},
+    'easyrsa': {
+        'workload-status-message': 'Certificate Authority connected.'},
+    'etcd': {
+        'workload-status-message': 'Healthy'},
+    'memcached': {
+        'workload-status': 'unknown',
+        'workload-status-message': ''},
+    'mongodb': {
+        'workload-status': 'unknown',
+        'workload-status-message': ''},
+    'postgresql': {
+        'workload-status-message': 'Live'}}
+
+
 # Openstack Client helpers
 def get_ks_creds(cloud_creds, scope='PROJECT'):
     """Return the credentials for authenticating against keystone.
