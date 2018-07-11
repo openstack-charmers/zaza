@@ -3,10 +3,14 @@
 import zaza.charm_tests.vault.utils as vault_utils
 
 
-def basic_setup():
-    """Run basic setup for vault tests."""
-    clients = vault_utils.get_clients()
-    vip_client = vault_utils.get_vip_client()
+def basic_setup(cacert=None):
+    """Run basic setup for vault tests.
+
+    :param cacert: Path to CA cert used for vaults api cert.
+    :type cacert: str
+    """
+    clients = vault_utils.get_clients(cacert=cacert)
+    vip_client = vault_utils.get_vip_client(cacert=cacert)
     if vip_client:
         unseal_client = vip_client
     else:

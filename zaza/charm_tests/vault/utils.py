@@ -26,23 +26,31 @@ def get_unit_api_url(ip):
     :returns: URL
     :rtype: atr
     """
-    return 'http://{}:8200'.format(ip)
+    vault_config = zaza.model.get_application_config('vault')
+    transport = 'http'
+    if vault_config['ssl-cert']['value']:
+        transport = 'https'
+    return '{}://{}:8200'.format(transport, ip)
 
 
-def get_hvac_client(vault_url):
+def get_hvac_client(vault_url, cacert=None):
     """Return an hvac client for the given URL.
 
     :param vault_url: Vault url to point client at
     :type vault_url: str
+    :param cacert: Path to CA cert used for vaults api cert.
+    :type cacert: str
     :returns: hvac client for given url
     :rtype: hvac.Client
     """
-    return hvac.Client(url=vault_url)
+    return hvac.Client(url=vault_url, verify=cacert)
 
 
-def get_vip_client():
+def get_vip_client(cacert=None):
     """Return CharmVaultClient for the vip if a vip is being used.
 
+    :param cacert: Path to CA cert used for vaults api cert.
+    :type cacert: str
     :returns: CharmVaultClient
     :rtype: CharmVaultClient or None
     """
@@ -52,7 +60,7 @@ def get_vip_client():
     if vip:
         client = CharmVaultClient(
             vip,
-            get_hvac_client(get_unit_api_url(vip)),
+            get_hvac_client(get_unit_api_url(vip), cacert=cacert),
             True)
     return client
 
@@ -72,11 +80,13 @@ def init_vault(client, shares=1, threshold=1):
     return client.hvac_client.initialize(shares, threshold)
 
 
-def get_clients(units=None):
+def get_clients(units=None, cacert=None):
     """Create a list of clients, one per vault server.
 
     :param units: List of IP addresses of vault endpoints
     :type units: [str, str, ...]
+    :param cacert: Path to CA cert used for vaults api cert.
+    :type cacert: str
     :returns: List of CharmVaultClients
     :rtype: [CharmVaultClient, ...]
     """
@@ -87,7 +97,7 @@ def get_clients(units=None):
         vault_url = get_unit_api_url(unit)
         clients.append(CharmVaultClient(
             unit,
-            get_hvac_client(vault_url),
+            get_hvac_client(vault_url, cacert=cacert),
             False))
     return clients
 

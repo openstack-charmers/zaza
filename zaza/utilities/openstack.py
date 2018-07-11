@@ -1218,7 +1218,7 @@ def get_overcloud_auth():
     :rtype: dict
     """
     tls_rid = model.get_relation_id('keystone', 'vault',
-                                    remote_interface_name='tls-certificates')
+                                    remote_interface_name='certificates')
     ssl_config = get_application_config_option('keystone', 'ssl_cert')
     if tls_rid or ssl_config:
         transport = 'https'
