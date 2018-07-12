@@ -1,6 +1,8 @@
 """Run prepare phase."""
 import argparse
+import copy
 import logging
+import os
 import sys
 
 import zaza.controller
@@ -21,13 +23,28 @@ MODEL_DEFAULTS = {
 }
 
 
+def get_model_settings():
+    """Construct settings for model from defaults and env variables.
+
+    :returns: Settings to usee for model
+    :rtype: Dict
+    """
+    model_settings = copy.deepcopy(MODEL_DEFAULTS)
+    for setting in os.environ.get('MODEL_SETTINGS', '').split(';'):
+        if not setting:
+            continue
+        key, value = setting.split('=')
+        model_settings[key.strip()] = value.strip()
+    return model_settings
+
+
 def prepare(model_name):
     """Run all steps to prepare the environment before a functional test run.
 
     :param model: Name of model to add
     :type bundle: str
     """
-    zaza.controller.add_model(model_name, config=MODEL_DEFAULTS)
+    zaza.controller.add_model(model_name, config=get_model_settings())
 
 
 def parse_args(args):

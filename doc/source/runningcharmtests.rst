@@ -19,6 +19,21 @@ application versions, topologies or config options.  functest-run-suite will
 run through each phase listed below in order for each bundle that is to be
 tested.
 
+0) Environment Variables
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Optionally setting the **MODEL_SETTINGS** environment variable allows model
+settings to be applied to the models created by zaza to run tests in. The
+settings will be applied on top of those set 
+**charm_lifecycle.prepare.MODEL_DEFAULTS** so it can be used to override any
+default setting.
+
+**MODEL_SETTINGS** should be a list of key/value pairs delimited by
+semicolon e.g.::
+
+    export MODEL_SETTINGS="virt-type=kvm;no-proxy=jujucharms.com"
+
+
 1) Prepare
 ~~~~~~~~~~
 
