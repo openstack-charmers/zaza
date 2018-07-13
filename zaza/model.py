@@ -1008,3 +1008,25 @@ async def async_get_relation_id(application_name, remote_application_name,
                 return(rel.id)
 
 get_relation_id = sync_wrapper(async_get_relation_id)
+
+
+def set_model_constraints(constraints, model_name=None):
+    """
+    Set constraints on a model.
+
+    Note: Subprocessing out to 'juju' is a temporary solution until
+          https://bit.ly/2ujbVPA lands in libjuju.
+
+    :param model_name: Name of model to operate on
+    :type model_name: str
+    :param constraints: Constraints to be applied to model
+    :type constraints: dict
+
+    """
+    if not constraints:
+        return
+    if not model_name:
+        model_name = get_juju_model()
+    cmd = ['juju', 'set-model-constraints', '-m', model_name]
+    cmd.extend(['{}={}'.format(k, v) for k, v in constraints.items()])
+    subprocess.check_call(cmd)
