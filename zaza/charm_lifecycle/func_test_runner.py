@@ -23,13 +23,15 @@ def generate_model_name():
     return 'zaza-{}'.format(str(uuid.uuid4())[-12:])
 
 
-def func_test_runner(keep_model=False, smoke=False, bundle=None):
+def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
     """Deploy the bundles and run the tests as defined by the charms tests.yaml.
 
     :param keep_model: Whether to destroy model at end of run
     :type keep_model: boolean
     :param smoke: Whether to just run smoke test.
+    :param dev: Whether to just run dev test.
     :type smoke: boolean
+    :type dev: boolean
     """
     test_config = utils.get_charm_config()
     if bundle:
@@ -37,6 +39,8 @@ def func_test_runner(keep_model=False, smoke=False, bundle=None):
     else:
         if smoke:
             bundle_key = 'smoke_bundles'
+        elif dev:
+            bundle_key = 'dev_bundles'
         else:
             bundle_key = 'gate_bundles'
         bundles = test_config[bundle_key]
@@ -76,14 +80,20 @@ def parse_args(args):
                         help='Keep model at the end of the run',
                         action='store_true')
     parser.add_argument('--smoke', dest='smoke',
-                        help='Just run smoke test',
+                        help='Just run smoke test(s)',
                         action='store_true')
-    parser.add_argument('-b', '--bundle',
+    parser.add_argument('--dev', dest='dev',
+                        help='Just run dev test(s)',
+                        action='store_true')
+    parser.add_argument('-b', '--bundle', dest='bundle',
                         help='Override the bundle to be run',
                         required=False)
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
-    parser.set_defaults(keep_model=False, smoke=False, loglevel='INFO')
+    parser.set_defaults(keep_model=False,
+                        smoke=False,
+                        dev=False,
+                        loglevel='INFO')
     return parser.parse_args(args)
 
 
@@ -96,8 +106,21 @@ def main():
         raise ValueError('Invalid log level: "{}"'.format(args.loglevel))
     logging.basicConfig(level=level)
 
+    if args.dev and args.smoke:
+        raise ValueError('Ambiguous arguments: --smoke and '
+                         '--dev cannot be used together')
+
+    if args.dev and args.bundle:
+        raise ValueError('Ambiguous arguments: --bundle and '
+                         '--dev cannot be used together')
+
+    if args.smoke and args.bundle:
+        raise ValueError('Ambiguous arguments: --bundle and '
+                         '--smoke cannot be used together')
+
     func_test_runner(
         keep_model=args.keep_model,
         smoke=args.smoke,
+        dev=args.dev,
         bundle=args.bundle)
     asyncio.get_event_loop().close()

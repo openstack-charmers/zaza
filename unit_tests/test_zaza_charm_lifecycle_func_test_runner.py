@@ -17,12 +17,15 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         args = lc_func_test_runner.parse_args([])
         self.assertFalse(args.keep_model)
         self.assertFalse(args.smoke)
+        self.assertFalse(args.dev)
         self.assertIsNone(args.bundle)
         # Test flags
         args = lc_func_test_runner.parse_args(['--keep-model'])
         self.assertTrue(args.keep_model)
         args = lc_func_test_runner.parse_args(['--smoke'])
         self.assertTrue(args.smoke)
+        args = lc_func_test_runner.parse_args(['--dev'])
+        self.assertTrue(args.dev)
         args = lc_func_test_runner.parse_args(['--bundle', 'mybundle'])
         self.assertEqual(args.bundle, 'mybundle')
         args = lc_func_test_runner.parse_args(['--log', 'DEBUG'])
@@ -40,6 +43,8 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.get_charm_config.return_value = {
             'charm_name': 'mycharm',
             'gate_bundles': ['bundle1', 'bundle2'],
+            'smoke_bundles': ['bundle2'],
+            'dev_bundles': ['bundle3', 'bundle4'],
             'configure': [
                 'zaza.charm_tests.mycharm.setup.basic_setup'
                 'zaza.charm_tests.othercharm.setup.setup'],
@@ -89,6 +94,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             'charm_name': 'mycharm',
             'gate_bundles': ['bundle1', 'bundle2'],
             'smoke_bundles': ['bundle2'],
+            'dev_bundles': ['bundle3', 'bundle4'],
             'configure': [
                 'zaza.charm_tests.mycharm.setup.basic_setup'
                 'zaza.charm_tests.othercharm.setup.setup'],
@@ -98,6 +104,32 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         lc_func_test_runner.func_test_runner(smoke=True)
         deploy_calls = [
             mock.call('./tests/bundles/bundle2.yaml', 'newmodel')]
+        self.deploy.assert_has_calls(deploy_calls)
+
+    def test_func_test_runner_dev(self):
+        self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
+        self.patch_object(lc_func_test_runner, 'generate_model_name')
+        self.patch_object(lc_func_test_runner.prepare, 'prepare')
+        self.patch_object(lc_func_test_runner.deploy, 'deploy')
+        self.patch_object(lc_func_test_runner.configure, 'configure')
+        self.patch_object(lc_func_test_runner.test, 'test')
+        self.patch_object(lc_func_test_runner.destroy, 'destroy')
+        self.generate_model_name.return_value = 'newmodel'
+        self.get_charm_config.return_value = {
+            'charm_name': 'mycharm',
+            'gate_bundles': ['bundle1', 'bundle2'],
+            'smoke_bundles': ['bundle2'],
+            'dev_bundles': ['bundle3', 'bundle4'],
+            'configure': [
+                'zaza.charm_tests.mycharm.setup.basic_setup'
+                'zaza.charm_tests.othercharm.setup.setup'],
+            'tests': [
+                'zaza.charm_tests.mycharm.tests.SmokeTest',
+                'zaza.charm_tests.mycharm.tests.ComplexTest']}
+        lc_func_test_runner.func_test_runner(dev=True)
+        deploy_calls = [
+            mock.call('./tests/bundles/bundle3.yaml', 'newmodel'),
+            mock.call('./tests/bundles/bundle4.yaml', 'newmodel')]
         self.deploy.assert_has_calls(deploy_calls)
 
     def test_func_test_runner_specify_bundle(self):
@@ -113,6 +145,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             'charm_name': 'mycharm',
             'gate_bundles': ['bundle1', 'bundle2'],
             'smoke_bundles': ['bundle2'],
+            'dev_bundles': ['bundle3', 'bundle4'],
             'configure': [
                 'zaza.charm_tests.mycharm.setup.basic_setup'
                 'zaza.charm_tests.othercharm.setup.setup'],
@@ -131,6 +164,8 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.patch_object(lc_func_test_runner, 'asyncio')
         _args = mock.Mock()
         _args.loglevel = 'DeBuG'
+        _args.dev = False
+        _args.smoke = False
         self.parse_args.return_value = _args
         self.logging.DEBUG = 10
         lc_func_test_runner.main()
@@ -150,3 +185,58 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             'Invalid log level: "invalid"',
             str(context.exception))
         self.assertFalse(self.logging.basicConfig.called)
+
+    def test_main_smoke_dev_ambiguous(self):
+        self.patch_object(lc_func_test_runner, 'parse_args')
+        self.patch_object(lc_func_test_runner, 'logging')
+        self.patch_object(lc_func_test_runner, 'func_test_runner')
+        self.patch_object(lc_func_test_runner, 'asyncio')
+        _args = mock.Mock()
+        _args.loglevel = 'DEBUG'
+        _args.dev = True
+        _args.smoke = True
+        self.parse_args.return_value = _args
+        self.logging.DEBUG = 10
+        with self.assertRaises(ValueError) as context:
+            lc_func_test_runner.main()
+        self.assertEqual(
+            'Ambiguous arguments: --smoke and --dev cannot be used together',
+            str(context.exception))
+
+    def test_main_bundle_dev_ambiguous(self):
+        self.patch_object(lc_func_test_runner, 'parse_args')
+        self.patch_object(lc_func_test_runner, 'logging')
+        self.patch_object(lc_func_test_runner, 'func_test_runner')
+        self.patch_object(lc_func_test_runner, 'asyncio')
+        _args = mock.Mock()
+        _args.loglevel = 'DEBUG'
+        _args.dev = True
+        _args.smoke = False
+        _args.bundle = 'foo.yaml'
+        self.parse_args.return_value = _args
+        self.logging.DEBUG = 10
+        with self.assertRaises(ValueError) as context:
+            lc_func_test_runner.main()
+        self.assertEqual(
+            ('Ambiguous arguments: --bundle and --dev '
+             'cannot be used together'),
+            str(context.exception))
+
+    def test_main_bundle_smoke_ambiguous(self):
+        self.patch_object(lc_func_test_runner, 'parse_args')
+        self.patch_object(lc_func_test_runner, 'logging')
+        self.patch_object(lc_func_test_runner, 'func_test_runner')
+        self.patch_object(lc_func_test_runner, 'asyncio')
+        _args = mock.Mock()
+        _args.loglevel = 'DEBUG'
+        _args.dev = False
+        _args.smoke = True
+        _args.bundle = 'foo.yaml'
+        self.parse_args.return_value = _args
+        self.logging.DEBUG = 10
+        with self.assertRaises(ValueError) as context:
+            lc_func_test_runner.main()
+        self.assertEqual(
+            ('Ambiguous arguments: --bundle and --smoke '
+             'cannot be used together'),
+            str(context.exception))
