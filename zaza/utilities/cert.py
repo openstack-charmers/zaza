@@ -15,7 +15,7 @@
 """Module for working with x.509 certificates."""
 
 import cryptography
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 import cryptography.hazmat.primitives.hashes as hashes
 import cryptography.hazmat.primitives.serialization as serialization
 import datetime
@@ -205,3 +205,40 @@ def sign_csr(csr, ca_private_key, ca_cert=None, issuer_name=None,
         backend=backend)
 
     return signer_ca_cert.public_bytes(encoding=serialization.Encoding.PEM)
+
+
+def is_keys_valid(public_key_string, private_key_string):
+    """Test whether these are a valid public/private key pair.
+
+    :param public_key_string: PEM encoded key data.
+    :type public_key_string: str
+    :param private_key_string: OpenSSH encoded key data.
+    :type private_key_string: str
+    """
+    private_key = serialization.load_pem_private_key(
+        private_key_string.encode(),
+        password=None,
+        backend=cryptography.hazmat.backends.default_backend()
+    )
+    public_key = serialization.load_ssh_public_key(
+        public_key_string.encode(),
+        backend=cryptography.hazmat.backends.default_backend()
+    )
+    message = b"encrypted data"
+    ciphertext = public_key.encrypt(
+        message,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None))
+
+    try:
+        plaintext = private_key.decrypt(
+            ciphertext,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None))
+    except ValueError:
+        plaintext = ''
+    return plaintext == message

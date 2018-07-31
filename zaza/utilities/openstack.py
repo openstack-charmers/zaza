@@ -16,15 +16,19 @@ from keystoneauth1.identity import (
     v3,
     v2,
 )
+import zaza.utilities.cert as cert
 from novaclient import client as novaclient_client
 from neutronclient.v2_0 import client as neutronclient
 from neutronclient.common import exceptions as neutronexceptions
 
+import io
 import juju_wait
 import logging
 import os
+import paramiko
 import re
 import six
+import subprocess
 import sys
 import tenacity
 import urllib
@@ -38,6 +42,10 @@ from zaza.utilities import (
 
 CIRROS_RELEASE_URL = 'http://download.cirros-cloud.net/version/released'
 CIRROS_IMAGE_URL = 'http://download.cirros-cloud.net'
+UBUNTU_IMAGE_URLS = {
+    'bionic': ('http://cloud-images.ubuntu.com/{release}/current/'
+               '{release}-server-cloudimg-{arch}.img')
+}
 
 CHARM_TYPES = {
     'neutron': {
@@ -1289,7 +1297,7 @@ def get_urllib_opener():
 def find_cirros_image(arch):
     """Return the url for the latest cirros image for the given architecture.
 
-    :param arch: aarch64, arm, i386, x86_64 etc
+    :param arch: aarch64, arm, i386, amd64, x86_64 etc
     :type arch: str
     :returns: URL for latest cirros image
     :rtype: str
@@ -1299,6 +1307,11 @@ def find_cirros_image(arch):
     version = f.read().strip().decode()
     cirros_img = 'cirros-{}-{}-disk.img'.format(version, arch)
     return '{}/{}/{}'.format(CIRROS_IMAGE_URL, version, cirros_img)
+
+
+def find_ubuntu_image(release, arch):
+    """Return url for image."""
+    return UBUNTU_IMAGE_URLS[release].format(release=release, arch=arch)
 
 
 def download_image(image_url, target_file):
@@ -1337,6 +1350,7 @@ def resource_reaches_status(resource, resource_id,
     :raises: AssertionError
     """
     resource_status = resource.get(resource_id).status
+    logging.info(resource_status)
     assert resource_status == expected_status, (
         "Resource in {} state, waiting for {}" .format(resource_status,
                                                        expected_status,))
@@ -1456,3 +1470,189 @@ def create_image(glance, image_url, image_name, image_cache_dir='tests'):
 
     image = upload_image_to_glance(glance, local_path, image_name)
     return image
+
+
+def create_ssh_key(nova_client, keypair_name, replace=False):
+    """Create ssh key.
+
+    :param nova_client: Authenticated nova client
+    :type nova_client: novaclient.v2.client.Client
+    :param keypair_name: Label to apply to keypair in Openstack.
+    :type keypair_name: str
+    :param replace: Whether to replace the existing keypair if it already
+                    exists.
+    :type replace: str
+    :returns: The keypair
+    :rtype: nova.objects.keypair
+    """
+    existing_keys = nova_client.keypairs.findall(name=keypair_name)
+    if existing_keys:
+        if replace:
+            logging.info('Deleting key(s) {}'.format(keypair_name))
+            for key in existing_keys:
+                nova_client.keypairs.delete(key)
+        else:
+            return existing_keys[0]
+    logging.info('Creating key %s' % (keypair_name))
+    return nova_client.keypairs.create(name=keypair_name)
+
+
+def get_private_key_file(keypair_name):
+    """Location of the file containing the private key with the given label.
+
+    :param keypair_name: Label of keypair in Openstack.
+    :type keypair_name: str
+    :returns: Path to file containing key
+    :rtype: str
+    """
+    return 'tests/id_rsa_{}'.format(keypair_name)
+
+
+def write_private_key(keypair_name, key):
+    """Store supplied private key in file.
+
+    :param keypair_name: Label of keypair in Openstack.
+    :type keypair_name: str
+    :param key: PEM Encoded Private Key
+    :type key: str
+    """
+    with open(get_private_key_file(keypair_name), 'w') as key_file:
+        key_file.write(key)
+
+
+def get_private_key(keypair_name):
+    """Return private key.
+
+    :param keypair_name: Label of keypair in Openstack.
+    :type keypair_name: str
+    :returns: PEM Encoded Private Key
+    :rtype: str
+    """
+    key_file = get_private_key_file(keypair_name)
+    if not os.path.isfile(key_file):
+        return None
+    with open(key_file, 'r') as key_file:
+        key = key_file.read()
+    return key
+
+
+def get_public_key(nova_client, keypair_name):
+    """Return public key from Openstack.
+
+    :param nova_client: Authenticated nova client
+    :type nova_client: novaclient.v2.client.Client
+    :param keypair_name: Label of keypair in Openstack.
+    :type keypair_name: str
+    :returns: OpenSSH Encoded Public Key
+    :rtype: str or None
+    """
+    keys = nova_client.keypairs.findall(name=keypair_name)
+    if keys:
+        return keys[0].public_key
+    else:
+        return None
+
+
+def valid_key_exists(nova_client, keypair_name):
+    """Check if a valid public/private keypair exists for keypair_name.
+
+    :param nova_client: Authenticated nova client
+    :type nova_client: novaclient.v2.client.Client
+    :param keypair_name: Label of keypair in Openstack.
+    :type keypair_name: str
+    """
+    pub_key = get_public_key(nova_client, keypair_name)
+    priv_key = get_private_key(keypair_name)
+    if not all([pub_key, priv_key]):
+        return False
+    return cert.is_keys_valid(pub_key, priv_key)
+
+
+def get_ports_from_device_id(neutron_client, device_id):
+    """Return the ports associated with a given device.
+
+    :param neutron_client: Authenticated neutronclient
+    :type neutron_client: neutronclient.Client object
+    :param device_id: The id of the device to look for
+    :type device_id: str
+    :returns: List of port objects
+    :rtype: []
+    """
+    ports = []
+    for _port in neutron_client.list_ports().get('ports'):
+        if device_id in _port.get('device_id'):
+            ports.append(_port)
+    return ports
+
+
+@tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
+                reraise=True, stop=tenacity.stop_after_attempt(8))
+def cloud_init_complete(nova_client, vm_id, bootstring):
+    """Wait for cloud init to complete on the given vm.
+
+    If cloud init does not complete in the alloted time then
+    exceptions.CloudInitIncomplete is raised.
+
+    :param nova_client: Authenticated nova client
+    :type nova_client: novaclient.v2.client.Client
+    :param vm_id,: The id of the server to monitor.
+    :type vm_id: str (uuid)
+    :param bootstring: The string to look for in the console output that will
+                       indicate cloud init is complete.
+    :type bootstring: str
+    :raises: exceptions.CloudInitIncomplete
+    """
+    instance = nova_client.servers.find(id=vm_id)
+    console_log = instance.get_console_output()
+    if bootstring not in console_log:
+        raise exceptions.CloudInitIncomplete()
+
+
+@tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
+                reraise=True, stop=tenacity.stop_after_attempt(8))
+def ping_response(ip):
+    """Wait for ping to respond on the given IP.
+
+    :param ip: IP address to ping
+    :type ip: str
+    :raises: subprocess.CalledProcessError
+    """
+    cmd = ['ping', '-c', '1', '-W', '1', ip]
+    subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
+
+
+def ssh_test(username, ip, vm_name, password=None, privkey=None):
+    """SSH to given ip using supplied credentials.
+
+    :param username: Username to connect with
+    :type username: str
+    :param ip: IP address to ssh to.
+    :type ip: str
+    :param vm_name: Name of VM.
+    :type vm_name: str
+    :param password: Password to authenticate with. If supplied it is used
+                     rather than privkey.
+    :type password: str
+    :param privkey: Private key to authenticate with. If a password is
+                    supplied it is used rather than the private key.
+    :type privkey: str
+    :raises: exceptions.SSHFailed
+    """
+    logging.info('Attempting to ssh to %s(%s)' % (vm_name, ip))
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    if password:
+        ssh.connect(ip, username=username, password=password)
+    else:
+        key = paramiko.RSAKey.from_private_key(io.StringIO(privkey))
+        ssh.connect(ip, username=username, password='', pkey=key)
+    stdin, stdout, stderr = ssh.exec_command('uname -n')
+    return_string = stdout.readlines()[0].strip()
+    ssh.close()
+    if return_string == vm_name:
+        logging.info('SSH to %s(%s) succesfull' % (vm_name, ip))
+    else:
+        logging.info('SSH to %s(%s) failed (%s != %s)' % (vm_name, ip,
+                                                          return_string,
+                                                          vm_name))
+        raise exceptions.SSHFailed()

@@ -1,9 +1,11 @@
 import copy
+import io
 import mock
 import tenacity
 
 import unit_tests.utils as ut_utils
 from zaza.utilities import openstack as openstack_utils
+from zaza.utilities import exceptions
 
 
 class TestOpenStackUtils(ut_utils.BaseTestCase):
@@ -280,6 +282,12 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             openstack_utils.find_cirros_image('aarch64'),
             'http://download.cirros-cloud.net/12/cirros-12-aarch64-disk.img')
 
+    def test_find_ubuntu_image(self):
+        self.assertEqual(
+            openstack_utils.find_ubuntu_image('bionic', 'aarch64'),
+            ('http://cloud-images.ubuntu.com/bionic/current/'
+             'bionic-server-cloudimg-aarch64.img'))
+
     def test_download_image(self):
         urllib_opener_mock = mock.MagicMock()
         self.patch_object(openstack_utils, "get_urllib_opener")
@@ -400,3 +408,188 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             glance_mock,
             'tests/c.img',
             'bob')
+
+    def test_create_ssh_key(self):
+        nova_mock = mock.MagicMock()
+        nova_mock.keypairs.findall.return_value = []
+        openstack_utils.create_ssh_key(
+            nova_mock,
+            'mykeys')
+        nova_mock.keypairs.create.assert_called_once_with(name='mykeys')
+
+    def test_create_ssh_key_existing(self):
+        nova_mock = mock.MagicMock()
+        nova_mock.keypairs.findall.return_value = ['akey']
+        self.assertEqual(
+            openstack_utils.create_ssh_key(
+                nova_mock,
+                'mykeys'),
+            'akey')
+        self.assertFalse(nova_mock.keypairs.create.called)
+
+    def test_create_ssh_key_existing_replace(self):
+        nova_mock = mock.MagicMock()
+        nova_mock.keypairs.findall.return_value = ['key1']
+        openstack_utils.create_ssh_key(
+            nova_mock,
+            'mykeys',
+            replace=True),
+        nova_mock.keypairs.delete.assert_called_once_with('key1')
+        nova_mock.keypairs.create.assert_called_once_with(name='mykeys')
+
+    def test_get_private_key_file(self):
+        self.assertEqual(
+            openstack_utils.get_private_key_file('mykeys'),
+            'tests/id_rsa_mykeys')
+
+    def test_write_private_key(self):
+        m = mock.mock_open()
+        with mock.patch('zaza.utilities.openstack.open', m, create=False):
+            openstack_utils.write_private_key('mykeys', 'keycontents')
+        m.assert_called_once_with('tests/id_rsa_mykeys', 'w')
+        handle = m()
+        handle.write.assert_called_once_with('keycontents')
+
+    def test_get_private_key(self):
+        self.patch_object(openstack_utils.os.path, "isfile",
+                          return_value=True)
+        m = mock.mock_open(read_data='myprivkey')
+        with mock.patch('zaza.utilities.openstack.open', m, create=True):
+            self.assertEqual(
+                openstack_utils.get_private_key('mykeys'),
+                'myprivkey')
+
+    def test_get_private_key_file_missing(self):
+        self.patch_object(openstack_utils.os.path, "isfile",
+                          return_value=False)
+        self.assertIsNone(openstack_utils.get_private_key('mykeys'))
+
+    def test_get_public_key(self):
+        key_mock = mock.MagicMock(public_key='mypubkey')
+        nova_mock = mock.MagicMock()
+        nova_mock.keypairs.findall.return_value = [key_mock]
+        self.assertEqual(
+            openstack_utils.get_public_key(nova_mock, 'mykeys'),
+            'mypubkey')
+
+    def test_valid_key_exists(self):
+        nova_mock = mock.MagicMock()
+        self.patch_object(openstack_utils, 'get_public_key',
+                          return_value='pubkey')
+        self.patch_object(openstack_utils, 'get_private_key',
+                          return_value='privkey')
+        self.patch_object(openstack_utils.cert, 'is_keys_valid',
+                          return_value=True)
+        self.assertTrue(openstack_utils.valid_key_exists(nova_mock, 'mykeys'))
+        self.get_public_key.assert_called_once_with(nova_mock, 'mykeys')
+        self.get_private_key.assert_called_once_with('mykeys')
+        self.is_keys_valid.assert_called_once_with('pubkey', 'privkey')
+
+    def test_valid_key_exists_missing(self):
+        nova_mock = mock.MagicMock()
+        self.patch_object(openstack_utils, 'get_public_key',
+                          return_value='pubkey')
+        self.patch_object(openstack_utils, 'get_private_key',
+                          return_value=None)
+        self.patch_object(openstack_utils.cert, 'is_keys_valid',
+                          return_value=True)
+        self.assertFalse(openstack_utils.valid_key_exists(nova_mock, 'mykeys'))
+        self.get_public_key.assert_called_once_with(nova_mock, 'mykeys')
+        self.get_private_key.assert_called_once_with('mykeys')
+
+    def test_get_ports_from_device_id(self):
+        port_mock = {'device_id': 'dev1'}
+        neutron_mock = mock.MagicMock()
+        neutron_mock.list_ports.return_value = {
+            'ports': [port_mock]}
+        self.assertEqual(
+            openstack_utils.get_ports_from_device_id(
+                neutron_mock,
+                'dev1'),
+            [port_mock])
+
+    def test_get_ports_from_device_id_no_match(self):
+        port_mock = {'device_id': 'dev2'}
+        neutron_mock = mock.MagicMock()
+        neutron_mock.list_ports.return_value = {
+            'ports': [port_mock]}
+        self.assertEqual(
+            openstack_utils.get_ports_from_device_id(
+                neutron_mock,
+                'dev1'),
+            [])
+
+    def test_ping_response(self):
+        self.patch_object(openstack_utils.subprocess, 'check_call')
+        openstack_utils.ping_response('10.0.0.10')
+        self.check_call.assert_called_once_with(
+            ['ping', '-c', '1', '-W', '1', '10.0.0.10'], stdout=-3)
+
+    def test_ping_response_fail(self):
+        openstack_utils.ping_response.retry.wait = \
+            tenacity.wait_none()
+        self.patch_object(openstack_utils.subprocess, 'check_call')
+        self.check_call.side_effect = Exception()
+        with self.assertRaises(Exception):
+            openstack_utils.ping_response('10.0.0.10')
+
+    def test_ssh_test(self):
+        paramiko_mock = mock.MagicMock()
+        self.patch_object(openstack_utils.paramiko, 'SSHClient',
+                          return_value=paramiko_mock)
+        self.patch_object(openstack_utils.paramiko, 'AutoAddPolicy',
+                          return_value='some_policy')
+        stdout = io.StringIO("myvm")
+
+        paramiko_mock.exec_command.return_value = ('stdin', stdout, 'stderr')
+        openstack_utils.ssh_test(
+            'bob',
+            '10.0.0.10',
+            'myvm',
+            password='reallyhardpassord')
+        paramiko_mock.connect.assert_called_once_with(
+            '10.0.0.10',
+            password='reallyhardpassord',
+            username='bob')
+
+    def test_ssh_test_wrong_server(self):
+        paramiko_mock = mock.MagicMock()
+        self.patch_object(openstack_utils.paramiko, 'SSHClient',
+                          return_value=paramiko_mock)
+        self.patch_object(openstack_utils.paramiko, 'AutoAddPolicy',
+                          return_value='some_policy')
+        stdout = io.StringIO("anothervm")
+
+        paramiko_mock.exec_command.return_value = ('stdin', stdout, 'stderr')
+        with self.assertRaises(exceptions.SSHFailed):
+            openstack_utils.ssh_test(
+                'bob',
+                '10.0.0.10',
+                'myvm',
+                password='reallyhardpassord')
+        paramiko_mock.connect.assert_called_once_with(
+            '10.0.0.10',
+            password='reallyhardpassord',
+            username='bob')
+
+    def test_ssh_test_key_auth(self):
+        paramiko_mock = mock.MagicMock()
+        self.patch_object(openstack_utils.paramiko, 'SSHClient',
+                          return_value=paramiko_mock)
+        self.patch_object(openstack_utils.paramiko, 'AutoAddPolicy',
+                          return_value='some_policy')
+        self.patch_object(openstack_utils.paramiko.RSAKey, 'from_private_key',
+                          return_value='akey')
+        stdout = io.StringIO("myvm")
+
+        paramiko_mock.exec_command.return_value = ('stdin', stdout, 'stderr')
+        openstack_utils.ssh_test(
+            'bob',
+            '10.0.0.10',
+            'myvm',
+            privkey='myprivkey')
+        paramiko_mock.connect.assert_called_once_with(
+            '10.0.0.10',
+            password='',
+            pkey='akey',
+            username='bob')
