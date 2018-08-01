@@ -118,6 +118,33 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.get_template.return_value = None
         self.assertIsNone(lc_deploy.render_overlay('mybundle.yaml', '/tmp/'))
 
+    def test_render_local_overlay(self):
+        self.patch_object(lc_deploy.jinja2, 'Environment')
+        self.patch_object(lc_deploy, 'get_template', return_value='atemplate')
+        self.patch_object(lc_deploy, 'render_template')
+        self.assertEqual(
+            lc_deploy.render_local_overlay('/target'),
+            '/target/local-charm-overlay.yaml')
+        self.assertFalse(self.Environment.called)
+        self.render_template.assert_called_once_with(
+            'atemplate',
+            '/target/local-charm-overlay.yaml')
+
+    def test_render_local_overlay_default(self):
+        jenv_mock = mock.MagicMock()
+        jenv_mock.from_string.return_value = 'atemplate'
+        self.patch_object(lc_deploy.jinja2, 'Environment',
+                          return_value=jenv_mock)
+        self.patch_object(lc_deploy, 'get_template', return_value=None)
+        self.patch_object(lc_deploy, 'render_template')
+        self.assertEqual(
+            lc_deploy.render_local_overlay('/target'),
+            '/target/local-charm-overlay.yaml')
+        jenv_mock.from_string.assert_called_once_with(mock.ANY)
+        self.render_template.assert_called_once_with(
+            'atemplate',
+            '/target/local-charm-overlay.yaml')
+
     def test_render_overlays(self):
         RESP = {
             'mybundles/mybundle.yaml': '/tmp/mybundle.yaml'}

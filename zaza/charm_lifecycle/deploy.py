@@ -24,6 +24,7 @@ applications:
   {{ charm_name }}:
     charm: {{ charm_location }}
 """
+LOCAL_OVERLAY_TEMPLATE_NAME = 'local-charm-overlay.yaml'
 
 
 def is_valid_env_key(key):
@@ -169,11 +170,13 @@ def render_local_overlay(target_dir):
     :returns: Path to rendered overlay
     :rtype: str
     """
-    template = jinja2.Environment(loader=jinja2.BaseLoader).from_string(
-        LOCAL_OVERLAY_TEMPLATE)
+    template = get_template(LOCAL_OVERLAY_TEMPLATE_NAME)
+    if not template:
+        template = jinja2.Environment(loader=jinja2.BaseLoader).from_string(
+            LOCAL_OVERLAY_TEMPLATE)
     rendered_template_file = os.path.join(
         target_dir,
-        os.path.basename('local-charm-overlay.yaml'))
+        os.path.basename(LOCAL_OVERLAY_TEMPLATE_NAME))
     render_template(template, rendered_template_file)
     return rendered_template_file
 
