@@ -158,10 +158,12 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.patch_object(openstack_utils, 'get_application_config_option')
         self.patch_object(openstack_utils, 'get_keystone_ip')
         self.patch_object(openstack_utils, "get_current_os_versions")
+        self.patch_object(openstack_utils.juju_utils, 'leader_get')
 
         self.get_keystone_ip.return_value = '127.0.0.1'
         self.get_relation_id.return_value = None
         self.get_application_config_option.return_value = None
+        self.leader_get.return_value = 'openstack'
         if tls_relation or ssl_cert:
             port = 35357
             transport = 'https'
