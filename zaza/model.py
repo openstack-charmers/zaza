@@ -228,6 +228,34 @@ async def async_run_on_unit(unit_name, command, model_name=None, timeout=None):
 run_on_unit = sync_wrapper(async_run_on_unit)
 
 
+async def async_run_on_leader(application_name, command, model_name=None,
+                              timeout=None):
+    """Juju run on leader unit.
+
+    :param application_name: Application to match
+    :type application_name: str
+    :param command: Command to execute
+    :type command: str
+    :param model_name: Name of model unit is in
+    :type model_name: str
+    :param timeout: How long in seconds to wait for command to complete
+    :type timeout: int
+    :returns: action.data['results'] {'Code': '', 'Stderr': '', 'Stdout': ''}
+    :rtype: dict
+    """
+    async with run_in_model(model_name) as model:
+        for unit in model.applications[application_name].units:
+            is_leader = await unit.is_leader_from_status()
+            if is_leader:
+                action = await unit.run(command, timeout=timeout)
+                if action.data.get('results'):
+                    return action.data.get('results')
+                else:
+                    return {}
+
+run_on_leader = sync_wrapper(async_run_on_leader)
+
+
 async def async_get_unit_time(unit_name, model_name=None, timeout=None):
     """Get the current time (in seconds since Epoch) on the given unit.
 

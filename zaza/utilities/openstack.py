@@ -1245,6 +1245,8 @@ def get_overcloud_auth():
     elif api_version is None:
         api_version = 2
 
+    password = juju_utils.leader_get('keystone', 'admin_passwd')
+
     if api_version == 2:
         # V2 Explicitly, or None when charm does not possess the config key
         logging.info('Using keystone API V2 for overcloud auth')
@@ -1252,7 +1254,7 @@ def get_overcloud_auth():
             'OS_AUTH_URL': '%s://%s:%i/v2.0' % (transport, address, port),
             'OS_TENANT_NAME': 'admin',
             'OS_USERNAME': 'admin',
-            'OS_PASSWORD': 'openstack',
+            'OS_PASSWORD': password,
             'OS_REGION_NAME': 'RegionOne',
             'API_VERSION': 2,
         }
@@ -1262,7 +1264,7 @@ def get_overcloud_auth():
         auth_settings = {
             'OS_AUTH_URL': '%s://%s:%i/v3' % (transport, address, port),
             'OS_USERNAME': 'admin',
-            'OS_PASSWORD': 'openstack',
+            'OS_PASSWORD': password,
             'OS_REGION_NAME': 'RegionOne',
             'OS_DOMAIN_NAME': 'admin_domain',
             'OS_USER_DOMAIN_NAME': 'admin_domain',

@@ -67,6 +67,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.name = 'app/4'
         self.unit2.entity_id = 'app/4'
         self.unit2.machine = 'machine7'
+        self.unit2.run.side_effect = _run
         self.unit1.run.side_effect = _run
         self.unit1.scp_to.side_effect = _scp_to
         self.unit2.scp_to.side_effect = _scp_to
@@ -254,6 +255,16 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertEqual(model.run_on_unit('app/2', cmd),
                          expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
+
+    def test_run_on_leader(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        expected = {'Code': '0', 'Stderr': '', 'Stdout': 'RESULT'}
+        self.cmd = cmd = 'somecommand someargument'
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.run_on_leader('app', cmd),
+                         expected)
+        self.unit2.run.assert_called_once_with(cmd, timeout=None)
 
     def test_get_relation_id(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
