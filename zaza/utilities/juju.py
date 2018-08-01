@@ -228,3 +228,20 @@ def get_relation_from_unit(entity, remote_entity, remote_interface_name):
     else:
         raise Exception('Error running remote command: "{}"'
                         .format(result.get("Stderr")))
+
+
+def leader_get(application, key=''):
+    """Get leader settings from leader unit of named application.
+
+    :param application: Application to get leader settings from.
+    :type application: str
+    :returns: dict with leader settings
+    :rtype: dict
+    """
+    result = model.run_on_leader(application,
+                                 'leader-get --format=yaml {}'.format(key))
+    if result and int(result.get('Code')) == 0:
+        return yaml.load(result.get('Stdout'))
+    else:
+        raise Exception('Error running remote command: "{}"'
+                        .format(result.get("Stderr")))
