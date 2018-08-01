@@ -35,8 +35,8 @@ class OpenStackBaseTest(unittest.TestCase):
         cls.test_config = lifecycle_utils.get_charm_config()
         cls.application_name = cls.test_config['charm_name']
         cls.first_unit = model.get_first_unit_name(
-            cls.model_name,
-            cls.application_name)
+            cls.application_name,
+            model_name=cls.model_name)
         logging.debug('First unit is {}'.format(cls.first_unit))
 
     def restart_on_changed(self, config_file, default_config, alternate_config,
@@ -65,58 +65,60 @@ class OpenStackBaseTest(unittest.TestCase):
         # first_unit is only useed to grab a timestamp, the assumption being
         # that all the units times are in sync.
 
-        mtime = model.get_unit_time(self.model_name, self.first_unit)
+        mtime = model.get_unit_time(
+            self.first_unit,
+            model_name=self.model_name)
         logging.debug('Remote unit timestamp {}'.format(mtime))
 
         logging.debug('Changing charm setting to {}'.format(alternate_config))
         model.set_application_config(
-            self.model_name,
             self.application_name,
-            alternate_config)
+            alternate_config,
+            model_name=self.model_name)
 
         logging.debug(
             'Waiting for updates to propagate to {}'.format(config_file))
         model.block_until_oslo_config_entries_match(
-            self.model_name,
             self.application_name,
             config_file,
-            alternate_entry)
+            alternate_entry,
+            model_name=self.model_name)
 
         logging.debug(
             'Waiting for units to reach target states'.format(config_file))
         model.wait_for_application_states(
-            self.model_name,
-            self.test_config.get('target_deploy_status', {}))
+            self.test_config.get('target_deploy_status', {}),
+            model_name=self.model_name)
 
         # Config update has occured and hooks are idle. Any services should
         # have been restarted by now:
         logging.debug(
             'Waiting for services ({}) to be restarted'.format(services))
         model.block_until_services_restarted(
-            self.model_name,
             self.application_name,
             mtime,
-            services)
+            services,
+            model_name=self.model_name)
 
         logging.debug('Restoring charm setting to {}'.format(default_config))
         model.set_application_config(
-            self.model_name,
             self.application_name,
-            default_config)
+            default_config,
+            model_name=self.model_name)
 
         logging.debug(
             'Waiting for updates to propagate to '.format(config_file))
         model.block_until_oslo_config_entries_match(
-            self.model_name,
             self.application_name,
             config_file,
-            default_entry)
+            default_entry,
+            model_name=self.model_name)
 
         logging.debug(
             'Waiting for units to reach target states'.format(config_file))
         model.wait_for_application_states(
-            self.model_name,
-            self.test_config.get('target_deploy_status', {}))
+            self.test_config.get('target_deploy_status', {}),
+            model_name=self.model_name)
 
     def pause_resume(self, services):
         """Run Pause and resume tests.
@@ -129,33 +131,41 @@ class OpenStackBaseTest(unittest.TestCase):
         :type services: list
         """
         model.block_until_service_status(
-            self.model_name,
             self.first_unit,
             services,
-            'running')
+            'running',
+            model_name=self.model_name)
         model.block_until_unit_wl_status(
-            self.model_name,
             self.first_unit,
-            'active')
-        model.run_action(self.model_name, self.first_unit, 'pause', {})
+            'active',
+            model_name=self.model_name)
+        model.run_action(
+            self.first_unit,
+            'pause',
+            {},
+            model_name=self.model_name)
         model.block_until_unit_wl_status(
-            self.model_name,
             self.first_unit,
-            'maintenance')
-        model.block_until_all_units_idle(self.model_name)
+            'maintenance',
+            model_name=self.model_name)
+        model.block_until_all_units_idle(model_name=self.model_name)
         model.block_until_service_status(
-            self.model_name,
             self.first_unit,
             services,
-            'stopped')
-        model.run_action(self.model_name, self.first_unit, 'resume', {})
+            'stopped',
+            model_name=self.model_name)
+        model.run_action(
+            self.first_unit,
+            'resume',
+            {},
+            model_name=self.model_name)
         model.block_until_unit_wl_status(
-            self.model_name,
             self.first_unit,
-            'active')
-        model.block_until_all_units_idle(self.model_name)
+            'active',
+            model_name=self.model_name)
+        model.block_until_all_units_idle(model_name=self.model_name)
         model.block_until_service_status(
-            self.model_name,
             self.first_unit,
             services,
-            'running')
+            'running',
+            model_name=self.model_name)

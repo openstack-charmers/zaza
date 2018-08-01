@@ -3,6 +3,38 @@ import mock
 import unit_tests.utils as ut_utils
 import zaza.utilities.cert as cert
 
+TEST_SSH_PRIVATE_KEY = """
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAvWNz+tJAVyudNsDYrFK4CnJV+/nBmjYJXC3Zf42RFmzJ/Sff
+bMSXM/OBPOPtpJg/FawzsTgoHQRMQ/oEcKRSJ0ZGQINlwlrfHdyJcdyH4ifad2oT
+42cYRW0yMJggQGe7ttruCvY0mZugwrCjHoX3bqKjSg7YaMpyUKBa2cwCWJu/GUlp
+sT1jjY89QYvzb/Auj5lMfk8Qmc4fIcC7EZ+lf+1iuwg7OJjRKbsBqVhUgTKisTxD
+kzvo6SLy49j+mWUjfWlCI74D6QhW8OH9sN6MxI1sYiomPrCo+eBc1fkr0dUT8xd6
+t1UL6HHx8XkO16BMbLc+lIVNiifZtAK3SL1BnwIDAQABAoIBABZYxtWgu3DNt6Y/
+SRHETO0GorixtrNwjtgunMxdMvJ3cboKW2WlKMY7hFNf/al/QWpYQF036BvMZwda
+V+3Gpd72ftGb74ToXg1S+XDS+cGovDF89c3OW2HNya9MM/oFg3PHD3GBraE2aNiw
+KP8wBYsra6MQb16mDKkQ0seCOACmY/4jYlZ/7YbFtZPBPeZpnlxg4hgFIkiJmuPf
+pmHpLFBhpmyo0yf3DGf/rsL9ti6LPBo8vCH6anM9ljn/BW2a3JA/ap4uUGb+FuoV
+lwa1by1L6uLNYQb3fSEtmEEIy1mn89SjlEPfHnooXdadTM+9zT9xIc1ArNOSZagU
+UHibUXECgYEA5C3h8d1MU5tKppoIM8aOC+OQFZbFd+bF8z+t7RdX9P6br5J0Ugtj
+GcykUz6IRQWGZRCsyM9zshK2gQRCul0byNcFjzIHhR62Va6h1u7iwN1F4qc8a5WS
+bb/1TEVprTSu9guW8OO/EmUgWkBgej4/j31F8PZG4+m1defLZXNo7skCgYEA1HrN
+UOaBMzaFujGRZjlF54v7flCa1YYcv51Dfk8LEScs/jJvTY664ofj6AfQQN37Akmh
+6B6jBfP8K7RxcJvAXE00oNliDvwo9TxoTc/F59HbgsEcR739fMjwvpOBWJg0zJy8
+28/29dy9e0Fcy6ay55l050+0CBdzkvTWNHBVWScCgYEAhsTi0qvWTPtHmCcZ+Rqp
+AzShAV9PuoW/HPDblVFYTgejhIuH0H2RRserts8URVACFOdIZkLBHsgWqxUNJG2h
+33nAetcdwe5l2y2NwRjPLQKEKF6GPTTWi6P5CddllzuqqwAlYpnhXMgF18h2Mz1Y
+5TMkgDG1pR+AYedKJt2HeKECgYAKR+LVTkHkG3g++RUC8DR8rp49j2Lef/22G8Lf
+Qq3TZ6Taq9AM3aIXQeH6IR6ndNYnVy65T3ot2I9UAggXHcIh9S5dtgbzmKnWq9SU
+J0B5JgNMAVH/+qZgOkzDu9lfUwYC/HZ64EYfwU19wDzgMbGoWRl587ZPSesyqhwP
+L3xBswKBgQDc3WnWDP/KFjzWKY8KG4XZYKvvOy1en4hytbWrFssu5HlYoQeRgAog
+K8ZAFLW2Mn0QebwL/gXSDYlZHmu6EbnO4v1kzRMi6aQxYOgKJWLEwj3r3hzJh6YU
+QEGH15IncVqMch6HIir4oTF7RY2BsikDDY/GB/l0pRfZrGl9mnrY6Q==
+-----END RSA PRIVATE KEY-----
+"""
+TEST_SSH_PUB_KEY = """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC9Y3P60kBXK502wNisUrgKclX7+cGaNglcLdl/jZEWbMn9J99sxJcz84E84+2kmD8VrDOxOCgdBExD+gRwpFInRkZAg2XCWt8d3Ilx3IfiJ9p3ahPjZxhFbTIwmCBAZ7u22u4K9jSZm6DCsKMehfduoqNKDthoynJQoFrZzAJYm78ZSWmxPWONjz1Bi/Nv8C6PmUx+TxCZzh8hwLsRn6V/7WK7CDs4mNEpuwGpWFSBMqKxPEOTO+jpIvLj2P6ZZSN9aUIjvgPpCFbw4f2w3ozEjWxiKiY+sKj54FzV+SvR1RPzF3q3VQvocfHxeQ7XoExstz6UhU2KJ9m0ArdIvUGf ubuntu@gnuoy-bastion """  # noqa
+TEST_SSH_PUB_KEY_INVALID = """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDMz6U88GVhwAjjhzSrcyKKWe3LfB4pK4Ap6XpIfSmiVDPTBiBU3wzj1YAIBo26OMHDkfUnmtBgtzOfcb64QPaUmMfCkzadxrd8inYlpz+0AoahCTTONkElMxj+wa7SYVF4GphrDKDvlPi83bcLmO39veNVcLYHcDa+9mWBP3AlI3TdKqJpgOtCzLu9qbhlpmYa7YD6ijQrTJI3wOOw0uZeEARVCCKU44BVUFnWrNx5ioihETj9rAxRFrm1dx8mKDP0fCf53/Xn+LKLcYBPVovT6BpBHkaLuG6mTYU7puHN607wRhRwYhc3Y9y0sd6rHykYKL3G27w08s597paFtXg5 ubuntu@gnuoy-bastion"""  # noqa
+
 
 class TestUtilitiesCert(ut_utils.BaseTestCase):
 
@@ -235,3 +267,11 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         self.builder_mock.add_extension.assert_called_once_with(
             self.bcons_mock(),
             critical=True)
+
+    def test_is_keys_valid(self):
+        self.assertTrue(
+            cert.is_keys_valid(TEST_SSH_PUB_KEY, TEST_SSH_PRIVATE_KEY))
+
+    def test_is_keys_valid_invalid(self):
+        self.assertFalse(
+            cert.is_keys_valid(TEST_SSH_PUB_KEY_INVALID, TEST_SSH_PRIVATE_KEY))
