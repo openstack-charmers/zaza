@@ -17,3 +17,15 @@ class SSHFailed(Exception):
     """SSH failed."""
 
     pass
+
+
+class NeutronAgentMissing(Exception):
+    """Agent binary does not appear in the Neutron agent list."""
+
+    pass
+
+
+class NeutronBGPSpeakerMissing(Exception):
+    """No BGP speaker appeared on agent."""
+
+    pass

@@ -1658,3 +1658,57 @@ def ssh_test(username, ip, vm_name, password=None, privkey=None):
                                                           return_string,
                                                           vm_name))
         raise exceptions.SSHFailed()
+
+
+@tenacity.retry(wait=tenacity.wait_exponential(multiplier=0.01),
+                reraise=True, stop=tenacity.stop_after_delay(60) |
+                tenacity.stop_after_attempt(100))
+def neutron_agent_appears(neutron_client, binary):
+    """Wait for Neutron agent to appear and return agent_id.
+
+    :param neutron_client: Neutron client
+    :type neutron_client: Pointer to Neutron client object
+    :param binary: Name of agent we want to appear
+    :type binary: str
+    :returns: result set from Neutron list_agents call
+    :rtype: dict
+    :raises: exceptions.NeutronAgentMissing
+    """
+    result = neutron_client.list_agents(binary=binary)
+    for agent in result.get('agents', []):
+        agent_id = agent.get('id', None)
+        if agent_id:
+            break
+    else:
+        raise exceptions.NeutronAgentMissing(
+            'no agents for binary "{}"'.format(binary))
+    return result
+
+
+@tenacity.retry(wait=tenacity.wait_exponential(multiplier=0.01),
+                reraise=True,
+                stop=tenacity.stop_after_delay(60) |
+                tenacity.stop_after_attempt(100))
+def neutron_bgp_speaker_appears_on_agent(neutron_client, agent_id):
+    """Wait for Neutron BGP speaker to appear on agent.
+
+    :param neutron_client: Neutron client
+    :type neutron_client: Pointer to Neutron client object
+    :param agent_id: Neutron agent UUID
+    :type agent_id: str
+    :param speaker_id: Neutron BGP speaker UUID
+    :type speaker_id: str
+    :returns: result set from Neutron list_bgp_speaker_on_dragent call
+    :rtype: dict
+    :raises: exceptions.NeutronBGPSpeakerMissing
+    """
+    result = neutron_client.list_bgp_speaker_on_dragent(agent_id)
+    for bgp_speaker in result.get('bgp_speakers', []):
+        bgp_speaker_id = bgp_speaker.get('id', None)
+        if bgp_speaker_id:
+            break
+    else:
+        raise exceptions.NeutronBGPSpeakerMissing(
+            'No BGP Speaker appeared on agent "{}"'
+            ''.format(agent_id))
+    return result

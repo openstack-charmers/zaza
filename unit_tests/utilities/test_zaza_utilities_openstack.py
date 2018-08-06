@@ -48,6 +48,19 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.networks = {
             "networks": [self.network["network"]]}
 
+        self.agents = {
+            "agents": [
+                {
+                    'id': '7f3afd5b-ff6d-4df3-be0e-3d9651e71873',
+                    'binary': 'neutron-bgp-dragent',
+                }]}
+
+        self.bgp_speakers = {
+            "bgp_speakers": [
+                {
+                    'id': '07a0798d-c29c-4a92-8fcb-c1ec56934729',
+                }]}
+
         self.neutronclient = mock.MagicMock()
         self.neutronclient.list_ports.return_value = self.ports
         self.neutronclient.create_port.return_value = self.port
@@ -62,6 +75,10 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
 
         self.neutronclient.list_networks.return_value = self.networks
         self.neutronclient.create_network.return_value = self.network
+
+        self.neutronclient.list_agents.return_value = self.agents
+        self.neutronclient.list_bgp_speaker_on_dragent.return_value = \
+            self.bgp_speakers
 
     def test_create_port(self):
         self.patch_object(openstack_utils, "get_net_uuid")
@@ -595,3 +612,36 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             password='',
             pkey='akey',
             username='bob')
+
+    def test_neutron_agent_appears(self):
+        self.assertEqual(
+            openstack_utils.neutron_agent_appears(self.neutronclient,
+                                                  'neutron-bgp-dragent'),
+            self.agents)
+
+    def test_neutron_agent_appears_not(self):
+        _neutronclient = copy.deepcopy(self.neutronclient)
+        _neutronclient.list_agents.return_value = {'agents': []}
+        openstack_utils.neutron_agent_appears.retry.stop = \
+            tenacity.stop_after_attempt(1)
+        with self.assertRaises(exceptions.NeutronAgentMissing):
+            openstack_utils.neutron_agent_appears(_neutronclient,
+                                                  'non-existent')
+
+    def test_neutron_bgp_speaker_appears_on_agent(self):
+        openstack_utils.neutron_bgp_speaker_appears_on_agent.retry.stop = \
+            tenacity.stop_after_attempt(1)
+        self.assertEqual(
+            openstack_utils.neutron_bgp_speaker_appears_on_agent(
+                self.neutronclient, 'FAKE_AGENT_ID'),
+            self.bgp_speakers)
+
+    def test_neutron_bgp_speaker_appears_not_on_agent(self):
+        _neutronclient = copy.deepcopy(self.neutronclient)
+        _neutronclient.list_bgp_speaker_on_dragent.return_value = {
+            'bgp_speakers': []}
+        openstack_utils.neutron_bgp_speaker_appears_on_agent.retry.stop = \
+            tenacity.stop_after_attempt(1)
+        with self.assertRaises(exceptions.NeutronBGPSpeakerMissing):
+            openstack_utils.neutron_bgp_speaker_appears_on_agent(
+                _neutronclient, 'FAKE_AGENT_ID')

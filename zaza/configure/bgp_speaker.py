@@ -4,6 +4,7 @@
 import argparse
 import logging
 import sys
+import neutronclient
 from zaza.utilities import (
     cli as cli_utils,
     openstack as openstack_utils,
@@ -82,6 +83,40 @@ def setup_bgp_speaker(peer_application_name, keystone_session=None):
     logging.info(
         "Advertised floating IP: {}".format(
             floating_ip["floating_ip_address"]))
+
+    # NOTE(fnordahl): As a workaround for LP: #1784083 remove BGP speaker from
+    # dragent and add it back.
+    logging.info(
+        "Waiting for Neutron agent 'neutron-bgp-dragent' to appear...")
+    keystone_session = openstack_utils.get_overcloud_keystone_session()
+    neutron_client = openstack_utils.get_neutron_session_client(
+        keystone_session)
+    agents = openstack_utils.neutron_agent_appears(neutron_client,
+                                                   'neutron-bgp-dragent')
+    agent_id = None
+    for agent in agents.get('agents', []):
+        agent_id = agent.get('id', None)
+        if agent_id is not None:
+            break
+    logging.info(
+        'Waiting for BGP speaker to appear on agent "{}"...'.format(agent_id))
+    bgp_speakers = openstack_utils.neutron_bgp_speaker_appears_on_agent(
+        neutron_client, agent_id)
+    logging.info(
+        "Removing and adding back bgp-speakers to agent (LP: #1784083)...")
+    while True:
+        try:
+            for bgp_speaker in bgp_speakers.get('bgp_speakers', []):
+                bgp_speaker_id = bgp_speaker.get('id', None)
+                logging.info('removing "{}" from "{}"'
+                             ''.format(bgp_speaker_id, agent_id))
+                neutron_client.remove_bgp_speaker_from_dragent(
+                    agent_id, bgp_speaker_id)
+        except neutronclient.common.exceptions.NotFound as e:
+            logging.info('Exception: "{}"'.format(e))
+            break
+    neutron_client.add_bgp_speaker_to_dragent(
+        agent_id, {'bgp_speaker_id': bgp_speaker_id})
 
 
 def run_from_cli():
