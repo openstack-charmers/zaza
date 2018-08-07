@@ -106,3 +106,39 @@ class KeystoneKeyRepositoryError(Exception):
     """
 
     pass
+
+
+class ProcessNameCountMismatch(Exception):
+    """Count of process names doesn't match."""
+
+    pass
+
+
+class ProcessNameMismatch(Exception):
+    """Name of processes doesn't match."""
+
+    pass
+
+
+class PIDCountMismatch(Exception):
+    """PID's count doesn't match."""
+
+    pass
+
+
+class ProcessIdsFailed(Exception):
+    """Process ID lookup failed."""
+
+    pass
+
+
+class UnitNotFound(Exception):
+    """Unit not found in actual dict."""
+
+    pass
+
+
+class UnitCountMismatch(Exception):
+    """Count of unit doesn't match."""
+
+    pass
