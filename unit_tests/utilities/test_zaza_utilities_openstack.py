@@ -680,7 +680,13 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         with self.assertRaises(exceptions.OSVersionNotFound):
             openstack_utils.get_current_os_release_pair()
 
-        # Normal scenario
+        # Normal scenario, argument passed
+        self._get_os_version.return_value = {'keystone': 'mitaka'}
+        expected = 'xenial_mitaka'
+        result = openstack_utils.get_current_os_release_pair('keystone')
+        self.assertEqual(expected, result)
+
+        # Normal scenario, default value used
         self._get_os_version.return_value = {'keystone': 'mitaka'}
         expected = 'xenial_mitaka'
         result = openstack_utils.get_current_os_release_pair()

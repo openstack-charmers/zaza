@@ -1124,26 +1124,28 @@ def get_application_config_keys(application):
     return list(application_config.keys())
 
 
-def get_current_os_release_pair():
+def get_current_os_release_pair(application='keystone'):
     """Return OpenStack Release pair name.
 
+    :param application: Name of application
+    :type application: string
     :returns: Name of the OpenStack release pair
     :rtype: str
     :raises: exceptions.NoKeystoneFound
     :raises: exceptions.SeriesNotFound
     :raises: exceptions.OSVersionNotFound
     """
-    keystone = juju_utils.get_machines_for_application('keystone')
-    if len(keystone) >= 1:
-        keystone = keystone[0]
+    machines = juju_utils.get_machines_for_application(application)
+    if len(machines) >= 1:
+        machine = machines[0]
     else:
         raise exceptions.NoKeystoneFound()
 
-    series = juju_utils.get_machine_status(keystone, key='series')
+    series = juju_utils.get_machine_status(machine, key='series')
     if not series:
         raise exceptions.SeriesNotFound()
 
-    os_version = get_current_os_versions(['keystone']).get('keystone')
+    os_version = get_current_os_versions([application]).get(application)
     if not os_version:
         raise exceptions.OSVersionNotFound()
 
