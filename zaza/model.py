@@ -434,15 +434,15 @@ get_status = sync_wrapper(async_get_status)
 
 
 async def async_run_action(unit_name, action_name, model_name=None,
-                           action_params=None):
+                           action_params={}):
     """Run action on given unit.
 
-    :param model_name: Name of model to query.
-    :type model_name: str
     :param unit_name: Name of unit to run action on
     :type unit_name: str
     :param action_name: Name of action to run
     :type action_name: str
+    :param model_name: Name of model to query.
+    :type model_name: str
     :param action_params: Dictionary of config options for action
     :type action_params: dict
     :returns: Action object
