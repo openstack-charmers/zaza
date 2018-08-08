@@ -31,10 +31,19 @@ class NeutronBGPSpeakerMissing(Exception):
     pass
 
 
-class NoKeystoneFound(Exception):
-    """No Keystone found in machines."""
+class ApplicationNotFound(Exception):
+    """Application not found in machines."""
 
-    pass
+    def __init__(self, application):
+        """Create Application not found exception.
+
+        :param application: Name of the application
+        :type application: string
+        :returns: ApplicationNotFound Exception
+        """
+        msg = ("{} application was not found in machines.".
+               format(application))
+        super(ApplicationNotFound, self).__init__(msg)
 
 
 class SeriesNotFound(Exception):

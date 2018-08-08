@@ -665,7 +665,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
 
         # No machine returned
         self._get_machines.return_value = []
-        with self.assertRaises(exceptions.NoKeystoneFound):
+        with self.assertRaises(exceptions.ApplicationNotFound):
             openstack_utils.get_current_os_release_pair()
 
         # No series returned

@@ -1131,7 +1131,7 @@ def get_current_os_release_pair(application='keystone'):
     :type application: string
     :returns: Name of the OpenStack release pair
     :rtype: str
-    :raises: exceptions.NoKeystoneFound
+    :raises: exceptions.ApplicationNotFound
     :raises: exceptions.SeriesNotFound
     :raises: exceptions.OSVersionNotFound
     """
@@ -1139,7 +1139,7 @@ def get_current_os_release_pair(application='keystone'):
     if len(machines) >= 1:
         machine = machines[0]
     else:
-        raise exceptions.NoKeystoneFound()
+        raise exceptions.ApplicationNotFound(application)
 
     series = juju_utils.get_machine_series(machine)
     if not series:
