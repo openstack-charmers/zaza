@@ -1141,7 +1141,7 @@ def get_current_os_release_pair(application='keystone'):
     else:
         raise exceptions.NoKeystoneFound()
 
-    series = juju_utils.get_machine_status(machine, key='series')
+    series = juju_utils.get_machine_series(machine)
     if not series:
         raise exceptions.SeriesNotFound()
 

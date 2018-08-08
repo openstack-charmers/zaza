@@ -658,9 +658,9 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             name='_get_machines'
         )
         self.patch(
-            'zaza.utilities.juju.get_machine_status',
+            'zaza.utilities.juju.get_machine_series',
             new_callable=mock.MagicMock(),
-            name='_get_machine_status'
+            name='_get_machine_series'
         )
 
         # No machine returned
@@ -670,12 +670,12 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
 
         # No series returned
         self._get_machines.return_value = ['6']
-        self._get_machine_status.return_value = None
+        self._get_machine_series.return_value = None
         with self.assertRaises(exceptions.SeriesNotFound):
             openstack_utils.get_current_os_release_pair()
 
         # No OS Version returned
-        self._get_machine_status.return_value = 'xenial'
+        self._get_machine_series.return_value = 'xenial'
         self._get_os_version.return_value = {}
         with self.assertRaises(exceptions.OSVersionNotFound):
             openstack_utils.get_current_os_release_pair()
