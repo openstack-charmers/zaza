@@ -675,28 +675,28 @@ async def async_block_until_service_status(unit_name, services, target_status,
     or running)::
 
         block_until_service_status(
-            'modelname',
             first_unit,
             ['glance-api'],
-            'running')
+            'running',
+            model_name='modelname')
 
-    :param model_name: Name of model to query.
-    :type model_name: str
     :param unit_name: Name of unit to run action on
     :type unit_name: str
     :param services: List of services to check
     :type services: []
     :param target_status: State services should be in (stopped or running)
     :type target_status: str
+    :param model_name: Name of model to query.
+    :type model_name: str
     :param timeout: Time to wait for status to be achieved
     :type timeout: int
     """
     async def _check_service():
         for service in services:
             out = await async_run_on_unit(
-                model_name,
                 unit_name,
                 "pidof -x {}".format(service),
+                model_name=model_name,
                 timeout=timeout)
             response_size = len(out['Stdout'].strip())
             if target_status == "running" and response_size == 0:
