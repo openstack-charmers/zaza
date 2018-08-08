@@ -37,6 +37,12 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2018.1', 'queens'),
 ])
 
+OPENSTACK_RELEASES_PAIRS = [
+    'trusty_icehouse', 'trusty_kilo', 'trusty_liberty',
+    'trusty_mitaka', 'xenial_mitaka', 'xenial_newton',
+    'yakkety_newton', 'xenial_ocata', 'zesty_ocata',
+    'xenial_pike', 'artful_pike', 'xenial_queens',
+    'bionic_queens', 'bionic_rocky', 'cosmic_rocky']
 
 # The ugly duckling - must list releases oldest to newest
 SWIFT_CODENAMES = OrderedDict([

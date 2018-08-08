@@ -6,6 +6,7 @@ from .os_versions import (
     OPENSTACK_CODENAMES,
     SWIFT_CODENAMES,
     PACKAGE_CODENAMES,
+    OPENSTACK_RELEASES_PAIRS,
 )
 
 from glanceclient import Client as GlanceClient
@@ -1121,6 +1122,52 @@ def get_application_config_keys(application):
     """
     application_config = model.get_application_config(application)
     return list(application_config.keys())
+
+
+def get_current_os_release_pair():
+    """Return OpenStack Release pair name.
+
+    :returns: Name of the OpenStack release pair
+    :rtype: str
+    :raises: exceptions.NoKeystoneFound
+    :raises: exceptions.SeriesNotFound
+    :raises: exceptions.OSVersionNotFound
+    """
+    keystone = juju_utils.get_machines_for_application('keystone')
+    if len(keystone) >= 1:
+        keystone = keystone[0]
+    else:
+        raise exceptions.NoKeystoneFound()
+
+    series = juju_utils.get_machine_status(keystone, key='series')
+    if not series:
+        raise exceptions.SeriesNotFound()
+
+    os_version = get_current_os_versions(['keystone']).get('keystone')
+    if not os_version:
+        raise exceptions.OSVersionNotFound()
+
+    return '{}_{}'.format(series, os_version)
+
+
+def get_os_release(release_pair=None):
+    """Return index of release in OPENSTACK_RELEASES_PAIRS.
+
+    :returns: Index of the release
+    :rtype: int
+    :raises: exceptions.ReleasePairNotFound
+    """
+    if release_pair is None:
+        release_pair = get_current_os_release_pair()
+    try:
+        index = OPENSTACK_RELEASES_PAIRS.index(release_pair)
+    except ValueError:
+        msg = 'Release pair: {} not found in {}'.format(
+            release_pair,
+            OPENSTACK_RELEASES_PAIRS
+        )
+        raise exceptions.ReleasePairNotFound(msg)
+    return index
 
 
 def get_application_config_option(application, option):

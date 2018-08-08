@@ -645,3 +645,72 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         with self.assertRaises(exceptions.NeutronBGPSpeakerMissing):
             openstack_utils.neutron_bgp_speaker_appears_on_agent(
                 _neutronclient, 'FAKE_AGENT_ID')
+
+    def test_get_current_openstack_release_pair(self):
+        self.patch(
+            'zaza.utilities.openstack.get_current_os_versions',
+            new_callable=mock.MagicMock(),
+            name='_get_os_version'
+        )
+        self.patch(
+            'zaza.utilities.juju.get_machines_for_application',
+            new_callable=mock.MagicMock(),
+            name='_get_machines'
+        )
+        self.patch(
+            'zaza.utilities.juju.get_machine_status',
+            new_callable=mock.MagicMock(),
+            name='_get_machine_status'
+        )
+
+        # No machine returned
+        self._get_machines.return_value = []
+        with self.assertRaises(exceptions.NoKeystoneFound):
+            openstack_utils.get_current_os_release_pair()
+
+        # No series returned
+        self._get_machines.return_value = ['6']
+        self._get_machine_status.return_value = None
+        with self.assertRaises(exceptions.SeriesNotFound):
+            openstack_utils.get_current_os_release_pair()
+
+        # No OS Version returned
+        self._get_machine_status.return_value = 'xenial'
+        self._get_os_version.return_value = {}
+        with self.assertRaises(exceptions.OSVersionNotFound):
+            openstack_utils.get_current_os_release_pair()
+
+        # Normal scenario
+        self._get_os_version.return_value = {'keystone': 'mitaka'}
+        expected = 'xenial_mitaka'
+        result = openstack_utils.get_current_os_release_pair()
+        self.assertEqual(expected, result)
+
+    def test_get_openstack_release(self):
+        self.patch(
+            'zaza.utilities.openstack.get_current_os_release_pair',
+            new_callable=mock.MagicMock(),
+            name='_get_os_rel_pair'
+        )
+
+        # Bad release pair
+        release_pair = 'bad'
+        with self.assertRaises(exceptions.ReleasePairNotFound):
+            openstack_utils.get_os_release(release_pair)
+
+        # Normal scenario
+        expected = 4
+        result = openstack_utils.get_os_release('xenial_mitaka')
+        self.assertEqual(expected, result)
+
+        # Normal scenario with current release pair
+        self._get_os_rel_pair.return_value = 'xenial_mitaka'
+        expected = 4
+        result = openstack_utils.get_os_release()
+        self.assertEqual(expected, result)
+
+        # We can compare releases xenial_queens > xenial_mitaka
+        xenial_queens = openstack_utils.get_os_release('xenial_queens')
+        xenial_mitaka = openstack_utils.get_os_release('xenial_mitaka')
+        release_comp = xenial_queens > xenial_mitaka
+        self.assertTrue(release_comp)
