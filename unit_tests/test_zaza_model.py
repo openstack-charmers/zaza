@@ -567,7 +567,7 @@ class TestModel(ut_utils.BaseTestCase):
             if not rc:
                 raise asyncio.futures.TimeoutError
 
-        async def _run_on_unit(model_name, unit_name, cmd, timeout=None):
+        async def _run_on_unit(unit_name, cmd, model_name=None, timeout=None):
             return rou_return
         self.patch_object(model, 'async_run_on_unit')
         self.async_run_on_unit.side_effect = _run_on_unit
