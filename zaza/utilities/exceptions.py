@@ -142,3 +142,15 @@ class UnitCountMismatch(Exception):
     """Count of unit doesn't match."""
 
     pass
+
+
+class UbuntuReleaseNotFound(Exception):
+    """Ubuntu release not found in list."""
+
+    pass
+
+
+class ServiceNotFound(Exception):
+    """Service not found on unit."""
+
+    pass
