@@ -480,6 +480,10 @@ def get_process_id_list(unit_name, process_name,
         cmd += " || exit 0 && exit 1"
     results = model.run_on_unit(unit_name=unit_name, command=cmd)
     code = results.get("Code", 1)
+    try:
+        code = int(code)
+    except ValueError:
+        code = 1
     error = results.get("Stderr")
     output = results.get("Stdout")
     if code != 0:
