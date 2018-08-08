@@ -142,7 +142,6 @@ class OpenStackBaseTest(unittest.TestCase):
         model.run_action(
             self.first_unit,
             'pause',
-            {},
             model_name=self.model_name)
         model.block_until_unit_wl_status(
             self.first_unit,
@@ -157,7 +156,6 @@ class OpenStackBaseTest(unittest.TestCase):
         model.run_action(
             self.first_unit,
             'resume',
-            {},
             model_name=self.model_name)
         model.block_until_unit_wl_status(
             self.first_unit,
