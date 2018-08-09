@@ -31,7 +31,8 @@ default setting.
 **MODEL_SETTINGS** should be a list of key/value pairs delimited by
 semicolon e.g.::
 
-    export MODEL_SETTINGS="virt-type=kvm;no-proxy=jujucharms.com"
+    export MODEL_SETTINGS="no-proxy=jujucharms.com"
+    export MODEL_CONSTRAINTS="virt-type=kvm"
 
 
 1) Prepare
