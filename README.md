@@ -1,5 +1,11 @@
 # ZAZA
-A Python3-only functional test framework for OpenStack Charms
+A Python3-only functional test framework for OpenStack Charms.
+
+Source code: https://github.com/openstack-charmers/zaza
+
+Bug reports: https://github.com/openstack-charmers/zaza/issues
+
+Documentation: https://zaza.readthedocs.io/en/latest/
 
 #### Execute Python Unit Tests
 ```tox -e py3```
