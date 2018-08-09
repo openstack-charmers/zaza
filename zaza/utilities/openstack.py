@@ -1268,7 +1268,7 @@ def get_keystone_ip():
     return unit.public_address
 
 
-def get_overcloud_auth():
+def get_overcloud_auth(address=None):
     """Get overcloud OpenStack authentication from the environment.
 
     :returns: Dictionary of authentication settings
@@ -1283,7 +1283,9 @@ def get_overcloud_auth():
     else:
         transport = 'http'
         port = 5000
-    address = get_keystone_ip()
+
+    if not address:
+        address = get_keystone_ip()
 
     os_version = get_current_os_versions('keystone')['keystone']
 
