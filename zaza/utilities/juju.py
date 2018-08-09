@@ -115,6 +115,20 @@ def get_machine_status(machine, key=None):
     return status
 
 
+def get_machine_series(machine):
+    """Return the juju series for a machine.
+
+    :param machine: Machine number
+    :type machine: string
+    :returns: Juju series
+    :rtype: string
+    """
+    return get_machine_status(
+        machine=machine,
+        key='series'
+    )
+
+
 def get_machine_uuids_for_application(application):
     """Return machine uuids for a given application.
 

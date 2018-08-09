@@ -227,3 +227,18 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.model.run_on_leader.assert_called_with(
             'application', 'leader-get --format=yaml ')
         self.assertFalse(self.yaml.load.called)
+
+    def test_get_machine_series(self):
+        self.patch(
+            'zaza.utilities.juju.get_machine_status',
+            new_callable=mock.MagicMock(),
+            name='_get_machine_status'
+        )
+        self._get_machine_status.return_value = 'xenial'
+        expected = 'xenial'
+        actual = juju_utils.get_machine_series('6')
+        self._get_machine_status.assert_called_with(
+            machine='6',
+            key='series'
+        )
+        self.assertEqual(expected, actual)
