@@ -1,4 +1,18 @@
+# Copyright 2018 Canonical Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# You may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# Distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# Limitations under the License.
 """Module containg base class for implementing charm tests."""
+import contextlib
 import logging
 import unittest
 import zaza.model
@@ -39,6 +53,50 @@ class OpenStackBaseTest(unittest.TestCase):
             model_name=cls.model_name)
         logging.debug('First unit is {}'.format(cls.first_unit))
 
+    @contextlib.contextmanager
+    def config_change(self, default_config, alternate_config):
+        """Run change config tests.
+
+        Change config to `alternate_config`, wait for idle workload status,
+        yield, return config to `default_config` and wait for idle workload
+        status before return from function.
+
+        Example usage:
+            with self.config_change({'preferred-api-version': '2'},
+                                    {'preferred-api-version': '3'}):
+                do_something()
+
+        :param default_config: Dict of charm settings to set on completion
+        :type default_config: dict
+        :param alternate_config: Dict of charm settings to change to
+        :type alternate_config: dict
+        """
+        logging.debug('Changing charm setting to {}'.format(alternate_config))
+        model.set_application_config(
+            self.application_name,
+            alternate_config,
+            model_name=self.model_name)
+
+        logging.debug(
+            'Waiting for units to reach target states')
+        model.wait_for_application_states(
+            model_name=self.model_name,
+            states=self.test_config.get('target_deploy_status', {}))
+
+        yield
+
+        logging.debug('Restoring charm setting to {}'.format(default_config))
+        model.set_application_config(
+            self.application_name,
+            default_config,
+            model_name=self.model_name)
+
+        logging.debug(
+            'Waiting for units to reach target states')
+        model.wait_for_application_states(
+            model_name=self.model_name,
+            states=self.test_config.get('target_deploy_status', {}))
+
     def restart_on_changed(self, config_file, default_config, alternate_config,
                            default_entry, alternate_entry, services):
         """Run restart on change tests.
@@ -70,55 +128,32 @@ class OpenStackBaseTest(unittest.TestCase):
             model_name=self.model_name)
         logging.debug('Remote unit timestamp {}'.format(mtime))
 
-        logging.debug('Changing charm setting to {}'.format(alternate_config))
-        model.set_application_config(
-            self.application_name,
-            alternate_config,
-            model_name=self.model_name)
+        with self.config_change(default_config, alternate_config):
+            logging.debug(
+                'Waiting for updates to propagate to {}'.format(config_file))
+            model.block_until_oslo_config_entries_match(
+                self.application_name,
+                config_file,
+                alternate_entry,
+                model_name=self.model_name)
 
-        logging.debug(
-            'Waiting for updates to propagate to {}'.format(config_file))
-        model.block_until_oslo_config_entries_match(
-            self.application_name,
-            config_file,
-            alternate_entry,
-            model_name=self.model_name)
+            # Config update has occured and hooks are idle. Any services should
+            # have been restarted by now:
+            logging.debug(
+                'Waiting for services ({}) to be restarted'.format(services))
+            model.block_until_services_restarted(
+                self.application_name,
+                mtime,
+                services,
+                model_name=self.model_name)
 
-        logging.debug(
-            'Waiting for units to reach target states'.format(config_file))
-        model.wait_for_application_states(
-            self.test_config.get('target_deploy_status', {}),
-            model_name=self.model_name)
-
-        # Config update has occured and hooks are idle. Any services should
-        # have been restarted by now:
-        logging.debug(
-            'Waiting for services ({}) to be restarted'.format(services))
-        model.block_until_services_restarted(
-            self.application_name,
-            mtime,
-            services,
-            model_name=self.model_name)
-
-        logging.debug('Restoring charm setting to {}'.format(default_config))
-        model.set_application_config(
-            self.application_name,
-            default_config,
-            model_name=self.model_name)
-
-        logging.debug(
-            'Waiting for updates to propagate to '.format(config_file))
-        model.block_until_oslo_config_entries_match(
-            self.application_name,
-            config_file,
-            default_entry,
-            model_name=self.model_name)
-
-        logging.debug(
-            'Waiting for units to reach target states'.format(config_file))
-        model.wait_for_application_states(
-            self.test_config.get('target_deploy_status', {}),
-            model_name=self.model_name)
+            logging.debug(
+                'Waiting for updates to propagate to '.format(config_file))
+            model.block_until_oslo_config_entries_match(
+                self.application_name,
+                config_file,
+                default_entry,
+                model_name=self.model_name)
 
     def pause_resume(self, services):
         """Run Pause and resume tests.
