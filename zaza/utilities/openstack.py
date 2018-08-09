@@ -25,6 +25,7 @@ from .os_versions import (
 
 from glanceclient import Client as GlanceClient
 
+from keystoneclient.v2_0 import client as keystoneclient_v2
 from keystoneclient.v3 import client as keystoneclient_v3
 from keystoneauth1 import session
 from keystoneauth1.identity import (
@@ -262,15 +263,20 @@ def get_undercloud_keystone_session(verify=None):
                                 verify=verify)
 
 
-def get_keystone_session_client(session):
+def get_keystone_session_client(session, client_api_version=3):
     """Return keystoneclient authenticated by keystone session.
 
     :param session: Keystone session object
     :type session: keystoneauth1.session.Session object
+    :param client_api_version: Whether you want a v2 or v3 Keystone Client
+    :type client_api_version: int
     :returns: Authenticated keystoneclient
     :rtype: keystoneclient.v3.Client object
     """
-    return keystoneclient_v3.Client(session=session)
+    if client_api_version == 2:
+        return keystoneclient_v2.Client(session=session)
+    else:
+        return keystoneclient_v3.Client(session=session)
 
 
 def get_keystone_client(opentackrc_creds, verify=None):
