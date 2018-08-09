@@ -102,12 +102,19 @@ def get_unit_from_name(unit_name, model):
     """
     app = unit_name.split('/')[0]
     unit = None
-    for u in model.applications[app].units:
+    try:
+        units = model.applications[app].units
+    except KeyError:
+        msg = ('Application: {} does not exist in current model'.
+               format(app))
+        logging.error(msg)
+        raise UnitNotFound(unit_name)
+    for u in units:
         if u.entity_id == unit_name:
             unit = u
             break
     else:
-        raise Exception
+        raise UnitNotFound(unit_name)
     return unit
 
 
@@ -1072,3 +1079,17 @@ def set_model_constraints(constraints, model_name=None):
     cmd = ['juju', 'set-model-constraints', '-m', model_name]
     cmd.extend(['{}={}'.format(k, v) for k, v in constraints.items()])
     subprocess.check_call(cmd)
+
+
+class UnitNotFound(Exception):
+    """Unit was not found in model."""
+
+    def __init__(self, unit_name):
+        """Create a UnitNotFound exception.
+
+        :param unit_name: Name of the unit
+        :type unit_name: string
+        """
+        msg = ('Unit: {} was not found in current model'.
+               format(unit_name))
+        super(UnitNotFound, self).__init__(msg)
