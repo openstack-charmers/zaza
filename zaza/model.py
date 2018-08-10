@@ -90,20 +90,26 @@ async def deployed():
         await model.disconnect()
 
 
-def get_unit_from_name(unit_name, model):
+def get_unit_from_name(unit_name, model=None, model_name=None):
     """Return the units that corresponds to the name in the given model.
 
     :param unit_name: Name of unit to match
     :type unit_name: str
     :param model: Model to perform lookup in
-    :type model: juju.model.Model
+    :type model: model.Model()
+    :param model_name: Name of the model to perform lookup in
+    :type model_name: string
     :returns: Unit matching given name
     :rtype: juju.unit.Unit or None
+    :raises: UnitNotFound
     """
     app = unit_name.split('/')[0]
     unit = None
     try:
-        units = model.applications[app].units
+        if model is not None:
+            units = model.applications[app].units
+        else:
+            units = get_units(application_name=app, model_name=model_name)
     except KeyError:
         msg = ('Application: {} does not exist in current model'.
                format(app))
