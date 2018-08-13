@@ -17,11 +17,12 @@
 import logging
 
 import zaza.charm_tests.test_utils as test_utils
-import zaza.utilities.ceph as zaza_ceph
-import zaza.utilities.generic as zaza_utils
-import zaza.utilities.openstack as zaza_openstack
-import zaza.utilities.juju as zaza_juju
 import zaza.model as zaza_model
+import zaza.utilities.ceph as zaza_ceph
+import zaza.utilities.exceptions as zaza_exceptions
+import zaza.utilities.generic as zaza_utils
+import zaza.utilities.juju as zaza_juju
+import zaza.utilities.openstack as zaza_openstack
 
 
 class CephLowLevelTest(test_utils.OpenStackBaseTest):
@@ -172,3 +173,49 @@ class CephRelationTest(test_utils.OpenStackBaseTest):
         """Verify the ceph2 to ceph-osd relation data."""
         remote_unit_name = 'ceph-mon/2'
         self._ceph_to_ceph_osd_relation(remote_unit_name)
+
+
+class CephTest(test_utils.OpenStackBaseTest):
+    """Ceph common functional tests."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Run the ceph's common class setup."""
+        super(CephTest, cls).setUpClass()
+
+    def test_ceph_check_osd_pools(self):
+        """Check OSD pools.
+
+        Check osd pools on all ceph units, expect them to be
+        identical, and expect specific pools to be present.
+        """
+        logging.debug('Checking pools on ceph units...')
+
+        expected_pools = zaza_ceph.get_expected_pools()
+        results = []
+        unit_names = [
+            'ceph-osd/0',
+            'ceph-mon/0',
+            'ceph-mon/1',
+            'ceph-mon/2'
+        ]
+
+        # Check for presence of expected pools on each unit
+        logging.debug('Expected pools: {}'.format(expected_pools))
+        for unit_name in unit_names:
+            pools = zaza_ceph.get_ceph_pools(unit_name)
+            results.append(pools)
+
+            for expected_pool in expected_pools:
+                if expected_pool not in pools:
+                    msg = ('{} does not have pool: '
+                           '{}'.format(unit_name, expected_pool))
+                    raise zaza_exceptions.CephPoolNotFound(msg)
+            logging.debug('{} has (at least) the expected '
+                          'pools.'.format(unit_name))
+
+        # Check that all units returned the same pool name:id data
+        for i, result in enumerate(results):
+            for other in results[i+1:]:
+                logging.debug('result: {}, other: {}'.format(result, other))
+                self.assertEqual(result, other)

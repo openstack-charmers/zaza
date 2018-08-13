@@ -154,3 +154,9 @@ class ServiceNotFound(Exception):
     """Service not found on unit."""
 
     pass
+
+
+class CephPoolNotFound(Exception):
+    """Ceph pool not found."""
+
+    pass
