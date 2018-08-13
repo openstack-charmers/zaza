@@ -175,6 +175,7 @@ def remote_run(unit, remote_cmd, timeout=None, fatal=None):
     :type fatal: boolean
     :returns: Juju run output
     :rtype: string
+    :raises: model.CommandRunFailed
     """
     if fatal is None:
         fatal = True
@@ -184,8 +185,7 @@ def remote_run(unit, remote_cmd, timeout=None, fatal=None):
             return result.get("Stdout")
         else:
             if fatal:
-                raise Exception("Error running remote command: {}"
-                                .format(result.get("Stderr")))
+                raise model.CommandRunFailed(remote_cmd, result)
             return result.get("Stderr")
 
 
@@ -228,20 +228,19 @@ def get_relation_from_unit(entity, remote_entity, remote_interface_name):
     :type remote_interface_name: str
     :returns: dict with relation data
     :rtype: dict
+    :raises: model.CommandRunFailed
     """
     application = entity.split('/')[0]
     remote_application = remote_entity.split('/')[0]
     rid = model.get_relation_id(application, remote_application,
                                 remote_interface_name=remote_interface_name)
     (unit, remote_unit) = _get_unit_names([entity, remote_entity])
-    result = model.run_on_unit(
-        unit,
-        'relation-get --format=yaml -r "{}" - "{}"' .format(rid, remote_unit))
+    cmd = 'relation-get --format=yaml -r "{}" - "{}"' .format(rid, remote_unit)
+    result = model.run_on_unit(unit, cmd)
     if result and int(result.get('Code')) == 0:
         return yaml.load(result.get('Stdout'))
     else:
-        raise Exception('Error running remote command: "{}"'
-                        .format(result.get("Stderr")))
+        raise model.CommandRunFailed(cmd, result)
 
 
 def leader_get(application, key=''):
@@ -251,11 +250,11 @@ def leader_get(application, key=''):
     :type application: str
     :returns: dict with leader settings
     :rtype: dict
+    :raises: model.CommandRunFailed
     """
-    result = model.run_on_leader(application,
-                                 'leader-get --format=yaml {}'.format(key))
+    cmd = 'leader-get --format=yaml {}'.format(key)
+    result = model.run_on_leader(application, cmd)
     if result and int(result.get('Code')) == 0:
         return yaml.load(result.get('Stdout'))
     else:
-        raise Exception('Error running remote command: "{}"'
-                        .format(result.get("Stderr")))
+        raise model.CommandRunFailed(cmd, result)

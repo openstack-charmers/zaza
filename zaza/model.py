@@ -524,6 +524,25 @@ class ServiceNotRunning(Exception):
         super(ServiceNotRunning, self).__init__(message)
 
 
+class CommandRunFailed(Exception):
+    """Command failed to run."""
+
+    def __init__(self, cmd, result):
+        """Create Command run failed exception.
+
+        :param cmd: Command that was run
+        :type cmd: string
+        :param result: Dict containing the output of the command
+        :type result: dict - {'Code': '0', 'Stdout': '', 'Stderr':''}
+        """
+        code = result.get('Code')
+        output = result.get('Stdout')
+        err = result.get('Stderr')
+        msg = ('Command {} failed with code {}, output {} and error {}'
+               .format(cmd, code, output, err))
+        super(CommandRunFailed, self).__init__(msg)
+
+
 def units_with_wl_status_state(model, state):
     """Return a list of unit which have a matching workload status.
 
