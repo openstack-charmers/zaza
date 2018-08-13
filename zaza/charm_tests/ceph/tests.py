@@ -219,3 +219,30 @@ class CephTest(test_utils.OpenStackBaseTest):
             for other in results[i+1:]:
                 logging.debug('result: {}, other: {}'.format(result, other))
                 self.assertEqual(result, other)
+
+    def test_ceph_cmds_exit_zero(self):
+        """Check ceph CLI.
+
+        Check basic functionality of ceph cli commands against
+        all ceph units.
+        """
+        unit_names = [
+            'ceph-osd/0',
+            'ceph-mon/0',
+            'ceph-mon/1',
+            'ceph-mon/2',
+        ]
+        commands = [
+            'sudo ceph health',
+            'sudo ceph mds stat',
+            'sudo ceph pg stat',
+            'sudo ceph osd stat',
+            'sudo ceph mon stat',
+        ]
+        for unit_name in unit_names:
+            for cmd in commands:
+                logging.debug('Checking {} on {}'.format(cmd, unit_name))
+                result = zaza_model.run_on_unit(unit_name, cmd)
+                code = result.get('Code')
+                if code != '0':
+                    raise zaza_exceptions.CommandRunFailed(cmd, result)
