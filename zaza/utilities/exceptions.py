@@ -76,3 +76,33 @@ class ReleasePairNotFound(Exception):
     """Release pair was not found in OPENSTACK_RELEASES_PAIRS."""
 
     pass
+
+
+class KeystoneAuthorizationStrict(Exception):
+    """Authorization/Policy too strict."""
+
+    pass
+
+
+class KeystoneAuthorizationPermissive(Exception):
+    """Authorization/Policy too permissive."""
+
+    pass
+
+
+class KeystoneWrongTokenProvider(Exception):
+    """A token was issued from the wrong token provider."""
+
+    pass
+
+
+class KeystoneKeyRepositoryError(Exception):
+    """Error in key repository.
+
+    This may be caused by isues with one of:
+    - incomplete or missing data in `key_repository` in leader storage
+    - synchronization of keys to non-leader units
+    - rotation of keys
+    """
+
+    pass
