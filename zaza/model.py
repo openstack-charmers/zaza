@@ -288,9 +288,9 @@ async def async_get_unit_time(unit_name, model_name=None, timeout=None):
     :rtype: int
     """
     out = await async_run_on_unit(
-        model_name,
-        unit_name,
-        "date +'%s'",
+        unit_name=unit_name,
+        command="date +'%s'",
+        model_name=model_name,
         timeout=timeout)
     return int(out['Stdout'])
 
@@ -318,7 +318,11 @@ async def async_get_unit_service_start_time(unit_name, service,
     :raises: ServiceNotRunning
     """
     cmd = "stat -c %Y /proc/$(pidof -x {} | cut -f1 -d ' ')".format(service)
-    out = await async_run_on_unit(model_name, unit_name, cmd, timeout=timeout)
+    out = await async_run_on_unit(
+        unit_name=unit_name,
+        command=cmd,
+        model_name=model_name,
+        timeout=timeout)
     out = out['Stdout'].strip()
     if out:
         return int(out)
