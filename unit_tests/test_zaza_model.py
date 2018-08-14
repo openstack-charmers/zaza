@@ -634,24 +634,52 @@ class TestModel(ut_utils.BaseTestCase):
                 'stopped')
 
     def test_get_unit_time(self):
-        async def _run_on_unit(model_name, unit_name, cmd, timeout=None):
+        async def _run_on_unit(
+            unit_name,
+            command,
+            model_name=None,
+            timeout=None
+        ):
             return {'Stdout': '1524409654'}
         self.patch_object(model, 'async_run_on_unit')
         self.async_run_on_unit.side_effect = _run_on_unit
         self.assertEqual(
             model.get_unit_time('app/2'),
             1524409654)
+        self.async_run_on_unit.assert_called_once_with(
+            unit_name='app/2',
+            command="date +'%s'",
+            model_name=None,
+            timeout=None
+        )
 
     def test_get_unit_service_start_time(self):
-        async def _run_on_unit(model_name, unit_name, cmd, timeout=None):
+        async def _run_on_unit(
+            unit_name,
+            command,
+            model_name=None,
+            timeout=None
+        ):
             return {'Stdout': '1524409654'}
         self.patch_object(model, 'async_run_on_unit')
         self.async_run_on_unit.side_effect = _run_on_unit
         self.assertEqual(
             model.get_unit_service_start_time('app/2', 'mysvc1'), 1524409654)
+        cmd = "stat -c %Y /proc/$(pidof -x mysvc1 | cut -f1 -d ' ')"
+        self.async_run_on_unit.assert_called_once_with(
+            unit_name='app/2',
+            command=cmd,
+            model_name=None,
+            timeout=None
+        )
 
     def test_get_unit_service_start_time_not_running(self):
-        async def _run_on_unit(model_name, unit_name, cmd, timeout=None):
+        async def _run_on_unit(
+            unit_name,
+            command,
+            model_name=None,
+            timeout=None
+        ):
             return {'Stdout': ''}
         self.patch_object(model, 'async_run_on_unit')
         self.async_run_on_unit.side_effect = _run_on_unit
