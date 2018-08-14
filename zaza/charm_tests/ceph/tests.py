@@ -15,6 +15,12 @@
 """Ceph-osd Testing."""
 
 import logging
+from os import (
+    listdir,
+    path
+)
+import tempfile
+import time
 
 import zaza.charm_tests.test_utils as test_utils
 import zaza.model as zaza_model
@@ -246,3 +252,84 @@ class CephTest(test_utils.OpenStackBaseTest):
                 code = result.get('Code')
                 if code != '0':
                     raise zaza_exceptions.CommandRunFailed(cmd, result)
+
+    def test_ceph_encryption(self):
+        """Test Ceph encryption.
+
+        Verify that the new disk is added with encryption by checking for
+        Ceph's encryption keys directory.
+        """
+        current_release = zaza_openstack.get_os_release()
+        trusty_mitaka = zaza_openstack.get_os_release('trusty_mitaka')
+        if current_release >= trusty_mitaka:
+            logging.warn("Skipping encryption test for Mitaka and higher")
+            return
+        unit_name = 'ceph-osd/0'
+        set_default = {
+            'osd-encrypt': 'False',
+            'osd-devices': '/dev/vdb /srv/ceph',
+        }
+        set_alternate = {
+            'osd-encrypt': 'True',
+            'osd-devices': '/dev/vdb /srv/ceph /srv/ceph_encrypted',
+        }
+        juju_service = 'ceph-osd'
+        logging.debug('Making config change on {}...'.format(juju_service))
+        mtime = zaza_model.get_unit_time(unit_name)
+        zaza_model.set_application_config(juju_service, set_alternate)
+
+        sleep_time = 30
+        retry_count = 30
+        file_mtime = None
+        time.sleep(sleep_time)
+
+        folder_name = '/etc/ceph/dmcrypt-keys/'
+        tries = 0
+        retry_sleep_time = 10
+        with tempfile.TemporaryDirectory() as tempdir:
+            while tries <= retry_count and not file_mtime:
+                # Creating a temp dir to copy keys
+                temp_folder = '/tmp/dmcrypt-keys'
+                cmd = 'mkdir {}'.format(temp_folder)
+                ret = zaza_model.run_on_unit(unit_name, cmd)
+                logging.debug('Ret for cmd {} is {}'.format(cmd, ret))
+                # Copy keys from /etc to /tmp
+                cmd = 'sudo cp {}* {}'.format(folder_name, temp_folder)
+                ret = zaza_model.run_on_unit(unit_name, cmd)
+                logging.debug('Ret for cmd {} is {}'.format(cmd, ret))
+                # Changing permissions to be able to SCP the files
+                cmd = 'sudo chown -R ubuntu:ubuntu {}'.format(temp_folder)
+                ret = zaza_model.run_on_unit(unit_name, cmd)
+                logging.debug('Ret for cmd {} is {}'.format(cmd, ret))
+                # SCP to retrieve all files in folder
+                # -p: preserve timestamps
+                source = '/tmp/dmcrypt-keys/*'
+                zaza_model.scp_from_unit(unit_name=unit_name,
+                                         source=source,
+                                         destination=tempdir,
+                                         scp_opts='-p')
+                for elt in listdir(tempdir):
+                    file_path = '/'.join([tempdir, elt])
+                    if path.isfile(file_path):
+                        file_mtime = path.getmtime(file_path)
+                        if file_mtime:
+                            break
+                else:
+                    time.sleep(retry_sleep_time)
+                    tries += 1
+        zaza_model.set_application_config(juju_service, set_default)
+
+        if not file_mtime:
+            logging.warn('Could not determine mtime, assuming '
+                         'folder does not exist')
+            raise FileNotFoundError('folder does not exist')
+
+        if file_mtime >= mtime:
+            logging.debug('Folder mtime is newer than provided mtime '
+                          '(%s >= %s) on %s (OK)' % (file_mtime,
+                                                     mtime, unit_name))
+        else:
+            logging.warn('Folder mtime is older than provided mtime'
+                         '(%s < on %s) on %s' % (file_mtime,
+                                                 mtime, unit_name))
+            raise Exception('Folder mtime is older than provided mtime')
