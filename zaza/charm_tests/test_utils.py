@@ -78,6 +78,10 @@ class OpenStackBaseTest(unittest.TestCase):
             model_name=self.model_name)
 
         logging.debug(
+            'Waiting for units to execute config-changed hook')
+        model.wait_for_agent_status(model_name=self.model_name)
+
+        logging.debug(
             'Waiting for units to reach target states')
         model.wait_for_application_states(
             model_name=self.model_name,

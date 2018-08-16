@@ -606,6 +606,42 @@ def check_unit_workload_status_message(model, unit, message=None,
         raise ValueError("Must be called with message or prefixes")
 
 
+async def async_wait_for_agent_status(model_name=None, status='executing',
+                                      timeout=60):
+    """Wait for at least one unit to enter a specific agent status.
+
+    This is useful for awaiting execution after mutating charm configuration.
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param status: The desired agent status we are looking for.
+    :type status: str
+    :param timeout: Time to wait for status to be achieved.
+    :type timeout: int
+    """
+    def one_agent_status(model, status):
+        check_model_for_hard_errors(model)
+        for app in model.applications:
+            for unit in model.applications[app].units:
+                agent_status = unit.data.get('agent-status', {})
+                if agent_status.get('current', None) == status:
+                    break
+            else:
+                continue
+            break
+        else:
+            return False
+        return True
+
+    async with run_in_model(model_name) as model:
+        logging.info('Waiting for at least one unit with agent status "{}"'
+                     .format(status))
+        await model.block_until(
+            lambda: one_agent_status(model, status), timeout=timeout)
+
+wait_for_agent_status = sync_wrapper(async_wait_for_agent_status)
+
+
 async def async_wait_for_application_states(model_name=None, states=None,
                                             timeout=2700):
     """Wait for model to achieve the desired state.

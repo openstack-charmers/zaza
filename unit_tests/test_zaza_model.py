@@ -91,6 +91,8 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.run_action.side_effect = _run_action
         self.unit1.is_leader_from_status.side_effect = _is_leader(False)
         self.unit2.is_leader_from_status.side_effect = _is_leader(True)
+        self.unit1.data = {'agent-status': {'current': 'idle'}}
+        self.unit2.data = {'agent-status': {'current': 'idle'}}
         self.units = [self.unit1, self.unit2]
         self.relation1 = mock.MagicMock()
         self.relation1.id = 42
@@ -892,6 +894,29 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
                 'app/2',
                 'active',
                 timeout=0.1)
+
+    def test_wait_for_agent_status(self):
+        async def _block_until(f, timeout=None):
+            if not f():
+                raise asyncio.futures.TimeoutError
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.unit1.data = {'agent-status': {'current': 'idle'}}
+        self.unit2.data = {'agent-status': {'current': 'executing'}}
+        self.Model.return_value = self.Model_mock
+        self.Model_mock.block_until.side_effect = _block_until
+        model.wait_for_agent_status(timeout=0.1)
+
+    def test_wait_for_agent_status_timeout(self):
+        async def _block_until(f, timeout=None):
+            if not f():
+                raise asyncio.futures.TimeoutError
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.Model_mock.block_until.side_effect = _block_until
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.wait_for_agent_status(timeout=0.1)
 
 
 class AsyncModelTests(aiounittest.AsyncTestCase):
