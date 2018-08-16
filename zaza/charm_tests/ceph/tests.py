@@ -457,3 +457,66 @@ class CephTest(test_utils.OpenStackBaseTest):
         """The services can be paused and resumed."""
         logging.info('Checking pause and resume actions...')
         self.pause_resume(['ceph-osd'])
+
+    def test_blacklist(self):
+        """Check the blacklist action.
+
+        The blacklist actions execute and behave as expected.
+        """
+        logging.info('Checking blacklist-add-disk and'
+                     'blacklist-remove-disk actions...')
+        unit_name = 'ceph-osd/0'
+
+        zaza_model.block_until_unit_wl_status(
+            unit_name,
+            'active'
+        )
+
+        # Attempt to add device with non-absolute path should fail
+        action_obj = zaza_model.run_action(
+            unit_name=unit_name,
+            action_name='blacklist-add-disk',
+            action_params={'osd-devices': 'vda'}
+        )
+        self.assertTrue(action_obj.status != 'completed')
+        zaza_model.block_until_unit_wl_status(
+            unit_name,
+            'active'
+        )
+
+        # Attempt to add device with non-existent path should fail
+        action_obj = zaza_model.run_action(
+            unit_name=unit_name,
+            action_name='blacklist-add-disk',
+            action_params={'osd-devices': '/non-existent'}
+        )
+        self.assertTrue(action_obj.status != 'completed')
+        zaza_model.block_until_unit_wl_status(
+            unit_name,
+            'active'
+        )
+
+        # Attempt to add device with existent path should succeed
+        action_obj = zaza_model.run_action(
+            unit_name=unit_name,
+            action_name='blacklist-add-disk',
+            action_params={'osd-devices': '/dev/vda'}
+        )
+        self.assertEqual('completed', action_obj.status)
+        zaza_model.block_until_unit_wl_status(
+            unit_name,
+            'active'
+        )
+
+        # Attempt to remove listed device should always succeed
+        action_obj = zaza_model.run_action(
+            unit_name=unit_name,
+            action_name='blacklist-remove-disk',
+            action_params={'osd-devices': '/dev/vda'}
+        )
+        self.assertEqual('completed', action_obj.status)
+        zaza_model.block_until_unit_wl_status(
+            unit_name,
+            'active'
+        )
+        logging.debug('OK')
