@@ -296,7 +296,7 @@ class CephTest(test_utils.OpenStackBaseTest):
                 result = zaza_model.run_on_unit(unit_name, cmd)
                 code = result.get('Code')
                 if code != '0':
-                    raise zaza_exceptions.CommandRunFailed(cmd, result)
+                    raise zaza_model.CommandRunFailed(cmd, result)
 
     def test_ceph_encryption(self):
         """Test Ceph encryption.
@@ -513,6 +513,30 @@ class CephTest(test_utils.OpenStackBaseTest):
             unit_name=unit_name,
             action_name='blacklist-remove-disk',
             action_params={'osd-devices': '/dev/vda'}
+        )
+        self.assertEqual('completed', action_obj.status)
+        zaza_model.block_until_unit_wl_status(
+            unit_name,
+            'active'
+        )
+        logging.debug('OK')
+
+    def test_list_disks(self):
+        """Test the list-disks action.
+
+        The list-disks action execute.
+        """
+        logging.info('Checking list-disks action...')
+        unit_name = 'ceph-osd/0'
+
+        zaza_model.block_until_unit_wl_status(
+            unit_name,
+            'active'
+        )
+
+        action_obj = zaza_model.run_action(
+            unit_name=unit_name,
+            action_name='list-disks',
         )
         self.assertEqual('completed', action_obj.status)
         zaza_model.block_until_unit_wl_status(

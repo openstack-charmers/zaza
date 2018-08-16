@@ -77,6 +77,7 @@ def get_ceph_pools(unit_name):
         :type unit_name: string
         :returns: Dict of ceph pools
         :rtype: dict
+        :raise: zaza_model.CommandRunFailed
         """
         pools = {}
         cmd = 'sudo ceph osd lspools'
