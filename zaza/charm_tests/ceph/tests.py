@@ -189,6 +189,51 @@ class CephTest(test_utils.OpenStackBaseTest):
         """Run the ceph's common class setup."""
         super(CephTest, cls).setUpClass()
 
+    def pause_resume(self, services):
+        """Run Pause and resume tests.
+
+        Override the default implementation since pausing ceph units
+        doesn't stop the services.
+        Pause and then resume a unit checking that services are in the
+        required state after each action
+
+        :param services: Services expected to be restarted when config_file is
+                         changed.
+        :type services: list
+        """
+        zaza_model.block_until_service_status(
+            self.first_unit,
+            services,
+            'running',
+            model_name=self.model_name)
+        zaza_model.block_until_unit_wl_status(
+            self.first_unit,
+            'active',
+            model_name=self.model_name)
+        zaza_model.run_action(
+            self.first_unit,
+            'pause',
+            model_name=self.model_name)
+        zaza_model.block_until_unit_wl_status(
+            self.first_unit,
+            'maintenance',
+            model_name=self.model_name)
+        zaza_model.block_until_all_units_idle(model_name=self.model_name)
+        zaza_model.run_action(
+            self.first_unit,
+            'resume',
+            model_name=self.model_name)
+        zaza_model.block_until_unit_wl_status(
+            self.first_unit,
+            'active',
+            model_name=self.model_name)
+        zaza_model.block_until_all_units_idle(model_name=self.model_name)
+        zaza_model.block_until_service_status(
+            self.first_unit,
+            services,
+            'running',
+            model_name=self.model_name)
+
     def test_ceph_check_osd_pools(self):
         """Check OSD pools.
 
@@ -407,3 +452,8 @@ class CephTest(test_utils.OpenStackBaseTest):
         zaza_model.set_application_config(juju_service, set_default)
 
         zaza_model.wait_for_application_states()
+
+    def test_pause_and_resume(self):
+        """The services can be paused and resumed."""
+        logging.info('Checking pause and resume actions...')
+        self.pause_resume(['ceph-osd'])
