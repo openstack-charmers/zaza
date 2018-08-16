@@ -45,7 +45,7 @@ class CephLowLevelTest(test_utils.OpenStackBaseTest):
         Verify that the expected service processes are running
         on each ceph unit.
         """
-        logging.debug('Checking ceph-mon and ceph-osd processes...')
+        logging.info('Checking ceph-mon and ceph-osd processes...')
         # Process name and quantity of processes to expect on each unit
         ceph_mon_processes = {
             'ceph-mon': 1,
@@ -75,7 +75,7 @@ class CephLowLevelTest(test_utils.OpenStackBaseTest):
 
         Verify the expected services are running on the service units.
         """
-        logging.debug('Checking ceph-osd and ceph-mon services...')
+        logging.info('Checking ceph-osd and ceph-mon services...')
         services = {}
         current_release = zaza_openstack.get_os_release()
 
@@ -119,7 +119,7 @@ class CephRelationTest(test_utils.OpenStackBaseTest):
 
     def test_ceph_osd_ceph_relation_address(self):
         """Verify the ceph-osd to ceph relation data."""
-        logging.debug('Checking ceph-osd:ceph-mon relation data...')
+        logging.info('Checking ceph-osd:ceph-mon relation data...')
         unit_name = 'ceph-osd/0'
         remote_unit_name = 'ceph-mon/0'
         relation_name = 'osd'
@@ -140,8 +140,8 @@ class CephRelationTest(test_utils.OpenStackBaseTest):
 
         Helper function to test the relation.
         """
-        logging.debug('Checking {}:ceph-osd mon relation data...'.
-                      format(remote_unit_name))
+        logging.info('Checking {}:ceph-osd mon relation data...'.
+                     format(remote_unit_name))
         unit_name = 'ceph-osd/0'
         relation_name = 'osd'
         remote_unit = zaza_model.get_unit_from_name(remote_unit_name)
@@ -195,7 +195,7 @@ class CephTest(test_utils.OpenStackBaseTest):
         Check osd pools on all ceph units, expect them to be
         identical, and expect specific pools to be present.
         """
-        logging.debug('Checking pools on ceph units...')
+        logging.info('Checking pools on ceph units...')
 
         expected_pools = zaza_ceph.get_expected_pools()
         results = []
@@ -274,7 +274,7 @@ class CephTest(test_utils.OpenStackBaseTest):
             'osd-devices': '/dev/vdb /srv/ceph /srv/ceph_encrypted',
         }
         juju_service = 'ceph-osd'
-        logging.debug('Making config change on {}...'.format(juju_service))
+        logging.info('Making config change on {}...'.format(juju_service))
         mtime = zaza_model.get_unit_time(unit_name)
         zaza_model.set_application_config(juju_service, set_alternate)
 
@@ -325,11 +325,85 @@ class CephTest(test_utils.OpenStackBaseTest):
             raise FileNotFoundError('folder does not exist')
 
         if file_mtime >= mtime:
-            logging.debug('Folder mtime is newer than provided mtime '
-                          '(%s >= %s) on %s (OK)' % (file_mtime,
-                                                     mtime, unit_name))
+            logging.info('Folder mtime is newer than provided mtime '
+                         '(%s >= %s) on %s (OK)' % (file_mtime,
+                                                    mtime, unit_name))
         else:
             logging.warn('Folder mtime is older than provided mtime'
                          '(%s < on %s) on %s' % (file_mtime,
                                                  mtime, unit_name))
             raise Exception('Folder mtime is older than provided mtime')
+
+    def test_blocked_when_non_pristine_disk_appears(self):
+        """Test blocked state with non-pristine disk.
+
+        Validate that charm goes into blocked state when it is presented with
+        new block devices that have foreign data on them.
+        Instances used in UOSCI has a flavour with ephemeral storage in
+        addition to the bootable instance storage.  The ephemeral storage
+        device is partitioned, formatted and mounted early in the boot process
+        by cloud-init.
+        As long as the device is mounted the charm will not attempt to use it.
+        If we unmount it and trigger the config-changed hook the block device
+        will appear as a new and previously untouched device for the charm.
+        One of the first steps of device eligibility checks should be to make
+        sure we are seeing a pristine and empty device before doing any
+        further processing.
+        As the ephemeral device will have data on it we can use it to validate
+        that these checks work as intended.
+        """
+        logging.info('Checking behaviour when non-pristine disks appear...')
+        logging.info('Configuring ephemeral-unmount...')
+        alternate_conf = {
+            'ephemeral-unmount': '/mnt',
+            'osd-devices': '/dev/vdb'
+        }
+        juju_service = 'ceph-osd'
+        zaza_model.set_application_config(juju_service, alternate_conf)
+        ceph_osd_states = {
+            'ceph-osd': {
+                'workload-status': 'blocked',
+                'workload-status-message': 'Non-pristine'
+            }
+        }
+        zaza_model.wait_for_application_states(states=ceph_osd_states)
+        logging.info('Units now in blocked state, running zap-disk action...')
+        unit_names = ['ceph-osd/0', 'ceph-osd/1', 'ceph-osd/2']
+        for unit_name in unit_names:
+            zap_disk_params = {
+                'devices': '/dev/vdb',
+                'i-really-mean-it': True,
+            }
+            action_obj = zaza_model.run_action(
+                unit_name=unit_name,
+                action_name='zap-disk',
+                action_params=zap_disk_params
+            )
+            logging.debug('Result of action: {}'.format(action_obj))
+
+        logging.info('Running add-disk action...')
+        for unit_name in unit_names:
+            add_disk_params = {
+                'osd-devices': '/dev/vdb',
+            }
+            action_obj = zaza_model.run_action(
+                unit_name=unit_name,
+                action_name='add-disk',
+                action_params=add_disk_params
+            )
+            logging.debug('Result of action: {}'.format(action_obj))
+
+        logging.info('Wait for idle/ready status...')
+        zaza_model.wait_for_application_states()
+
+        logging.info('OK')
+
+        set_default = {
+            'ephemeral-unmount': '',
+            'osd-devices': '/dev/vdb /srv/ceph',
+        }
+
+        logging.info('Restoring to default configuration...')
+        zaza_model.set_application_config(juju_service, set_default)
+
+        zaza_model.wait_for_application_states()
