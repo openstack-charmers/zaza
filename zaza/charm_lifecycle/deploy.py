@@ -33,11 +33,7 @@ VALID_ENVIRONMENT_KEY_PREFIXES = [
     'OS_',
     'VIP_RANGE',
 ]
-LOCAL_OVERLAY_TEMPLATE = """
-applications:
-  {{ charm_name }}:
-    charm: {{ charm_location }}
-"""
+LOCAL_OVERLAY_TEMPLATE = ""
 LOCAL_OVERLAY_TEMPLATE_NAME = 'local-charm-overlay.yaml'
 
 
