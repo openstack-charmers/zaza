@@ -249,19 +249,31 @@ class TestModel(ut_utils.BaseTestCase):
             'app/2')
 
     def test_get_unit_from_name(self):
-        # Normal case
         self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        # Normal case
+        self.assertEqual(
+            model.get_unit_from_name('app/4', model_name='mname'),
+            self.unit2)
+
+        # Normal case with Model()
         self.assertEqual(
             model.get_unit_from_name('app/4', self.mymodel),
             self.unit2)
 
+        # Normal case, using default
+        self.assertEqual(
+            model.get_unit_from_name('app/4'),
+            self.unit2)
+
         # Unit does not exist
         with self.assertRaises(model.UnitNotFound):
-            model.get_unit_from_name('app/10', self.mymodel)
+            model.get_unit_from_name('app/10', model_name='mname')
 
         # Application does not exist
         with self.assertRaises(model.UnitNotFound):
-            model.get_unit_from_name('bad_name', self.mymodel)
+            model.get_unit_from_name('bad_name', model_name='mname')
 
     def test_get_app_ips(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
