@@ -22,6 +22,13 @@ class TestJujuUtils(ut_utils.BaseTestCase):
     def setUp(self):
         super(TestJujuUtils, self).setUp()
 
+        # Patch all subprocess calls
+        self.patch(
+            'zaza.utilities.juju.subprocess',
+            new_callable=mock.MagicMock(),
+            name='subprocess'
+        )
+
         # Juju Status Object and data
         self.key = "instance-id"
         self.key_data = "machine-uuid"
@@ -256,3 +263,31 @@ class TestJujuUtils(ut_utils.BaseTestCase):
             key='series'
         )
         self.assertEqual(expected, actual)
+
+    def test_prepare_series_upgrade(self):
+        _machine_num = "1"
+        _to_series = "bionic"
+        juju_utils.prepare_series_upgrade(_machine_num, to_series=_to_series)
+        self.subprocess.check_call.assert_called_once_with(
+            ['juju', 'upgrade-series', 'prepare',
+             _machine_num, _to_series, '--agree'])
+
+    def test_complete_series_upgrade(self):
+        _machine_num = "1"
+        juju_utils.complete_series_upgrade(_machine_num)
+        self.subprocess.check_call.assert_called_once_with(
+            ['juju', 'upgrade-series', 'complete', _machine_num])
+
+    def test_set_series(self):
+        _application = "application"
+        _to_series = "bionic"
+        juju_utils.set_series(_application, _to_series)
+        self.subprocess.check_call.assert_called_once_with(
+            ['juju', 'set-series', _application, _to_series])
+
+    def test_update_series(self):
+        _machine_num = "1"
+        _to_series = "bionic"
+        juju_utils.update_series(_machine_num, _to_series)
+        self.subprocess.check_call.assert_called_once_with(
+            ['juju', 'update-series', _machine_num, _to_series])

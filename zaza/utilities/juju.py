@@ -16,6 +16,7 @@
 """Module for interacting with juju."""
 import os
 from pathlib import Path
+import subprocess
 import yaml
 
 from zaza import (
@@ -258,3 +259,70 @@ def leader_get(application, key=''):
         return yaml.load(result.get('Stdout'))
     else:
         raise model.CommandRunFailed(cmd, result)
+
+
+def prepare_series_upgrade(machine_num, to_series="xenial"):
+    """Execute juju series-upgrade prepare on machine.
+
+    NOTE: This is a new feature in juju behind a feature flag and not yet in
+    libjuju.
+    export JUJU_DEV_FEATURE_FLAGS=upgrade-series
+
+    :param machine_num: Machine number
+    :type machine_num: str
+    :param to_series: The series to which to upgrade
+    :type to_series: str
+    :returns: None
+    :rtype: None
+    """
+    cmd = ["juju", "upgrade-series", "prepare",
+           machine_num, to_series, "--agree"]
+    subprocess.check_call(cmd)
+
+
+def complete_series_upgrade(machine_num):
+    """Execute juju series-upgrade complete on machine.
+
+    NOTE: This is a new feature in juju behind a feature flag and not yet in
+    libjuju.
+    export JUJU_DEV_FEATURE_FLAGS=upgrade-series
+
+    :param machine_num: Machine number
+    :type machine_num: str
+    :returns: None
+    :rtype: None
+    """
+    cmd = ["juju", "upgrade-series", "complete", machine_num]
+    subprocess.check_call(cmd)
+
+
+def set_series(application, to_series):
+    """Execute juju set-series complete on application.
+
+    NOTE: This is a new feature in juju and not yet in libjuju.
+
+    :param application: Name of application to upgrade series
+    :type application: str
+    :param to_series: The series to which to upgrade
+    :type to_series: str
+    :returns: None
+    :rtype: None
+    """
+    cmd = ["juju", "set-series", application, to_series]
+    subprocess.check_call(cmd)
+
+
+def update_series(machine_num, to_series):
+    """Execute juju update-series complete on machine.
+
+    NOTE: This is a new feature in juju and not yet in libjuju.
+
+    :param machine_num: Machine number
+    :type machine_num: str
+    :param to_series: The series to which to upgrade
+    :type to_series: str
+    :returns: None
+    :rtype: None
+    """
+    cmd = ["juju", "update-series", machine_num, to_series]
+    subprocess.check_call(cmd)

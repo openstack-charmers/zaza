@@ -16,6 +16,8 @@
 
 import logging
 import os
+import subprocess
+import time
 import yaml
 
 from zaza import model
@@ -165,3 +167,201 @@ def get_yaml_config(config_file):
     # the pwd.
     logging.info('Using config %s' % (config_file))
     return yaml.load(open(config_file, 'r').read())
+
+
+def series_upgrade_application(application, pause_non_leader_primary=True,
+                               pause_non_leader_subordinate=True,
+                               from_series="trusty", to_series="xenial",
+                               origin='openstack-origin'):
+    """Series upgrade application.
+
+    Wrap all the functionality to handle series upgrade for a given
+    application. Including pausing non-leader units.
+
+    :param application: Name of application to upgrade series
+    :type application: str
+    :param pause_non_leader_primary: Should the non-leader applications be
+                                     paused?
+    :type pause_non_leader_primary: bool
+    :param pause_non_leader_subordinate: Should the non-leader subordinate
+                                         hacluster applications be paused?
+    :type pause_non_leader_subordinate: bool
+    :param from_series: The series from which to upgrade
+    :type from_series: str
+    :param to_series: The series to which to upgrade
+    :type to_series: str
+    :param origin: The configuration setting variable name for changing origin
+                   source. (openstack-origin or source)
+    :type origin: str
+    :returns: None
+    :rtype: None
+    """
+    status = juju_utils.get_application_status(application=application)
+
+    # For some applications (percona-cluster) the leader unit must upgrade
+    # first. For API applications the non-leader haclusters must be paused
+    # before upgrade. Finally, for some applications this is aribtrary but
+    # generalized.
+    leader = None
+    non_leaders = []
+    for unit in status["units"]:
+        if status["units"][unit].get("leader"):
+            leader = unit
+        else:
+            non_leaders.append(unit)
+
+    # Pause the non-leaders
+    for unit in non_leaders:
+        if pause_non_leader_subordinate:
+            if status["units"][unit].get("subordinates"):
+                for subordinate in status["units"][unit]["subordinates"]:
+                    logging.info("Pausing {}".format(subordinate))
+                    model.run_action(subordinate, "pause", action_params={})
+        if pause_non_leader_primary:
+            logging.info("Pausing {}".format(unit))
+            model.run_action(unit, "pause", action_params={})
+
+    # Series upgrade the leader
+    logging.info("Series upgrade leader: {}".format(leader))
+    series_upgrade(leader, status["units"][leader]["machine"],
+                   from_series=from_series, to_series=to_series,
+                   origin=origin)
+
+    # Series upgrade the non-leaders
+    for unit in non_leaders:
+        logging.info("Series upgrade non-leader unit: {}"
+                     .format(unit))
+        series_upgrade(unit, status["units"][unit]["machine"],
+                       from_series=from_series, to_series=to_series,
+                       origin=origin)
+
+
+def series_upgrade(unit_name, machine_num,
+                   from_series="trusty", to_series="xenial",
+                   origin='openstack-origin'):
+    """Perform series upgrade on a unit.
+
+    :param unit_name: Unit Name
+    :type unit_name: str
+    :param machine_num: Machine number
+    :type machine_num: str
+    :param from_series: The series from which to upgrade
+    :type from_series: str
+    :param to_series: The series to which to upgrade
+    :type to_series: str
+    :param origin: The configuration setting variable name for changing origin
+                   source. (openstack-origin or source)
+    :type origin: str
+    :returns: None
+    :rtype: None
+    """
+    application = unit_name.split('/')[0]
+    juju_utils.prepare_series_upgrade(machine_num, to_series=to_series)
+    logging.info("Watiing for model idleness")
+    model.block_until_all_units_idle()
+    wrap_do_release_upgrade(unit_name, from_series=from_series,
+                            to_series=to_series)
+    reboot(unit_name)
+    # Without the sleep model.block_on_all_units_idle returns to early
+    logging.info("Sleeping after reboot...")
+    time.sleep(30)
+    model.block_until_all_units_idle()
+    juju_utils.complete_series_upgrade(machine_num)
+    model.block_until_all_units_idle()
+    juju_utils.update_series(machine_num, to_series)
+    juju_utils.set_series(application, to_series)
+    set_origin(application, origin)
+    model.block_until_all_units_idle()
+
+
+def set_origin(application, origin='openstack-origin', pocket='distro'):
+    """Set the configuration option for origin source.
+
+    :param application: Name of application to upgrade series
+    :type application: str
+    :param origin: The configuration setting variable name for changing origin
+                   source. (openstack-origin or source)
+    :type origin: str
+    :param pocket: Origin source cloud pocket.
+                   i.e. 'distro' or 'cloud:xenial-newton'
+    :type pocket: str
+    :returns: None
+    :rtype: None
+    """
+    model.set_application_config(application, {origin: pocket})
+
+
+def wrap_do_release_upgrade(unit_name, from_series="trusty",
+                            to_series="xenial"):
+    """Wrap do release upgrade.
+
+    In a production environment this step would be run administratively.
+    For testing purposes we need this automated.
+
+    :param unit_name: Unit Name
+    :type unit_name: str
+    :param from_series: The series from which to upgrade
+    :type from_series: str
+    :param to_series: The series to which to upgrade
+    :type to_series: str
+    :returns: None
+    :rtype: None
+    """
+    # Pre upgrade hacks
+    # There are a few necessary hacks to accomplish an automated upgrade
+    # to overcome some packaging bugs.
+    # Copy scripts
+    _files = ["package-workarounds.sh", "corosync", "corosync.conf"]
+    for _file in _files:
+        model.scp_to_unit(unit_name, _file, _file)
+
+    # Run Scripts
+    model.run_on_unit(
+        unit_name, "/home/ubuntu/package-workarounds.sh")
+
+    # Actually do the do_release_upgrade
+    do_release_upgrade(unit_name)
+
+    # Post upgrade hacks
+    # Juju may at some point in the future auotmate this step
+    model.run_on_unit(
+        unit_name,
+        "juju-updateseries --from-series={} --to-series={}"
+        .format(from_series, to_series))
+
+
+def do_release_upgrade(unit_name):
+    """Run do-release-upgrade noninteractive.
+
+    :param unit_name: Unit Name
+    :type unit_name: str
+    :returns: None
+    :rtype: None
+    """
+    logging.info('Upgrading ' + unit_name)
+    # NOTE: It is necessary to run this via juju ssh rather than juju run do to
+    # timeout restrictions and error handling.
+    cmd = ['juju', 'ssh', unit_name, 'sudo',
+           'do-release-upgrade', '-f', 'DistUpgradeViewNonInteractive']
+    try:
+        subprocess.check_call(cmd)
+    except subprocess.CalledProcessError as e:
+        logging.warn("Failed do-release-upgrade for {}".format(unit_name))
+        logging.warn(e)
+
+
+def reboot(unit_name):
+    """Reboot unit.
+
+    :param unit_name: Unit Name
+    :type unit_name: str
+    :returns: None
+    :rtype: None
+    """
+    # NOTE: Runnig this via model.run_on_unit fails to exit properly
+    cmd = ['juju', 'run', '--unit', unit_name, 'sudo', 'reboot', '&&', 'exit']
+    try:
+        subprocess.check_call(cmd)
+    except subprocess.CalledProcessError as e:
+        logging.info(e)
+        pass

@@ -16,11 +16,36 @@ import mock
 import unit_tests.utils as ut_utils
 from zaza.utilities import generic as generic_utils
 
+FAKE_STATUS = {
+    'can-upgrade-to': '',
+    'charm': 'local:trusty/app-136',
+    'subordinate-to': [],
+    'units': {'app/0': {'leader': True,
+                        'machine': '0',
+                        'subordinates': {
+                            'app-hacluster/0': {
+                                   'charm': 'local:trusty/hacluster-0',
+                                   'leader': True}}},
+              'app/1': {'machine': '1',
+                        'subordinates': {
+                            'app-hacluster/1': {
+                                   'charm': 'local:trusty/hacluster-0'}}},
+              'app/2': {'machine': '2',
+                        'subordinates': {
+                            'app-hacluster/2': {
+                                   'charm': 'local:trusty/hacluster-0'}}}}}
+
 
 class TestGenericUtils(ut_utils.BaseTestCase):
 
     def setUp(self):
         super(TestGenericUtils, self).setUp()
+        # Patch all subprocess calls
+        self.patch(
+            'zaza.utilities.generic.subprocess',
+            new_callable=mock.MagicMock(),
+            name='subprocess'
+        )
 
     def test_dict_to_yaml(self):
         _dict_data = {"key": "value"}
@@ -133,3 +158,173 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         self.assertEqual(generic_utils.get_yaml_config(_filename),
                          _yaml_dict)
         self._open.assert_called_once_with(_filename, "r")
+
+    def test_do_release_upgrade(self):
+        _unit = "app/2"
+        generic_utils.do_release_upgrade(_unit)
+        self.subprocess.check_call.assert_called_once_with(
+            ['juju', 'ssh', _unit, 'sudo', 'do-release-upgrade',
+             '-f', 'DistUpgradeViewNonInteractive'])
+
+    def test_wrap_do_release_upgrade(self):
+        self.patch_object(generic_utils, "do_release_upgrade")
+        self.patch_object(generic_utils.model, "scp_to_unit")
+        self.patch_object(generic_utils.model, "run_on_unit")
+        _unit = "app/2"
+        _from_series = "xenial"
+        _to_series = "bionic"
+        _scp_calls = []
+        _run_calls = [
+            mock.call(_unit, "/home/ubuntu/package-workarounds.sh"),
+            mock.call(_unit, "juju-updateseries "
+                             "--from-series={} --to-series={}"
+                             .format(_from_series, _to_series))]
+        for filename in ["package-workarounds.sh",
+                         "corosync", "corosync.conf"]:
+            _scp_calls.append(mock.call(_unit, filename, filename))
+        generic_utils.wrap_do_release_upgrade(
+            _unit, to_series=_to_series, from_series=_from_series)
+        self.scp_to_unit.assert_has_calls(_scp_calls)
+        self.run_on_unit.assert_has_calls(_run_calls)
+        self.do_release_upgrade.assert_called_once_with(_unit)
+
+    def test_reboot(self):
+        _unit = "app/2"
+        generic_utils.reboot(_unit)
+        self.subprocess.check_call.assert_called_once_with(
+            ['juju', 'run', "--unit", _unit,
+             'sudo', 'reboot', '&&', 'exit'])
+
+    def test_set_origin(self):
+        "application, origin='openstack-origin', pocket='distro'):"
+        self.patch_object(generic_utils.model, "set_application_config")
+        _application = "application"
+        _origin = "source"
+        _pocket = "cloud:fake-cloud"
+        generic_utils.set_origin(_application, origin=_origin, pocket=_pocket)
+        self.set_application_config.assert_called_once_with(
+            _application, {_origin: _pocket})
+
+    def test_series_upgrade(self):
+        self.patch_object(generic_utils.time, "sleep")
+        self.patch_object(generic_utils.model, "block_until_all_units_idle")
+        self.patch_object(generic_utils.juju_utils, "prepare_series_upgrade")
+        self.patch_object(generic_utils.juju_utils, "complete_series_upgrade")
+        self.patch_object(generic_utils.juju_utils, "set_series")
+        self.patch_object(generic_utils.juju_utils, "update_series")
+        self.patch_object(generic_utils, "set_origin")
+        self.patch_object(generic_utils, "wrap_do_release_upgrade")
+        self.patch_object(generic_utils, "reboot")
+        _unit = "app/2"
+        _application = "app"
+        _machine_num = "4"
+        _from_series = "xenial"
+        _to_series = "bionic"
+        _origin = "source"
+        generic_utils.series_upgrade(
+            _unit, _machine_num, origin=_origin,
+            to_series=_to_series, from_series=_from_series)
+        self.block_until_all_units_idle.called_with()
+        self.prepare_series_upgrade.assert_called_once_with(
+            _machine_num, to_series=_to_series)
+        self.wrap_do_release_upgrade.assert_called_once_with(
+            _unit, to_series=_to_series, from_series=_from_series)
+        self.complete_series_upgrade.assert_called_once_with(_machine_num)
+        self.set_series.assert_called_once_with(_application, _to_series)
+        self.update_series.assert_called_once_with(_machine_num, _to_series)
+        self.set_origin.assert_called_once_with(_application, _origin)
+        self.reboot.assert_called_once_with(_unit)
+
+    def test_series_upgrade_application_pause_peers_and_subordinates(self):
+        self.patch_object(generic_utils.juju_utils, "get_application_status")
+        self.patch_object(generic_utils.model, "run_action")
+        self.patch_object(generic_utils, "series_upgrade")
+        self.get_application_status.return_value = FAKE_STATUS
+        _application = "app"
+        _from_series = "xenial"
+        _to_series = "bionic"
+        _origin = "source"
+        # Peers and Subordinates
+        _run_action_calls = [
+            mock.call("{}-hacluster/1".format(_application),
+                      "pause", action_params={}),
+            mock.call("{}/1".format(_application), "pause", action_params={}),
+            mock.call("{}-hacluster/2".format(_application),
+                      "pause", action_params={}),
+            mock.call("{}/2".format(_application), "pause", action_params={}),
+        ]
+        _series_upgrade_calls = []
+        for machine_num in ("0", "1", "2"):
+            _series_upgrade_calls.append(
+                mock.call("{}/{}".format(_application, machine_num),
+                          machine_num, origin=_origin,
+                          from_series=_from_series, to_series=_to_series),
+            )
+
+        # Pause primary peers and subordinates
+        generic_utils.series_upgrade_application(
+            _application, origin=_origin,
+            to_series=_to_series, from_series=_from_series,
+            pause_non_leader_primary=True,
+            pause_non_leader_subordinate=True)
+        self.run_action.assert_has_calls(_run_action_calls)
+        self.series_upgrade.assert_has_calls(_series_upgrade_calls)
+
+    def test_series_upgrade_application_pause_subordinates(self):
+        self.patch_object(generic_utils.juju_utils, "get_application_status")
+        self.patch_object(generic_utils.model, "run_action")
+        self.patch_object(generic_utils, "series_upgrade")
+        self.get_application_status.return_value = FAKE_STATUS
+        _application = "app"
+        _from_series = "xenial"
+        _to_series = "bionic"
+        _origin = "source"
+        # Subordinates only
+        _run_action_calls = [
+            mock.call("{}-hacluster/1".format(_application),
+                      "pause", action_params={}),
+            mock.call("{}-hacluster/2".format(_application),
+                      "pause", action_params={}),
+        ]
+        _series_upgrade_calls = []
+        for machine_num in ("0", "1", "2"):
+            _series_upgrade_calls.append(
+                mock.call("{}/{}".format(_application, machine_num),
+                          machine_num, origin=_origin,
+                          from_series=_from_series, to_series=_to_series),
+            )
+
+        # Pause subordinates
+        generic_utils.series_upgrade_application(
+            _application, origin=_origin,
+            to_series=_to_series, from_series=_from_series,
+            pause_non_leader_primary=False,
+            pause_non_leader_subordinate=True)
+        self.run_action.assert_has_calls(_run_action_calls)
+        self.series_upgrade.assert_has_calls(_series_upgrade_calls)
+
+    def test_series_upgrade_application_no_pause(self):
+        self.patch_object(generic_utils.juju_utils, "get_application_status")
+        self.patch_object(generic_utils.model, "run_action")
+        self.patch_object(generic_utils, "series_upgrade")
+        self.get_application_status.return_value = FAKE_STATUS
+        _application = "app"
+        _from_series = "xenial"
+        _to_series = "bionic"
+        _origin = "source"
+        _series_upgrade_calls = []
+        for machine_num in ("0", "1", "2"):
+            _series_upgrade_calls.append(
+                mock.call("{}/{}".format(_application, machine_num),
+                          machine_num, origin=_origin,
+                          from_series=_from_series, to_series=_to_series),
+            )
+
+        # No Pausiing
+        generic_utils.series_upgrade_application(
+            _application, origin=_origin,
+            to_series=_to_series, from_series=_from_series,
+            pause_non_leader_primary=False,
+            pause_non_leader_subordinate=False)
+        self.run_action.assert_not_called()
+        self.series_upgrade.assert_has_calls(_series_upgrade_calls)

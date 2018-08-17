@@ -72,7 +72,7 @@ class SeriesUpgradeTest(unittest.TestCase):
             # Place holder for Ceph applications
             # The rest are likley APIs and use defaults
 
-            generic_utils.series_upgrade.series_upgrade_application(
+            generic_utils.series_upgrade_application(
                 application,
                 pause_non_leader_primary=pause_non_leader_primary,
                 pause_non_leader_subordinate=pause_non_leader_subordinate,
