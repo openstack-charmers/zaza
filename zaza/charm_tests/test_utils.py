@@ -71,23 +71,47 @@ class OpenStackBaseTest(unittest.TestCase):
         :param alternate_config: Dict of charm settings to change to
         :type alternate_config: dict
         """
-        logging.debug('Changing charm setting to {}'.format(alternate_config))
-        model.set_application_config(
-            self.application_name,
-            alternate_config,
-            model_name=self.model_name)
+        # we need to compare config values to what is already applied before
+        # attempting to set them.  otherwise the model will behave differently
+        # than we would expect while waiting for completion of the change
+        _app_config = model.get_application_config(self.application_name)
+        app_config = {}
+        # convert the more elaborate config structure from libjuju to something
+        # we can compare to what the caller supplies to this function
+        for k in alternate_config.keys():
+            # note that conversion to string for all values is due to
+            # attempting to set any config with other types lead to Traceback
+            app_config[k] = str(_app_config.get(k, {}).get('value', ''))
+        if all(item in app_config.items()
+                for item in alternate_config.items()):
+            logging.debug('alternate_config equals what is already applied '
+                          'config')
+            yield
+            if default_config == alternate_config:
+                logging.debug('default_config also equals what is already '
+                              'applied config')
+                return
+            logging.debug('alternate_config already set, and default_config '
+                          'needs to be applied before return')
+        else:
+            logging.debug('Changing charm setting to {}'
+                          .format(alternate_config))
+            model.set_application_config(
+                self.application_name,
+                alternate_config,
+                model_name=self.model_name)
 
-        logging.debug(
-            'Waiting for units to execute config-changed hook')
-        model.wait_for_agent_status(model_name=self.model_name)
+            logging.debug(
+                'Waiting for units to execute config-changed hook')
+            model.wait_for_agent_status(model_name=self.model_name)
 
-        logging.debug(
-            'Waiting for units to reach target states')
-        model.wait_for_application_states(
-            model_name=self.model_name,
-            states=self.test_config.get('target_deploy_status', {}))
+            logging.debug(
+                'Waiting for units to reach target states')
+            model.wait_for_application_states(
+                model_name=self.model_name,
+                states=self.test_config.get('target_deploy_status', {}))
 
-        yield
+            yield
 
         logging.debug('Restoring charm setting to {}'.format(default_config))
         model.set_application_config(
