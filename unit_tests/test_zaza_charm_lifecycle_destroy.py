@@ -26,3 +26,11 @@ class TestCharmLifecycleDestroy(ut_utils.BaseTestCase):
     def test_parser(self):
         args = lc_destroy.parse_args(['-m', 'doomed'])
         self.assertEqual(args.model_name, 'doomed')
+
+    def test_parser_logging(self):
+        # Using defaults
+        args = lc_destroy.parse_args(['-m', 'doomed'])
+        self.assertEqual(args.loglevel, 'INFO')
+        # Using args
+        args = lc_destroy.parse_args(['-m', 'doomed', '--log', 'DEBUG'])
+        self.assertEqual(args.loglevel, 'DEBUG')

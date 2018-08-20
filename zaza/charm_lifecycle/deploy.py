@@ -266,12 +266,17 @@ def parse_args(args):
     parser.add_argument('--no-wait', dest='wait',
                         help='Do not wait for deployment to settle',
                         action='store_false')
-    parser.set_defaults(wait=True)
+    parser.add_argument('--log', dest='loglevel',
+                        help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
+    parser.set_defaults(wait=True, loglevel='INFO')
     return parser.parse_args(args)
 
 
 def main():
     """Deploy bundle."""
-    logging.basicConfig(level=logging.INFO)
     args = parse_args(sys.argv[1:])
+    level = getattr(logging, args.loglevel.upper(), None)
+    if not isinstance(level, int):
+        raise ValueError('Invalid log level: "{}"'.format(args.loglevel))
+    logging.basicConfig(level=level)
     deploy(args.bundle, args.model, wait=args.wait)
