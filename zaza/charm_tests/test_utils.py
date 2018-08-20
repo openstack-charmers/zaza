@@ -48,10 +48,10 @@ class OpenStackBaseTest(unittest.TestCase):
         cls.model_name = model.get_juju_model()
         cls.test_config = lifecycle_utils.get_charm_config()
         cls.application_name = cls.test_config['charm_name']
-        cls.first_unit = model.get_first_unit_name(
+        cls.lead_unit = model.get_lead_unit_name(
             cls.application_name,
             model_name=cls.model_name)
-        logging.debug('First unit is {}'.format(cls.first_unit))
+        logging.debug('Leader unit is {}'.format(cls.lead_unit))
 
     @contextlib.contextmanager
     def config_change(self, default_config, alternate_config):
@@ -148,11 +148,11 @@ class OpenStackBaseTest(unittest.TestCase):
                          changed.
         :type services: list
         """
-        # first_unit is only useed to grab a timestamp, the assumption being
+        # lead_unit is only useed to grab a timestamp, the assumption being
         # that all the units times are in sync.
 
         mtime = model.get_unit_time(
-            self.first_unit,
+            self.lead_unit,
             model_name=self.model_name)
         logging.debug('Remote unit timestamp {}'.format(mtime))
 
@@ -183,6 +183,7 @@ class OpenStackBaseTest(unittest.TestCase):
                 default_entry,
                 model_name=self.model_name)
 
+    @contextlib.contextmanager
     def pause_resume(self, services):
         """Run Pause and resume tests.
 
@@ -194,39 +195,40 @@ class OpenStackBaseTest(unittest.TestCase):
         :type services: list
         """
         model.block_until_service_status(
-            self.first_unit,
+            self.lead_unit,
             services,
             'running',
             model_name=self.model_name)
         model.block_until_unit_wl_status(
-            self.first_unit,
+            self.lead_unit,
             'active',
             model_name=self.model_name)
         model.run_action(
-            self.first_unit,
+            self.lead_unit,
             'pause',
             model_name=self.model_name)
         model.block_until_unit_wl_status(
-            self.first_unit,
+            self.lead_unit,
             'maintenance',
             model_name=self.model_name)
         model.block_until_all_units_idle(model_name=self.model_name)
         model.block_until_service_status(
-            self.first_unit,
+            self.lead_unit,
             services,
             'stopped',
             model_name=self.model_name)
+        yield
         model.run_action(
-            self.first_unit,
+            self.lead_unit,
             'resume',
             model_name=self.model_name)
         model.block_until_unit_wl_status(
-            self.first_unit,
+            self.lead_unit,
             'active',
             model_name=self.model_name)
         model.block_until_all_units_idle(model_name=self.model_name)
         model.block_until_service_status(
-            self.first_unit,
+            self.lead_unit,
             services,
             'running',
             model_name=self.model_name)

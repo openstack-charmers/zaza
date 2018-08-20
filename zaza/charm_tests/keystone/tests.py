@@ -65,72 +65,74 @@ class CharmOperationTest(BaseKeystoneTest):
             logging.info('skipping test < xenial_ocata')
             return
 
-        KEY_KEY_REPOSITORY = 'key_repository'
-        CREDENTIAL_KEY_REPOSITORY = '/etc/keystone/credential-keys/'
-        FERNET_KEY_REPOSITORY = '/etc/keystone/fernet-keys/'
+        with self.pause_resume(['apache2']):
+            KEY_KEY_REPOSITORY = 'key_repository'
+            CREDENTIAL_KEY_REPOSITORY = '/etc/keystone/credential-keys/'
+            FERNET_KEY_REPOSITORY = '/etc/keystone/fernet-keys/'
 
-        # get key repostiroy from leader storage
-        key_repository = json.loads(juju_utils.leader_get(
-            self.application_name, KEY_KEY_REPOSITORY))
-        # sort keys so we can compare it to on-disk repositories
-        key_repository = json.loads(json.dumps(
-            key_repository, sort_keys=True),
-            object_pairs_hook=collections.OrderedDict)
-        logging.info('key_repository: "{}"'
-                     .format(pprint.pformat(key_repository)))
-        for repo in [CREDENTIAL_KEY_REPOSITORY, FERNET_KEY_REPOSITORY]:
-            try:
-                for key_name, key in key_repository[repo].items():
-                    if int(key_name) > 1:
-                        # after initialization the repository contains the
-                        # staging key (0) and the primary key (1).  After
-                        # rotation the repository contains at least one key
-                        # with higher index.
-                        break
-                else:
-                    # NOTE the charm should only rotate the fernet key
-                    # repostiory and not rotate the credential key repository.
-                    if repo == FERNET_KEY_REPOSITORY:
-                        raise zaza_exceptions.KeystoneKeyRepositoryError(
-                            'Keys in Fernet key repository has not been '
-                            'rotated.')
-            except KeyError:
-                raise zaza_exceptions.KeystoneKeyRepositoryError(
-                    'Dict in leader setting "{}" does not contain key '
-                    'repository "{}"'.format(KEY_KEY_REPOSITORY, repo))
-
-        # get on-disk key repository from all units
-        on_disk = {}
-        units = zaza.model.get_units(self.application_name)
-        for unit in units:
-            on_disk[unit.entity_id] = {}
+            # get key repostiroy from leader storage
+            key_repository = json.loads(juju_utils.leader_get(
+                self.application_name, KEY_KEY_REPOSITORY))
+            # sort keys so we can compare it to on-disk repositories
+            key_repository = json.loads(json.dumps(
+                key_repository, sort_keys=True),
+                object_pairs_hook=collections.OrderedDict)
+            logging.info('key_repository: "{}"'
+                         .format(pprint.pformat(key_repository)))
             for repo in [CREDENTIAL_KEY_REPOSITORY, FERNET_KEY_REPOSITORY]:
-                on_disk[unit.entity_id][repo] = {}
-                result = zaza.model.run_on_unit(
-                    unit.entity_id, 'sudo ls -1 {}'.format(repo))
-                for key_name in result.get('Stdout').split():
-                    result = zaza.model.run_on_unit(
-                        unit.entity_id,
-                        'sudo cat {}/{}'.format(repo, key_name))
-                    on_disk[unit.entity_id][repo][key_name] = result.get(
-                        'Stdout')
-        # sort keys so we can compare it to leader storage repositories
-        on_disk = json.loads(
-            json.dumps(on_disk, sort_keys=True),
-            object_pairs_hook=collections.OrderedDict)
-        logging.info('on_disk: "{}"'.format(pprint.pformat(on_disk)))
+                try:
+                    for key_name, key in key_repository[repo].items():
+                        if int(key_name) > 1:
+                            # after initialization the repository contains the
+                            # staging key (0) and the primary key (1).  After
+                            # rotation the repository contains at least one key
+                            # with higher index.
+                            break
+                    else:
+                        # NOTE the charm should only rotate the fernet key
+                        # repostiory and not rotate the credential key
+                        # repository.
+                        if repo == FERNET_KEY_REPOSITORY:
+                            raise zaza_exceptions.KeystoneKeyRepositoryError(
+                                'Keys in Fernet key repository has not been '
+                                'rotated.')
+                except KeyError:
+                    raise zaza_exceptions.KeystoneKeyRepositoryError(
+                        'Dict in leader setting "{}" does not contain key '
+                        'repository "{}"'.format(KEY_KEY_REPOSITORY, repo))
 
-        for unit in units:
-            unit_repo = on_disk[unit.entity_id]
-            lead_repo = key_repository
-            if unit_repo != lead_repo:
-                raise zaza_exceptions.KeystoneKeyRepositoryError(
-                    'expect: "{}" actual({}): "{}"'
-                    .format(pprint.pformat(lead_repo), unit.entity_id,
-                            pprint.pformat(unit_repo)))
-            logging.info('"{}" == "{}"'
-                         .format(pprint.pformat(unit_repo),
-                                 pprint.pformat(lead_repo)))
+            # get on-disk key repository from all units
+            on_disk = {}
+            units = zaza.model.get_units(self.application_name)
+            for unit in units:
+                on_disk[unit.entity_id] = {}
+                for repo in [CREDENTIAL_KEY_REPOSITORY, FERNET_KEY_REPOSITORY]:
+                    on_disk[unit.entity_id][repo] = {}
+                    result = zaza.model.run_on_unit(
+                        unit.entity_id, 'sudo ls -1 {}'.format(repo))
+                    for key_name in result.get('Stdout').split():
+                        result = zaza.model.run_on_unit(
+                            unit.entity_id,
+                            'sudo cat {}/{}'.format(repo, key_name))
+                        on_disk[unit.entity_id][repo][key_name] = result.get(
+                            'Stdout')
+            # sort keys so we can compare it to leader storage repositories
+            on_disk = json.loads(
+                json.dumps(on_disk, sort_keys=True),
+                object_pairs_hook=collections.OrderedDict)
+            logging.info('on_disk: "{}"'.format(pprint.pformat(on_disk)))
+
+            for unit in units:
+                unit_repo = on_disk[unit.entity_id]
+                lead_repo = key_repository
+                if unit_repo != lead_repo:
+                    raise zaza_exceptions.KeystoneKeyRepositoryError(
+                        'expect: "{}" actual({}): "{}"'
+                        .format(pprint.pformat(lead_repo), unit.entity_id,
+                                pprint.pformat(unit_repo)))
+                logging.info('"{}" == "{}"'
+                             .format(pprint.pformat(unit_repo),
+                                     pprint.pformat(lead_repo)))
 
 
 class AuthenticationAuthorizationTest(BaseKeystoneTest):
