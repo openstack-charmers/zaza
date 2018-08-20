@@ -77,25 +77,8 @@ class CephLowLevelTest(test_utils.OpenStackBaseTest):
         """
         logging.info('Checking ceph-osd and ceph-mon services...')
         services = {}
-        current_release = zaza_openstack.get_os_release()
-
-        xenial_mitaka = zaza_openstack.get_os_release('xenial_mitaka')
-
-        if current_release < xenial_mitaka:
-            # For upstart systems only.  Ceph services under systemd
-            # are checked by process name instead.
-            ceph_services = [
-                'ceph-mon-all',
-                'ceph-mon id=`hostname`',
-            ]
-            services['ceph-osd/0'] = [
-                'ceph-osd-all',
-                'ceph-osd id={}'.format(zaza_ceph.get_ceph_osd_id_cmd(0)),
-                'ceph-osd id={}'.format(zaza_ceph.get_ceph_osd_id_cmd(1))
-            ]
-        else:
-            ceph_services = ['ceph-mon']
-            services['ceph-osd/0'] = ['ceph-osd']
+        ceph_services = ['ceph-mon']
+        services['ceph-osd/0'] = ['ceph-osd']
 
         services['ceph-mon/0'] = ceph_services
         services['ceph-mon/1'] = ceph_services
