@@ -59,6 +59,9 @@ def parse_args(args):
                         required=False)
     parser.add_argument('-m', '--model-name', help='Name of model to remove',
                         required=True)
+    parser.add_argument('--log', dest='loglevel',
+                        help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
+    parser.set_defaults(loglevel='INFO')
     return parser.parse_args(args)
 
 
@@ -69,8 +72,11 @@ def main():
     provided read the configuration functions  from the charms tests.yaml
     config file
     """
-    logging.basicConfig(level=logging.INFO)
     args = parse_args(sys.argv[1:])
+    level = getattr(logging, args.loglevel.upper(), None)
+    if not isinstance(level, int):
+        raise ValueError('Invalid log level: "{}"'.format(args.loglevel))
+    logging.basicConfig(level=level)
     funcs = args.configfuncs or utils.get_charm_config()['configure']
     configure(args.model_name, funcs)
     asyncio.get_event_loop().close()

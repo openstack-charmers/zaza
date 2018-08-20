@@ -50,3 +50,11 @@ class TestCharmLifecycleTest(ut_utils.BaseTestCase):
             args.tests,
             ['my.test_class1', 'my.test_class2'])
         self.assertEqual(args.model_name, 'modelname')
+
+    def test_parser_logging(self):
+        # Using defaults
+        args = lc_test.parse_args(['-m', 'model'])
+        self.assertEqual(args.loglevel, 'INFO')
+        # Using args
+        args = lc_test.parse_args(['-m', 'model', '--log', 'DEBUG'])
+        self.assertEqual(args.loglevel, 'DEBUG')

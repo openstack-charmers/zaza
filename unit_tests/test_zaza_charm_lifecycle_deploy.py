@@ -239,3 +239,18 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             '-b', 'bun.yaml',
             '--no-wait'])
         self.assertFalse(args.wait)
+
+    def test_parser_logging(self):
+        args = lc_deploy.parse_args([
+            '-m', 'mymodel',
+            '-b', 'bun.yaml'
+        ])
+        # Using defaults
+        self.assertEqual(args.loglevel, 'INFO')
+        # Specify the parameter
+        args = lc_deploy.parse_args([
+            '-m', 'mymodel',
+            '-b', 'bun.yaml',
+            '--log', 'DEBUG'
+        ])
+        self.assertEqual(args.loglevel, 'DEBUG')

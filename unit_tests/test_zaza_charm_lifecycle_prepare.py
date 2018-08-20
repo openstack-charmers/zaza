@@ -90,3 +90,11 @@ class TestCharmLifecyclePrepare(ut_utils.BaseTestCase):
     def test_parser(self):
         args = lc_prepare.parse_args(['-m', 'newmodel'])
         self.assertEqual(args.model_name, 'newmodel')
+
+    def test_parser_logging(self):
+        # Using defaults
+        args = lc_prepare.parse_args(['-m', 'model'])
+        self.assertEqual(args.loglevel, 'INFO')
+        # Using args
+        args = lc_prepare.parse_args(['-m', 'model', '--log', 'DEBUG'])
+        self.assertEqual(args.loglevel, 'DEBUG')
