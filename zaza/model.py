@@ -396,6 +396,25 @@ def get_first_unit_name(application_name, model_name=None):
     return get_units(application_name, model_name=model_name)[0].name
 
 
+async def async_get_lead_unit_name(application_name, model_name=None):
+    """Return name of lowest numbered unit of given application.
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    :returns: Name of lowest numbered unit
+    :rtype: str
+    """
+    async with run_in_model(model_name) as model:
+        for unit in model.applications[application_name].units:
+            is_leader = await unit.is_leader_from_status()
+            if is_leader:
+                return unit.entity_id
+
+get_lead_unit_name = sync_wrapper(async_get_lead_unit_name)
+
+
 def get_app_ips(application_name, model_name=None):
     """Return public address of all units of an application.
 
