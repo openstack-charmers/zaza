@@ -49,6 +49,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         # Model
         self.patch_object(juju_utils, "model")
         self.model_name = "model-name"
+        self.model.get_juju_model.return_value = self.model_name
         self.model.get_status.return_value = self.juju_status
         self.run_output = {"Code": "0", "Stderr": "", "Stdout": "RESULT"}
         self.error_run_output = {"Code": "1", "Stderr": "ERROR", "Stdout": ""}
@@ -269,25 +270,28 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         _to_series = "bionic"
         juju_utils.prepare_series_upgrade(_machine_num, to_series=_to_series)
         self.subprocess.check_call.assert_called_once_with(
-            ['juju', 'upgrade-series', 'prepare',
-             _machine_num, _to_series, '--agree'])
+            ["juju", "upgrade-series", "-m", self.model_name,
+             "prepare", _machine_num, _to_series, "--agree"])
 
     def test_complete_series_upgrade(self):
         _machine_num = "1"
         juju_utils.complete_series_upgrade(_machine_num)
         self.subprocess.check_call.assert_called_once_with(
-            ['juju', 'upgrade-series', 'complete', _machine_num])
+            ["juju", "upgrade-series", "-m", self.model_name,
+             "complete", _machine_num])
 
     def test_set_series(self):
         _application = "application"
         _to_series = "bionic"
         juju_utils.set_series(_application, _to_series)
         self.subprocess.check_call.assert_called_once_with(
-            ['juju', 'set-series', _application, _to_series])
+            ["juju", "set-series", "-m", self.model_name,
+             _application, _to_series])
 
     def test_update_series(self):
         _machine_num = "1"
         _to_series = "bionic"
         juju_utils.update_series(_machine_num, _to_series)
         self.subprocess.check_call.assert_called_once_with(
-            ['juju', 'update-series', _machine_num, _to_series])
+            ["juju", "update-series", "-m", self.model_name,
+             _machine_num, _to_series])

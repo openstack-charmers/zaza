@@ -275,8 +275,9 @@ def prepare_series_upgrade(machine_num, to_series="xenial"):
     :returns: None
     :rtype: None
     """
-    cmd = ["juju", "upgrade-series", "prepare",
-           machine_num, to_series, "--agree"]
+    juju_model = model.get_juju_model()
+    cmd = ["juju", "upgrade-series", "-m", juju_model,
+           "prepare", machine_num, to_series, "--agree"]
     subprocess.check_call(cmd)
 
 
@@ -292,7 +293,9 @@ def complete_series_upgrade(machine_num):
     :returns: None
     :rtype: None
     """
-    cmd = ["juju", "upgrade-series", "complete", machine_num]
+    juju_model = model.get_juju_model()
+    cmd = ["juju", "upgrade-series", "-m", juju_model,
+           "complete", machine_num]
     subprocess.check_call(cmd)
 
 
@@ -308,7 +311,9 @@ def set_series(application, to_series):
     :returns: None
     :rtype: None
     """
-    cmd = ["juju", "set-series", application, to_series]
+    juju_model = model.get_juju_model()
+    cmd = ["juju", "set-series", "-m", juju_model,
+           application, to_series]
     subprocess.check_call(cmd)
 
 
@@ -324,5 +329,7 @@ def update_series(machine_num, to_series):
     :returns: None
     :rtype: None
     """
-    cmd = ["juju", "update-series", machine_num, to_series]
+    juju_model = model.get_juju_model()
+    cmd = ["juju", "update-series", "-m", juju_model,
+           machine_num, to_series]
     subprocess.check_call(cmd)
