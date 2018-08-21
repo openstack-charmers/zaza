@@ -173,17 +173,19 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         _unit = "app/2"
         _from_series = "xenial"
         _to_series = "bionic"
+        _workaround_script = "scriptname"
+        _files = ["filename", _workaround_script]
         _scp_calls = []
         _run_calls = [
-            mock.call(_unit, "/home/ubuntu/package-workarounds.sh"),
+            mock.call(_unit, _workaround_script),
             mock.call(_unit, "juju-updateseries "
                              "--from-series={} --to-series={}"
                              .format(_from_series, _to_series))]
-        for filename in ["package-workarounds.sh",
-                         "corosync", "corosync.conf"]:
+        for filename in _files:
             _scp_calls.append(mock.call(_unit, filename, filename))
         generic_utils.wrap_do_release_upgrade(
-            _unit, to_series=_to_series, from_series=_from_series)
+            _unit, to_series=_to_series, from_series=_from_series,
+            workaround_script=_workaround_script, files=_files)
         self.scp_to_unit.assert_has_calls(_scp_calls)
         self.run_on_unit.assert_has_calls(_run_calls)
         self.do_release_upgrade.assert_called_once_with(_unit)
@@ -221,14 +223,18 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         _from_series = "xenial"
         _to_series = "bionic"
         _origin = "source"
+        _files = ["filename", "scriptname"]
+        _workaround_script = "scriptname"
         generic_utils.series_upgrade(
             _unit, _machine_num, origin=_origin,
-            to_series=_to_series, from_series=_from_series)
+            to_series=_to_series, from_series=_from_series,
+            workaround_script=_workaround_script, files=_files)
         self.block_until_all_units_idle.called_with()
         self.prepare_series_upgrade.assert_called_once_with(
             _machine_num, to_series=_to_series)
         self.wrap_do_release_upgrade.assert_called_once_with(
-            _unit, to_series=_to_series, from_series=_from_series)
+            _unit, to_series=_to_series, from_series=_from_series,
+            workaround_script=_workaround_script, files=_files)
         self.complete_series_upgrade.assert_called_once_with(_machine_num)
         self.set_series.assert_called_once_with(_application, _to_series)
         self.update_series.assert_called_once_with(_machine_num, _to_series)
@@ -244,6 +250,8 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         _from_series = "xenial"
         _to_series = "bionic"
         _origin = "source"
+        _files = ["filename", "scriptname"]
+        _workaround_script = "scriptname"
         # Peers and Subordinates
         _run_action_calls = [
             mock.call("{}-hacluster/1".format(_application),
@@ -258,7 +266,8 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             _series_upgrade_calls.append(
                 mock.call("{}/{}".format(_application, machine_num),
                           machine_num, origin=_origin,
-                          from_series=_from_series, to_series=_to_series),
+                          from_series=_from_series, to_series=_to_series,
+                          workaround_script=_workaround_script, files=_files),
             )
 
         # Pause primary peers and subordinates
@@ -266,7 +275,8 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             _application, origin=_origin,
             to_series=_to_series, from_series=_from_series,
             pause_non_leader_primary=True,
-            pause_non_leader_subordinate=True)
+            pause_non_leader_subordinate=True,
+            workaround_script=_workaround_script, files=_files),
         self.run_action.assert_has_calls(_run_action_calls)
         self.series_upgrade.assert_has_calls(_series_upgrade_calls)
 
@@ -279,6 +289,8 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         _from_series = "xenial"
         _to_series = "bionic"
         _origin = "source"
+        _files = ["filename", "scriptname"]
+        _workaround_script = "scriptname"
         # Subordinates only
         _run_action_calls = [
             mock.call("{}-hacluster/1".format(_application),
@@ -291,7 +303,8 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             _series_upgrade_calls.append(
                 mock.call("{}/{}".format(_application, machine_num),
                           machine_num, origin=_origin,
-                          from_series=_from_series, to_series=_to_series),
+                          from_series=_from_series, to_series=_to_series,
+                          workaround_script=_workaround_script, files=_files),
             )
 
         # Pause subordinates
@@ -299,7 +312,8 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             _application, origin=_origin,
             to_series=_to_series, from_series=_from_series,
             pause_non_leader_primary=False,
-            pause_non_leader_subordinate=True)
+            pause_non_leader_subordinate=True,
+            workaround_script=_workaround_script, files=_files),
         self.run_action.assert_has_calls(_run_action_calls)
         self.series_upgrade.assert_has_calls(_series_upgrade_calls)
 
@@ -313,11 +327,14 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         _to_series = "bionic"
         _origin = "source"
         _series_upgrade_calls = []
+        _files = ["filename", "scriptname"]
+        _workaround_script = "scriptname"
         for machine_num in ("0", "1", "2"):
             _series_upgrade_calls.append(
                 mock.call("{}/{}".format(_application, machine_num),
                           machine_num, origin=_origin,
-                          from_series=_from_series, to_series=_to_series),
+                          from_series=_from_series, to_series=_to_series,
+                          workaround_script=_workaround_script, files=_files),
             )
 
         # No Pausiing
@@ -325,6 +342,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             _application, origin=_origin,
             to_series=_to_series, from_series=_from_series,
             pause_non_leader_primary=False,
-            pause_non_leader_subordinate=False)
+            pause_non_leader_subordinate=False,
+            workaround_script=_workaround_script, files=_files)
         self.run_action.assert_not_called()
         self.series_upgrade.assert_has_calls(_series_upgrade_calls)

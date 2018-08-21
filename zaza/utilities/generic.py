@@ -172,7 +172,8 @@ def get_yaml_config(config_file):
 def series_upgrade_application(application, pause_non_leader_primary=True,
                                pause_non_leader_subordinate=True,
                                from_series="trusty", to_series="xenial",
-                               origin='openstack-origin'):
+                               origin='openstack-origin',
+                               files=None, workaround_script=None):
     """Series upgrade application.
 
     Wrap all the functionality to handle series upgrade for a given
@@ -193,6 +194,10 @@ def series_upgrade_application(application, pause_non_leader_primary=True,
     :param origin: The configuration setting variable name for changing origin
                    source. (openstack-origin or source)
     :type origin: str
+    :param files: Workaround files to scp to unit under upgrade
+    :type files: list
+    :param workaround_script: Workaround script to run during series upgrade
+    :type workaround_script: str
     :returns: None
     :rtype: None
     """
@@ -225,7 +230,8 @@ def series_upgrade_application(application, pause_non_leader_primary=True,
     logging.info("Series upgrade leader: {}".format(leader))
     series_upgrade(leader, status["units"][leader]["machine"],
                    from_series=from_series, to_series=to_series,
-                   origin=origin)
+                   origin=origin, workaround_script=workaround_script,
+                   files=files)
 
     # Series upgrade the non-leaders
     for unit in non_leaders:
@@ -233,12 +239,14 @@ def series_upgrade_application(application, pause_non_leader_primary=True,
                      .format(unit))
         series_upgrade(unit, status["units"][unit]["machine"],
                        from_series=from_series, to_series=to_series,
-                       origin=origin)
+                       origin=origin, workaround_script=workaround_script,
+                       files=files)
 
 
 def series_upgrade(unit_name, machine_num,
                    from_series="trusty", to_series="xenial",
-                   origin='openstack-origin'):
+                   origin='openstack-origin',
+                   files=None, workaround_script=None):
     """Perform series upgrade on a unit.
 
     :param unit_name: Unit Name
@@ -252,6 +260,10 @@ def series_upgrade(unit_name, machine_num,
     :param origin: The configuration setting variable name for changing origin
                    source. (openstack-origin or source)
     :type origin: str
+    :param files: Workaround files to scp to unit under upgrade
+    :type files: list
+    :param workaround_script: Workaround script to run during series upgrade
+    :type workaround_script: str
     :returns: None
     :rtype: None
     """
@@ -260,7 +272,8 @@ def series_upgrade(unit_name, machine_num,
     logging.info("Watiing for model idleness")
     model.block_until_all_units_idle()
     wrap_do_release_upgrade(unit_name, from_series=from_series,
-                            to_series=to_series)
+                            to_series=to_series, files=files,
+                            workaround_script=workaround_script)
     reboot(unit_name)
     # Without the sleep model.block_on_all_units_idle returns to early
     logging.info("Sleeping after reboot...")
@@ -292,7 +305,8 @@ def set_origin(application, origin='openstack-origin', pocket='distro'):
 
 
 def wrap_do_release_upgrade(unit_name, from_series="trusty",
-                            to_series="xenial"):
+                            to_series="xenial",
+                            files=None, workaround_script=None):
     """Wrap do release upgrade.
 
     In a production environment this step would be run administratively.
@@ -304,6 +318,10 @@ def wrap_do_release_upgrade(unit_name, from_series="trusty",
     :type from_series: str
     :param to_series: The series to which to upgrade
     :type to_series: str
+    :param files: Workaround files to scp to unit under upgrade
+    :type files: list
+    :param workaround_script: Workaround script to run during series upgrade
+    :type workaround_script: str
     :returns: None
     :rtype: None
     """
@@ -311,13 +329,13 @@ def wrap_do_release_upgrade(unit_name, from_series="trusty",
     # There are a few necessary hacks to accomplish an automated upgrade
     # to overcome some packaging bugs.
     # Copy scripts
-    _files = ["package-workarounds.sh", "corosync", "corosync.conf"]
-    for _file in _files:
-        model.scp_to_unit(unit_name, _file, _file)
+    if files:
+        for _file in files:
+            model.scp_to_unit(unit_name, _file, os.path.basename(_file))
 
     # Run Scripts
-    model.run_on_unit(
-        unit_name, "/home/ubuntu/package-workarounds.sh")
+    if workaround_script:
+        model.run_on_unit(unit_name, workaround_script)
 
     # Actually do the do_release_upgrade
     do_release_upgrade(unit_name)
