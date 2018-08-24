@@ -44,12 +44,13 @@ to run the deployment in.
 To run manually::
 
     $ functest-prepare --help
-    usage: functest-prepare [-h] -m MODEL_NAME
+    usage: functest-prepare [-h] -m MODEL_NAME [--log LOGLEVEL]
 
     optional arguments:
       -h, --help            show this help message and exit
       -m MODEL_NAME, --model-name MODEL_NAME
                             Name of new model
+      --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
 2) Deploy
 ~~~~~~~~~
@@ -75,7 +76,7 @@ The rendered overlay will be used on top of the specified bundle at deploy time.
 To run manually::
 
     $ functest-deploy --help
-    usage: functest-deploy [-h] -m MODEL -b BUNDLE [--no-wait]
+    usage: functest-deploy [-h] -m MODEL -b BUNDLE [--no-wait] [--log LOGLEVEL]
 
     optional arguments:
       -h, --help            show this help message and exit
@@ -84,6 +85,7 @@ To run manually::
       -b BUNDLE, --bundle BUNDLE
                             Bundle name (excluding file ext)
       --no-wait             Do not wait for deployment to settle
+      --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
 
 3) Configure
@@ -97,13 +99,14 @@ in turn.
 To run manually::
 
     $ functest-configure --help
-    usage: functest-configure [-h] [-c CONFIGFUNCS [CONFIGFUNCS ...]]
+    usage: functest-configure [-h] [-c CONFIGFUNCS [CONFIGFUNCS ...]] [--log LOGLEVEL]
 
     optional arguments:
       -h, --help
                             show this help message and exit
       -c CONFIGFUNCS, --configfuncs CONFIGFUNCS
                             Space separated list of config functions
+      --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
 
 4) Test
@@ -116,12 +119,13 @@ of test classes that should be run in tests.yaml and execute each in turn.
 To run manually::
 
     $ functest-test --help
-    usage: functest-test [-h] [-t TESTS [TESTS ...]]
+    usage: functest-test [-h] [-t TESTS [TESTS ...]] [--log LOGLEVEL]
 
     optional arguments:
       -h, --help            show this help message and exit
       -t TESTS, --tests TESTS
                             Space separated list of test classes
+      --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
 
 5) Collect
@@ -138,12 +142,13 @@ Destroy the model::
 
 
     $ functest-destroy --help
-    usage: functest-destroy [-h] -m MODEL_NAME
+    usage: functest-destroy [-h] -m MODEL_NAME [--log LOGLEVEL]
 
     optional arguments:
       -h, --help            show this help message and exit
       -m MODEL_NAME, --model-name MODEL_NAME
                             Name of model to remove
+      --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
 Example
 -------
