@@ -199,7 +199,7 @@ def get_neutron_session_client(session):
 
 
 def get_keystone_scope():
-    """Return Keystone scope based on OpenStack release.
+    """Return Keystone scope based on OpenStack release of the overcloud.
 
     :returns: String keystone scope
     :rtype: string
@@ -259,7 +259,6 @@ def get_undercloud_keystone_session(verify=None):
     :rtype: keystoneauth1.session.Session
     """
     return get_keystone_session(get_undercloud_auth(),
-                                scope=get_keystone_scope(),
                                 verify=verify)
 
 
