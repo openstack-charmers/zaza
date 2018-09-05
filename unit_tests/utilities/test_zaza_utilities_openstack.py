@@ -271,16 +271,12 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
 
     def test_get_undercloud_keystone_session(self):
         self.patch_object(openstack_utils, "get_keystone_session")
-        self.patch_object(openstack_utils, "get_keystone_scope")
         self.patch_object(openstack_utils, "get_undercloud_auth")
         _auth = "FAKE_AUTH"
-        _scope = "PROJECT"
-        self.get_keystone_scope.return_value = _scope
         self.get_undercloud_auth.return_value = _auth
 
         openstack_utils.get_undercloud_keystone_session()
-        self.get_keystone_session.assert_called_once_with(_auth, scope=_scope,
-                                                          verify=None)
+        self.get_keystone_session.assert_called_once_with(_auth, verify=None)
 
     def test_get_urllib_opener(self):
         self.patch_object(openstack_utils.urllib.request, "ProxyHandler")
