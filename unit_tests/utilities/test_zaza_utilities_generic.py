@@ -168,8 +168,8 @@ class TestGenericUtils(ut_utils.BaseTestCase):
 
     def test_wrap_do_release_upgrade(self):
         self.patch_object(generic_utils, "do_release_upgrade")
+        self.patch_object(generic_utils, "run_via_ssh")
         self.patch_object(generic_utils.model, "scp_to_unit")
-        self.patch_object(generic_utils.model, "run_on_unit")
         _unit = "app/2"
         _from_series = "xenial"
         _to_series = "bionic"
@@ -177,25 +177,30 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         _files = ["filename", _workaround_script]
         _scp_calls = []
         _run_calls = [
-            mock.call(_unit, _workaround_script),
-            mock.call(_unit, "juju-updateseries "
-                             "--from-series={} --to-series={}"
-                             .format(_from_series, _to_series))]
+            mock.call(_unit, _workaround_script)]
         for filename in _files:
             _scp_calls.append(mock.call(_unit, filename, filename))
         generic_utils.wrap_do_release_upgrade(
             _unit, to_series=_to_series, from_series=_from_series,
             workaround_script=_workaround_script, files=_files)
         self.scp_to_unit.assert_has_calls(_scp_calls)
-        self.run_on_unit.assert_has_calls(_run_calls)
+        self.run_via_ssh.assert_has_calls(_run_calls)
         self.do_release_upgrade.assert_called_once_with(_unit)
 
     def test_reboot(self):
         _unit = "app/2"
         generic_utils.reboot(_unit)
         self.subprocess.check_call.assert_called_once_with(
-            ['juju', 'run', "--unit", _unit,
+            ['juju', 'ssh', _unit,
              'sudo', 'reboot', '&&', 'exit'])
+
+    def test_run_via_ssh(self):
+        _unit = "app/2"
+        _cmd = "hostname"
+        generic_utils.run_via_ssh(_unit, _cmd)
+        self.subprocess.check_call.assert_called_once_with(
+            ['juju', 'ssh', _unit,
+             'sudo ' + _cmd])
 
     def test_set_origin(self):
         "application, origin='openstack-origin', pocket='distro'):"
@@ -208,12 +213,11 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             _application, {_origin: _pocket})
 
     def test_series_upgrade(self):
-        self.patch_object(generic_utils.time, "sleep")
         self.patch_object(generic_utils.model, "block_until_all_units_idle")
+        self.patch_object(generic_utils.model, "block_until_unit_wl_status")
         self.patch_object(generic_utils.juju_utils, "prepare_series_upgrade")
         self.patch_object(generic_utils.juju_utils, "complete_series_upgrade")
         self.patch_object(generic_utils.juju_utils, "set_series")
-        self.patch_object(generic_utils.juju_utils, "update_series")
         self.patch_object(generic_utils, "set_origin")
         self.patch_object(generic_utils, "wrap_do_release_upgrade")
         self.patch_object(generic_utils, "reboot")
@@ -237,7 +241,6 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             workaround_script=_workaround_script, files=_files)
         self.complete_series_upgrade.assert_called_once_with(_machine_num)
         self.set_series.assert_called_once_with(_application, _to_series)
-        self.update_series.assert_called_once_with(_machine_num, _to_series)
         self.set_origin.assert_called_once_with(_application, _origin)
         self.reboot.assert_called_once_with(_unit)
 

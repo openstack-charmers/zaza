@@ -17,7 +17,6 @@
 import logging
 import os
 import subprocess
-import time
 import yaml
 
 from zaza import model
@@ -267,24 +266,39 @@ def series_upgrade(unit_name, machine_num,
     :returns: None
     :rtype: None
     """
+    logging.info("Series upgrade {}".format(unit_name))
     application = unit_name.split('/')[0]
+    logging.info("Prepare series upgrade on {}".format(machine_num))
     juju_utils.prepare_series_upgrade(machine_num, to_series=to_series)
     logging.info("Watiing for model idleness")
     model.block_until_all_units_idle()
+    logging.info("Watiing for workload status 'unknown' on {}"
+                 .format(unit_name))
+    model.block_until_unit_wl_status(unit_name, "unknown")
     wrap_do_release_upgrade(unit_name, from_series=from_series,
                             to_series=to_series, files=files,
                             workaround_script=workaround_script)
-    reboot(unit_name)
-    # Without the sleep model.block_on_all_units_idle returns to early
-    logging.info("Sleeping after reboot...")
-    time.sleep(30)
     model.block_until_all_units_idle()
+    logging.info("Reboot {}".format(unit_name))
+    reboot(unit_name)
+    logging.info("Watiing for workload status 'blocked' on {}"
+                 .format(unit_name))
+    model.block_until_unit_wl_status(unit_name, "blocked")
+    logging.info("Watiing for model idleness")
+    model.block_until_all_units_idle()
+    logging.info("Complete series upgrade on {}".format(machine_num))
     juju_utils.complete_series_upgrade(machine_num)
     model.block_until_all_units_idle()
-    juju_utils.update_series(machine_num, to_series)
-    juju_utils.set_series(application, to_series)
+    logging.info("Watiing for workload status 'active' on {}"
+                 .format(unit_name))
+    model.block_until_unit_wl_status(unit_name, "active")
+    model.block_until_all_units_idle()
+    logging.info("Set origin on {}".format(application))
     set_origin(application, origin)
     model.block_until_all_units_idle()
+    # This step may be performed by juju in the future
+    logging.info("Set series on {} to {}".format(application, to_series))
+    juju_utils.set_series(application, to_series)
 
 
 def set_origin(application, origin='openstack-origin', pocket='distro'):
@@ -301,6 +315,7 @@ def set_origin(application, origin='openstack-origin', pocket='distro'):
     :returns: None
     :rtype: None
     """
+    logging.info("Set origin on {} to {}".format(application, origin))
     model.set_application_config(application, {origin: pocket})
 
 
@@ -330,22 +345,40 @@ def wrap_do_release_upgrade(unit_name, from_series="trusty",
     # to overcome some packaging bugs.
     # Copy scripts
     if files:
+        logging.info("SCP files")
         for _file in files:
+            logging.info("SCP {}".format(_file))
             model.scp_to_unit(unit_name, _file, os.path.basename(_file))
 
     # Run Scripts
     if workaround_script:
-        model.run_on_unit(unit_name, workaround_script)
+        logging.info("Running workaround script")
+        run_via_ssh(unit_name, workaround_script)
 
     # Actually do the do_release_upgrade
     do_release_upgrade(unit_name)
 
-    # Post upgrade hacks
-    # Juju may at some point in the future auotmate this step
-    model.run_on_unit(
-        unit_name,
-        "juju-updateseries --from-series={} --to-series={}"
-        .format(from_series, to_series))
+
+def run_via_ssh(unit_name, cmd):
+    """Run command on unit via ssh.
+
+    For executing commands on units when the juju agent is down.
+
+    :param unit_name: Unit Name
+    :param cmd: Command to execute on remote unit
+    :type cmd: str
+    :returns: None
+    :rtype: None
+    """
+    if "sudo" not in cmd:
+        cmd = "sudo {}".format(cmd)
+    cmd = ['juju', 'ssh', unit_name, cmd]
+    logging.info("Running {} on {}".format(cmd, unit_name))
+    try:
+        subprocess.check_call(cmd)
+    except subprocess.CalledProcessError as e:
+        logging.warn("Failed command {} on {}".format(cmd, unit_name))
+        logging.warn(e)
 
 
 def do_release_upgrade(unit_name):
@@ -376,8 +409,9 @@ def reboot(unit_name):
     :returns: None
     :rtype: None
     """
-    # NOTE: Runnig this via model.run_on_unit fails to exit properly
-    cmd = ['juju', 'run', '--unit', unit_name, 'sudo', 'reboot', '&&', 'exit']
+    # NOTE: When used with series upgrade the agent will be down.
+    # Even juju run will not work
+    cmd = ['juju', 'ssh', unit_name, 'sudo', 'reboot', '&&', 'exit']
     try:
         subprocess.check_call(cmd)
     except subprocess.CalledProcessError as e:
