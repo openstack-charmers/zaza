@@ -37,7 +37,7 @@ class SeriesUpgradeTest(unittest.TestCase):
         cli_utils.setup_logging()
         cls.lts = LTSGuestCreateTest()
 
-    def test_100_validate_pre_series_upgrade_cloud(self):
+    def validate_pre_series_upgrade_cloud(self):
         """Validate pre series upgrade."""
         logging.info("Validate pre-series-upgrade: Spin up LTS instance")
         self.lts.test_launch_small_cirros_instance()
@@ -46,6 +46,13 @@ class SeriesUpgradeTest(unittest.TestCase):
         """Run series upgrade."""
         # Set Feature Flag
         os.environ["JUJU_DEV_FEATURE_FLAGS"] = "upgrade-series"
+
+        # While there are packaging upgrade bugs we need to be cheeky and
+        # workaround by using the new package's version of files
+        workaround_script = "/home/ubuntu/package-workarounds.sh"
+        src_workaround_script = os.path.basename(workaround_script)
+
+        files = [src_workaround_script, 'corosync', 'corosync.conf']
 
         applications = model.get_status().applications
         from_series = "trusty"
@@ -78,9 +85,11 @@ class SeriesUpgradeTest(unittest.TestCase):
                 pause_non_leader_subordinate=pause_non_leader_subordinate,
                 from_series=from_series,
                 to_series=to_series,
-                origin=origin)
+                origin=origin,
+                workaround_script=workaround_script,
+                files=files)
 
-    def test_300_validate_series_upgraded_cloud(self):
+    def validate_series_upgraded_cloud(self):
         """Validate post series upgrade."""
         logging.info("Validate post-series-upgrade: Spin up LTS instance")
         self.lts.test_launch_small_cirros_instance()
