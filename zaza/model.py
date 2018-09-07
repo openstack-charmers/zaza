@@ -1090,25 +1090,27 @@ async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
     blocks until the given unit has the desired workload status::
 
          block_until_unit_wl_status(
-            'modelname',
             aunit,
-            'active')
+            'active'
+            model_name='modelname')
 
-    :param model_name: Name of model to query.
-    :type model_name: str
-    :param unit_name: Name of unit to run action on
+    :param unit_name: Name of unit
     :type unit_name: str
     :param status: Status to wait for (active, maintenance etc)
     :type status: str
+    :param model_name: Name of model to query.
+    :type model_name: str
     :param timeout: Time to wait for unit to achieved desired status
     :type timeout: float
     """
-    async with run_in_model(model_name) as model:
-        unit = get_unit_from_name(unit_name, model)
-        await model.block_until(
-            lambda: unit.workload_status == status,
-            timeout=timeout
-        )
+    async def _unit_status():
+        app = unit_name.split("/")[0]
+        model_status = await async_get_status()
+        return (model_status.applications[app]['units'][unit_name]
+                ['workload-status']['status'] == status)
+
+    async with run_in_model(model_name):
+        await async_block_until(_unit_status, timeout=timeout)
 
 block_until_unit_wl_status = sync_wrapper(
     async_block_until_unit_wl_status)
