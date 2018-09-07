@@ -75,7 +75,6 @@ class TestCharmLifecyclePrepare(ut_utils.BaseTestCase):
         self.add_model.assert_called_once_with(
             'newmodel',
             config={
-                'agent-stream': 'proposed',
                 'default-series': 'xenial',
                 'image-stream': 'daily',
                 'test-mode': 'true',
