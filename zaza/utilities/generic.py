@@ -270,15 +270,12 @@ def series_upgrade(unit_name, machine_num,
     application = unit_name.split('/')[0]
     logging.info("Prepare series upgrade on {}".format(machine_num))
     juju_utils.prepare_series_upgrade(machine_num, to_series=to_series)
-    logging.info("Watiing for model idleness")
-    model.block_until_all_units_idle()
     logging.info("Watiing for workload status 'unknown' on {}"
                  .format(unit_name))
     model.block_until_unit_wl_status(unit_name, "unknown")
     wrap_do_release_upgrade(unit_name, from_series=from_series,
                             to_series=to_series, files=files,
                             workaround_script=workaround_script)
-    model.block_until_all_units_idle()
     logging.info("Reboot {}".format(unit_name))
     reboot(unit_name)
     logging.info("Watiing for workload status 'blocked' on {}"
