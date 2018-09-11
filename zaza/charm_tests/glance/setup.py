@@ -14,6 +14,7 @@
 
 """Code for configuring glance."""
 
+import logging
 import zaza.utilities.openstack as openstack_utils
 
 
@@ -35,11 +36,14 @@ def add_cirros_image(glance_client=None):
         keystone_session = openstack_utils.get_overcloud_keystone_session()
         glance_client = openstack_utils.get_glance_session_client(
             keystone_session)
-    image_url = openstack_utils.find_cirros_image(arch='x86_64')
-    openstack_utils.create_image(
-        glance_client,
-        image_url,
-        'cirros')
+    if openstack_utils.get_images_by_name(glance_client, 'cirros'):
+        logging.warning('Using existing glance image')
+    else:
+        image_url = openstack_utils.find_cirros_image(arch='x86_64')
+        openstack_utils.create_image(
+            glance_client,
+            image_url,
+            'cirros')
 
 
 def add_lts_image(glance_client=None):
@@ -52,11 +56,13 @@ def add_lts_image(glance_client=None):
         keystone_session = openstack_utils.get_overcloud_keystone_session()
         glance_client = openstack_utils.get_glance_session_client(
             keystone_session)
-    image_url = openstack_utils.find_ubuntu_image(
-        release='bionic',
-        arch='amd64')
-    print(image_url)
-    openstack_utils.create_image(
-        glance_client,
-        image_url,
-        'bionic')
+    if openstack_utils.get_images_by_name(glance_client, 'bionic'):
+        logging.warning('Using existing glance image')
+    else:
+        image_url = openstack_utils.find_ubuntu_image(
+            release='bionic',
+            arch='amd64')
+        openstack_utils.create_image(
+            glance_client,
+            image_url,
+            'bionic')

@@ -30,7 +30,7 @@ class BaseGuestCreateTest(unittest.TestCase):
 
     boot_tests = {
         'cirros': {
-            'image_name': 'cirrosimage',
+            'image_name': 'cirros',
             'flavor_name': 'm1.tiny',
             'username': 'cirros',
             'bootstring': 'gocubsgo',

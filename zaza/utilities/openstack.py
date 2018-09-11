@@ -1366,6 +1366,20 @@ def get_urllib_opener():
     return urllib.request.build_opener(handler)
 
 
+def get_images_by_name(glance, image_name):
+    """Get all glance image objects with the given name.
+
+    :param glance: Authenticated glanceclient
+    :type glance: glanceclient.Client
+    :param image_name: Name of image
+    :type image_name: str
+
+    :returns: List of glance images
+    :rtype: [glanceclient.v2.image, ...]
+    """
+    return [i for i in glance.images.list() if image_name == i.name]
+
+
 def find_cirros_image(arch):
     """Return the url for the latest cirros image for the given architecture.
 
