@@ -974,6 +974,38 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.wait_for_agent_status(timeout=0.1)
 
+    def test_prepare_series_upgrade(self):
+        self.patch_object(model, 'subprocess')
+        self.patch_object(model, 'get_juju_model',
+                          return_value=self.model_name)
+        _machine_num = "1"
+        _to_series = "bionic"
+        model.prepare_series_upgrade(_machine_num, to_series=_to_series)
+        self.subprocess.check_call.assert_called_once_with(
+            ["juju", "upgrade-series", "-m", self.model_name,
+             "prepare", _machine_num, _to_series, "--agree"])
+
+    def test_complete_series_upgrade(self):
+        self.patch_object(model, 'get_juju_model',
+                          return_value=self.model_name)
+        self.patch_object(model, 'subprocess')
+        _machine_num = "1"
+        model.complete_series_upgrade(_machine_num)
+        self.subprocess.check_call.assert_called_once_with(
+            ["juju", "upgrade-series", "-m", self.model_name,
+             "complete", _machine_num])
+
+    def test_set_series(self):
+        self.patch_object(model, 'get_juju_model',
+                          return_value=self.model_name)
+        self.patch_object(model, 'subprocess')
+        _application = "application"
+        _to_series = "bionic"
+        model.set_series(_application, _to_series)
+        self.subprocess.check_call.assert_called_once_with(
+            ["juju", "set-series", "-m", self.model_name,
+             _application, _to_series])
+
 
 class AsyncModelTests(aiounittest.AsyncTestCase):
 

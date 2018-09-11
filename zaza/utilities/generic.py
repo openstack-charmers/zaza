@@ -201,7 +201,7 @@ def series_upgrade_application(application, pause_non_leader_primary=True,
     :returns: None
     :rtype: None
     """
-    status = juju_utils.get_application_status(application=application)
+    status = model.get_status().applications[application]
 
     # For some applications (percona-cluster) the leader unit must upgrade
     # first. For API applications the non-leader haclusters must be paused
@@ -270,7 +270,7 @@ def series_upgrade(unit_name, machine_num,
     logging.info("Series upgrade {}".format(unit_name))
     application = unit_name.split('/')[0]
     logging.info("Prepare series upgrade on {}".format(machine_num))
-    juju_utils.prepare_series_upgrade(machine_num, to_series=to_series)
+    model.prepare_series_upgrade(machine_num, to_series=to_series)
     logging.info("Watiing for workload status 'unknown' on {}"
                  .format(unit_name))
     model.block_until_unit_wl_status(unit_name, "unknown")
@@ -285,7 +285,7 @@ def series_upgrade(unit_name, machine_num,
     logging.info("Watiing for model idleness")
     model.block_until_all_units_idle()
     logging.info("Complete series upgrade on {}".format(machine_num))
-    juju_utils.complete_series_upgrade(machine_num)
+    model.complete_series_upgrade(machine_num)
     model.block_until_all_units_idle()
     logging.info("Watiing for workload status 'active' on {}"
                  .format(unit_name))
@@ -296,7 +296,7 @@ def series_upgrade(unit_name, machine_num,
     model.block_until_all_units_idle()
     # This step may be performed by juju in the future
     logging.info("Set series on {} to {}".format(application, to_series))
-    juju_utils.set_series(application, to_series)
+    model.set_series(application, to_series)
 
 
 def set_origin(application, origin='openstack-origin', pocket='distro'):

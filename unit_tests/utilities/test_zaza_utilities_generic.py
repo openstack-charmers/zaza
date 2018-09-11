@@ -47,6 +47,12 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             name='subprocess'
         )
 
+        # Juju Status Object and data
+        self.juju_status = mock.MagicMock()
+        self.juju_status.applications.__getitem__.return_value = FAKE_STATUS
+        self.patch_object(generic_utils, "model")
+        self.model.get_status.return_value = self.juju_status
+
     def test_dict_to_yaml(self):
         _dict_data = {"key": "value"}
         _str_data = "key: value\n"
@@ -215,9 +221,9 @@ class TestGenericUtils(ut_utils.BaseTestCase):
     def test_series_upgrade(self):
         self.patch_object(generic_utils.model, "block_until_all_units_idle")
         self.patch_object(generic_utils.model, "block_until_unit_wl_status")
-        self.patch_object(generic_utils.juju_utils, "prepare_series_upgrade")
-        self.patch_object(generic_utils.juju_utils, "complete_series_upgrade")
-        self.patch_object(generic_utils.juju_utils, "set_series")
+        self.patch_object(generic_utils.model, "prepare_series_upgrade")
+        self.patch_object(generic_utils.model, "complete_series_upgrade")
+        self.patch_object(generic_utils.model, "set_series")
         self.patch_object(generic_utils, "set_origin")
         self.patch_object(generic_utils, "wrap_do_release_upgrade")
         self.patch_object(generic_utils, "reboot")
@@ -245,10 +251,8 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         self.reboot.assert_called_once_with(_unit)
 
     def test_series_upgrade_application_pause_peers_and_subordinates(self):
-        self.patch_object(generic_utils.juju_utils, "get_application_status")
         self.patch_object(generic_utils.model, "run_action")
         self.patch_object(generic_utils, "series_upgrade")
-        self.get_application_status.return_value = FAKE_STATUS
         _application = "app"
         _from_series = "xenial"
         _to_series = "bionic"
@@ -284,10 +288,8 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         self.series_upgrade.assert_has_calls(_series_upgrade_calls)
 
     def test_series_upgrade_application_pause_subordinates(self):
-        self.patch_object(generic_utils.juju_utils, "get_application_status")
         self.patch_object(generic_utils.model, "run_action")
         self.patch_object(generic_utils, "series_upgrade")
-        self.get_application_status.return_value = FAKE_STATUS
         _application = "app"
         _from_series = "xenial"
         _to_series = "bionic"
@@ -302,6 +304,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
                       "pause", action_params={}),
         ]
         _series_upgrade_calls = []
+
         for machine_num in ("0", "1", "2"):
             _series_upgrade_calls.append(
                 mock.call("{}/{}".format(_application, machine_num),
@@ -321,10 +324,8 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         self.series_upgrade.assert_has_calls(_series_upgrade_calls)
 
     def test_series_upgrade_application_no_pause(self):
-        self.patch_object(generic_utils.juju_utils, "get_application_status")
         self.patch_object(generic_utils.model, "run_action")
         self.patch_object(generic_utils, "series_upgrade")
-        self.get_application_status.return_value = FAKE_STATUS
         _application = "app"
         _from_series = "xenial"
         _to_series = "bionic"
@@ -332,6 +333,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         _series_upgrade_calls = []
         _files = ["filename", "scriptname"]
         _workaround_script = "scriptname"
+
         for machine_num in ("0", "1", "2"):
             _series_upgrade_calls.append(
                 mock.call("{}/{}".format(_application, machine_num),

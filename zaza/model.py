@@ -1183,3 +1183,62 @@ class UnitNotFound(Exception):
         msg = ('Unit: {} was not found in current model'.
                format(unit_name))
         super(UnitNotFound, self).__init__(msg)
+
+
+# NOTE: The following are series upgrade related functions which are new
+# features in juju. We can migrate to libjuju calls when the feature
+# stabilizes.
+def prepare_series_upgrade(machine_num, to_series="xenial"):
+    """Execute juju series-upgrade prepare on machine.
+
+    NOTE: This is a new feature in juju behind a feature flag and not yet in
+    libjuju.
+    export JUJU_DEV_FEATURE_FLAGS=upgrade-series
+
+    :param machine_num: Machine number
+    :type machine_num: str
+    :param to_series: The series to which to upgrade
+    :type to_series: str
+    :returns: None
+    :rtype: None
+    """
+    juju_model = get_juju_model()
+    cmd = ["juju", "upgrade-series", "-m", juju_model,
+           "prepare", machine_num, to_series, "--agree"]
+    subprocess.check_call(cmd)
+
+
+def complete_series_upgrade(machine_num):
+    """Execute juju series-upgrade complete on machine.
+
+    NOTE: This is a new feature in juju behind a feature flag and not yet in
+    libjuju.
+    export JUJU_DEV_FEATURE_FLAGS=upgrade-series
+
+    :param machine_num: Machine number
+    :type machine_num: str
+    :returns: None
+    :rtype: None
+    """
+    juju_model = get_juju_model()
+    cmd = ["juju", "upgrade-series", "-m", juju_model,
+           "complete", machine_num]
+    subprocess.check_call(cmd)
+
+
+def set_series(application, to_series):
+    """Execute juju set-series complete on application.
+
+    NOTE: This is a new feature in juju and not yet in libjuju.
+
+    :param application: Name of application to upgrade series
+    :type application: str
+    :param to_series: The series to which to upgrade
+    :type to_series: str
+    :returns: None
+    :rtype: None
+    """
+    juju_model = get_juju_model()
+    cmd = ["juju", "set-series", "-m", juju_model,
+           application, to_series]
+    subprocess.check_call(cmd)
