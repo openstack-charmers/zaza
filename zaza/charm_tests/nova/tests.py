@@ -112,7 +112,7 @@ class BaseGuestCreateTest(unittest.TestCase):
 class CirrosGuestCreateTest(BaseGuestCreateTest):
     """Tests to launch a cirros image."""
 
-    def test_launch_small_cirros_instance(self):
+    def test_launch_small_instance(self):
         """Launch a cirros instance and test connectivity."""
         self.launch_instance(glance_setup.CIRROS_IMAGE_NAME)
 
@@ -120,6 +120,6 @@ class CirrosGuestCreateTest(BaseGuestCreateTest):
 class LTSGuestCreateTest(BaseGuestCreateTest):
     """Tests to launch a LTS image."""
 
-    def test_launch_small_cirros_instance(self):
-        """Launch a cirros instance and test connectivity."""
+    def test_launch_small_instance(self):
+        """Launch a Bionic instance and test connectivity."""
         self.launch_instance(glance_setup.LTS_IMAGE_NAME)

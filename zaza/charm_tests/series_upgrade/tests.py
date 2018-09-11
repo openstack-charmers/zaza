@@ -40,7 +40,7 @@ class SeriesUpgradeTest(unittest.TestCase):
     def validate_pre_series_upgrade_cloud(self):
         """Validate pre series upgrade."""
         logging.info("Validate pre-series-upgrade: Spin up LTS instance")
-        self.lts.test_launch_small_cirros_instance()
+        self.lts.test_launch_small_instance()
 
     def test_200_run_series_upgrade(self):
         """Run series upgrade."""
@@ -92,7 +92,7 @@ class SeriesUpgradeTest(unittest.TestCase):
     def validate_series_upgraded_cloud(self):
         """Validate post series upgrade."""
         logging.info("Validate post-series-upgrade: Spin up LTS instance")
-        self.lts.test_launch_small_cirros_instance()
+        self.lts.test_launch_small_instance()
 
 
 if __name__ == "__main__":
