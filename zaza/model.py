@@ -1094,6 +1094,10 @@ async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
             'active'
             model_name='modelname')
 
+    NOTE: unit.workload_status was actually reporting the application workload
+          status. Using the full status output from model.get_status() gives us
+          unit by unit workload status.
+
     :param unit_name: Name of unit
     :type unit_name: str
     :param status: Status to wait for (active, maintenance etc)

@@ -180,11 +180,12 @@ def series_upgrade_application(application, pause_non_leader_primary=True,
 
     :param application: Name of application to upgrade series
     :type application: str
-    :param pause_non_leader_primary: Should the non-leader applications be
-                                     paused?
+    :param pause_non_leader_primary: Whether the non-leader applications should
+                                     be paused
     :type pause_non_leader_primary: bool
-    :param pause_non_leader_subordinate: Should the non-leader subordinate
-                                         hacluster applications be paused?
+    :param pause_non_leader_subordinate: Whether the non-leader subordinate
+                                         hacluster applications should be
+                                         paused
     :type pause_non_leader_subordinate: bool
     :param from_series: The series from which to upgrade
     :type from_series: str
@@ -347,7 +348,7 @@ def wrap_do_release_upgrade(unit_name, from_series="trusty",
             logging.info("SCP {}".format(_file))
             model.scp_to_unit(unit_name, _file, os.path.basename(_file))
 
-    # Run Scripts
+    # Run Script
     if workaround_script:
         logging.info("Running workaround script")
         run_via_ssh(unit_name, workaround_script)
@@ -387,8 +388,8 @@ def do_release_upgrade(unit_name):
     :rtype: None
     """
     logging.info('Upgrading ' + unit_name)
-    # NOTE: It is necessary to run this via juju ssh rather than juju run do to
-    # timeout restrictions and error handling.
+    # NOTE: It is necessary to run this via juju ssh rather than juju run due
+    # to timeout restrictions and error handling.
     cmd = ['juju', 'ssh', unit_name, 'sudo',
            'do-release-upgrade', '-f', 'DistUpgradeViewNonInteractive']
     try:
