@@ -25,7 +25,6 @@ import zaza.model
 MODEL_DEFAULTS = {
     # Model defaults from charm-test-infra
     #   https://jujucharms.com/docs/2.1/models-config
-    'agent-stream': 'proposed',
     'default-series': 'xenial',
     'image-stream': 'daily',
     'test-mode': 'true',

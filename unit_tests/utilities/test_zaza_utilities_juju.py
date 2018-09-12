@@ -42,6 +42,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         # Model
         self.patch_object(juju_utils, "model")
         self.model_name = "model-name"
+        self.model.get_juju_model.return_value = self.model_name
         self.model.get_status.return_value = self.juju_status
         self.run_output = {"Code": "0", "Stderr": "", "Stdout": "RESULT"}
         self.error_run_output = {"Code": "1", "Stderr": "ERROR", "Stdout": ""}

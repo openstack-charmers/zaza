@@ -112,6 +112,25 @@ class TestModel(ut_utils.BaseTestCase):
         }
         self.Model_mock = mock.MagicMock()
 
+        # Juju Status Object and data
+        self.key = "instance-id"
+        self.key_data = "machine-uuid"
+        self.machine = "1"
+        self.machine_data = {self.key: self.key_data}
+        self.unit = "app/1"
+        self.unit_data = {
+            "workload-status": {"status": "active"},
+            "machine": self.machine}
+        self.application = "app"
+        self.application_data = {"units": {self.unit: self.unit_data}}
+        self.subordinate_application = "subordinate_application"
+        self.subordinate_application_data = {
+            "subordinate-to": [self.application]}
+        self.juju_status = mock.MagicMock()
+        self.juju_status.applications = {
+            self.application: self.application_data}
+        self.juju_status.machines = self.machine_data
+
         async def _connect_model(model_name):
             return model_name
 
@@ -886,34 +905,49 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
 
     def test_block_until_unit_wl_status(self):
         async def _block_until(f, timeout=None):
-            if not f():
+            rc = await f()
+            if not rc:
                 raise asyncio.futures.TimeoutError
-        self.patch_object(model, 'get_juju_model', return_value='mname')
+
+        async def _get_status():
+            return self.juju_status
+
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        self.Model_mock.block_until.side_effect = _block_until
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'get_unit_from_name')
-        self.get_unit_from_name.return_value = mock.MagicMock(
-            workload_status='active')
+        self.patch_object(model, 'async_get_status')
+        self.async_get_status.side_effect = _get_status
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
         model.block_until_unit_wl_status(
-            'app/2',
+            'app/1',
             'active',
             timeout=0.1)
 
     def test_block_until_unit_wl_status_fail(self):
         async def _block_until(f, timeout=None):
-            if not f():
+            rc = await f()
+            if not rc:
                 raise asyncio.futures.TimeoutError
-        self.patch_object(model, 'get_juju_model', return_value='mname')
+
+        async def _get_status():
+            return self.juju_status
+
+        (self.juju_status.applications[self.application]
+            ["units"][self.unit]["workload-status"]["status"]) = "blocked"
+
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        self.Model_mock.block_until.side_effect = _block_until
+        self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'get_unit_from_name')
-        self.get_unit_from_name.return_value = mock.MagicMock(
-            workload_status='maintenance')
+        self.patch_object(model, 'async_get_status')
+        self.async_get_status.side_effect = _get_status
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.block_until_unit_wl_status(
-                'app/2',
+                'app/1',
                 'active',
                 timeout=0.1)
 
@@ -939,6 +973,38 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.Model_mock.block_until.side_effect = _block_until
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.wait_for_agent_status(timeout=0.1)
+
+    def test_prepare_series_upgrade(self):
+        self.patch_object(model, 'subprocess')
+        self.patch_object(model, 'get_juju_model',
+                          return_value=self.model_name)
+        _machine_num = "1"
+        _to_series = "bionic"
+        model.prepare_series_upgrade(_machine_num, to_series=_to_series)
+        self.subprocess.check_call.assert_called_once_with(
+            ["juju", "upgrade-series", "-m", self.model_name,
+             "prepare", _machine_num, _to_series, "--agree"])
+
+    def test_complete_series_upgrade(self):
+        self.patch_object(model, 'get_juju_model',
+                          return_value=self.model_name)
+        self.patch_object(model, 'subprocess')
+        _machine_num = "1"
+        model.complete_series_upgrade(_machine_num)
+        self.subprocess.check_call.assert_called_once_with(
+            ["juju", "upgrade-series", "-m", self.model_name,
+             "complete", _machine_num])
+
+    def test_set_series(self):
+        self.patch_object(model, 'get_juju_model',
+                          return_value=self.model_name)
+        self.patch_object(model, 'subprocess')
+        _application = "application"
+        _to_series = "bionic"
+        model.set_series(_application, _to_series)
+        self.subprocess.check_call.assert_called_once_with(
+            ["juju", "set-series", "-m", self.model_name,
+             _application, _to_series])
 
 
 class AsyncModelTests(aiounittest.AsyncTestCase):
