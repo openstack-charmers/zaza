@@ -23,6 +23,7 @@ import unittest
 import zaza.model as model
 import zaza.utilities.openstack as openstack_utils
 import zaza.charm_tests.nova.utils as nova_utils
+import zaza.charm_tests.glance.setup as glance_setup
 
 
 class BaseGuestCreateTest(unittest.TestCase):
@@ -113,7 +114,7 @@ class CirrosGuestCreateTest(BaseGuestCreateTest):
 
     def test_launch_small_cirros_instance(self):
         """Launch a cirros instance and test connectivity."""
-        self.launch_instance('cirros')
+        self.launch_instance(glance_setup.CIRROS_IMAGE_NAME)
 
 
 class LTSGuestCreateTest(BaseGuestCreateTest):
@@ -121,4 +122,4 @@ class LTSGuestCreateTest(BaseGuestCreateTest):
 
     def test_launch_small_cirros_instance(self):
         """Launch a cirros instance and test connectivity."""
-        self.launch_instance('bionic')
+        self.launch_instance(glance_setup.LTS_IMAGE_NAME)
