@@ -114,6 +114,7 @@ def setup_sdn(network_config, keystone_session=None):
     project_id = openstack_utils.get_project_id(
         keystone_client,
         "admin",
+        domain_name="admin_domain",
     )
     # Network Setup
     subnetpools = False

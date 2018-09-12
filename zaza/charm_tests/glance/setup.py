@@ -14,7 +14,12 @@
 
 """Code for configuring glance."""
 
+import logging
 import zaza.utilities.openstack as openstack_utils
+
+CIRROS_IMAGE_NAME = "cirros"
+LTS_RELEASE = "bionic"
+LTS_IMAGE_NAME = "bionic"
 
 
 def basic_setup():
@@ -25,38 +30,52 @@ def basic_setup():
     """
 
 
-def add_cirros_image(glance_client=None):
+def add_cirros_image(glance_client=None, image_name=None):
     """Add a cirros image to the current deployment.
 
     :param glance: Authenticated glanceclient
     :type glance: glanceclient.Client
+    :param image_name: Label for the image in glance
+    :type image_name: str
     """
+    image_name = image_name or CIRROS_IMAGE_NAME
     if not glance_client:
         keystone_session = openstack_utils.get_overcloud_keystone_session()
         glance_client = openstack_utils.get_glance_session_client(
             keystone_session)
-    image_url = openstack_utils.find_cirros_image(arch='x86_64')
-    openstack_utils.create_image(
-        glance_client,
-        image_url,
-        'cirros')
+    if openstack_utils.get_images_by_name(glance_client, image_name):
+        logging.warning('Using existing glance image')
+    else:
+        image_url = openstack_utils.find_cirros_image(arch='x86_64')
+        openstack_utils.create_image(
+            glance_client,
+            image_url,
+            image_name)
 
 
-def add_lts_image(glance_client=None):
+def add_lts_image(glance_client=None, image_name=None, release=None):
     """Add an Ubuntu LTS image to the current deployment.
 
     :param glance: Authenticated glanceclient
     :type glance: glanceclient.Client
+    :param image_name: Label for the image in glance
+    :type image_name: str
+    :param release: Name of ubuntu release.
+    :type release: str
     """
+    image_name = image_name or LTS_IMAGE_NAME
+    release = release or LTS_RELEASE
     if not glance_client:
         keystone_session = openstack_utils.get_overcloud_keystone_session()
         glance_client = openstack_utils.get_glance_session_client(
             keystone_session)
-    image_url = openstack_utils.find_ubuntu_image(
-        release='bionic',
-        arch='amd64')
-    print(image_url)
-    openstack_utils.create_image(
-        glance_client,
-        image_url,
-        'bionic')
+    if openstack_utils.get_images_by_name(glance_client, image_name):
+        logging.warning('Using existing glance image')
+    else:
+        image_url = openstack_utils.find_ubuntu_image(
+            release=release,
+            arch='amd64')
+        openstack_utils.create_image(
+            glance_client,
+            image_url,
+            image_name)

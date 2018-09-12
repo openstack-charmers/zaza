@@ -302,6 +302,20 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.build_opener.assert_called_once_with(ProxyHandler_mock)
         self.ProxyHandler.assert_called_once_with({'http': 'http://squidy'})
 
+    def test_get_images_by_name(self):
+        image_mock1 = mock.MagicMock()
+        image_mock1.name = 'bob'
+        image_mock2 = mock.MagicMock()
+        image_mock2.name = 'bill'
+        glance_client = mock.MagicMock()
+        glance_client.images.list.return_value = [image_mock1, image_mock2]
+        self.assertEqual(
+            openstack_utils.get_images_by_name(glance_client, 'bob'),
+            [image_mock1])
+        self.assertEqual(
+            openstack_utils.get_images_by_name(glance_client, 'frank'),
+            [])
+
     def test_find_cirros_image(self):
         urllib_opener_mock = mock.MagicMock()
         self.patch_object(openstack_utils, "get_urllib_opener")
