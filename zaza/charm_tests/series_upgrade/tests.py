@@ -36,6 +36,8 @@ class SeriesUpgradeTest(unittest.TestCase):
         """Run setup for Series Upgrades."""
         cli_utils.setup_logging()
         cls.lts = LTSGuestCreateTest()
+        cls.from_series = None
+        cls.to_series = None
 
     def validate_pre_series_upgrade_cloud(self):
         """Validate pre series upgrade."""
@@ -55,8 +57,6 @@ class SeriesUpgradeTest(unittest.TestCase):
         files = [src_workaround_script, 'corosync', 'corosync.conf']
 
         applications = model.get_status().applications
-        from_series = "trusty"
-        to_series = "xenial"
         for application in applications:
             # Defaults
             origin = "openstack-origin"
@@ -83,8 +83,8 @@ class SeriesUpgradeTest(unittest.TestCase):
                 application,
                 pause_non_leader_primary=pause_non_leader_primary,
                 pause_non_leader_subordinate=pause_non_leader_subordinate,
-                from_series=from_series,
-                to_series=to_series,
+                from_series=self.from_series,
+                to_series=self.to_series,
                 origin=origin,
                 workaround_script=workaround_script,
                 files=files)
@@ -93,6 +93,30 @@ class SeriesUpgradeTest(unittest.TestCase):
         """Validate post series upgrade."""
         logging.info("Validate post-series-upgrade: Spin up LTS instance")
         self.lts.test_launch_small_instance()
+
+
+class TrustyXenialSeriesUpgrade(SeriesUpgradeTest):
+    """Trusty to Xenial Series Upgrade."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Run setup for Trusty to Xenial Series Upgrades."""
+        cli_utils.setup_logging()
+        cls.lts = LTSGuestCreateTest()
+        cls.from_series = "trusty"
+        cls.to_series = "xenial"
+
+
+class XenialBionicSeriesUpgrade(SeriesUpgradeTest):
+    """Xenial to Bionic Series Upgrade."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Run setup for Xenial to Bionic Series Upgrades."""
+        cli_utils.setup_logging()
+        cls.lts = LTSGuestCreateTest()
+        cls.from_series = "xenial"
+        cls.to_series = "bionic"
 
 
 if __name__ == "__main__":
