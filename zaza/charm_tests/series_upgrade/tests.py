@@ -36,6 +36,13 @@ class SeriesUpgradeTest(unittest.TestCase):
         """Run setup for Series Upgrades."""
         cli_utils.setup_logging()
         cls.lts = LTSGuestCreateTest()
+        cls.from_series = None
+        cls.to_series = None
+        # While there are packaging upgrade bugs we need to be cheeky and
+        # workaround by using the new package's version of files
+        cls.workaround_script = "/home/ubuntu/package-workarounds.sh"
+        cls.src_workaround_script = os.path.basename(cls.workaround_script)
+        cls.files = []
 
     def validate_pre_series_upgrade_cloud(self):
         """Validate pre series upgrade."""
@@ -47,16 +54,7 @@ class SeriesUpgradeTest(unittest.TestCase):
         # Set Feature Flag
         os.environ["JUJU_DEV_FEATURE_FLAGS"] = "upgrade-series"
 
-        # While there are packaging upgrade bugs we need to be cheeky and
-        # workaround by using the new package's version of files
-        workaround_script = "/home/ubuntu/package-workarounds.sh"
-        src_workaround_script = os.path.basename(workaround_script)
-
-        files = [src_workaround_script, 'corosync', 'corosync.conf']
-
         applications = model.get_status().applications
-        from_series = "trusty"
-        to_series = "xenial"
         for application in applications:
             # Defaults
             origin = "openstack-origin"
@@ -83,16 +81,42 @@ class SeriesUpgradeTest(unittest.TestCase):
                 application,
                 pause_non_leader_primary=pause_non_leader_primary,
                 pause_non_leader_subordinate=pause_non_leader_subordinate,
-                from_series=from_series,
-                to_series=to_series,
+                from_series=self.from_series,
+                to_series=self.to_series,
                 origin=origin,
-                workaround_script=workaround_script,
-                files=files)
+                workaround_script=self.workaround_script,
+                files=self.files)
 
     def validate_series_upgraded_cloud(self):
         """Validate post series upgrade."""
         logging.info("Validate post-series-upgrade: Spin up LTS instance")
         self.lts.test_launch_small_instance()
+
+
+class TrustyXenialSeriesUpgrade(SeriesUpgradeTest):
+    """Trusty to Xenial Series Upgrade."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Run setup for Trusty to Xenial Series Upgrades."""
+        super(TrustyXenialSeriesUpgrade, cls).setUpClass()
+        cls.from_series = "trusty"
+        cls.to_series = "xenial"
+        cls.files = [cls.src_workaround_script,
+                     'corosync', 'corosync.conf']
+
+
+class XenialBionicSeriesUpgrade(SeriesUpgradeTest):
+    """Xenial to Bionic Series Upgrade."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Run setup for Xenial to Bionic Series Upgrades."""
+        super(XenialBionicSeriesUpgrade, cls).setUpClass()
+        cls.from_series = "xenial"
+        cls.to_series = "bionic"
+        cls.files = [cls.src_workaround_script,
+                     'corosync', 'corosync.conf', 'haproxy.cfg']
 
 
 if __name__ == "__main__":
