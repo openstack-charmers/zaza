@@ -110,11 +110,14 @@ def setup_sdn(network_config, keystone_session=None):
     neutron_client = openstack_utils.get_neutron_session_client(
         keystone_session)
 
+    admin_domain = None
+    if openstack_utils.get_keystone_api_version() > 2:
+        admin_domain = "admin_domain"
     # Resolve the project name from the overcloud openrc into a project id
     project_id = openstack_utils.get_project_id(
         keystone_client,
         "admin",
-        domain_name="admin_domain",
+        domain_name=admin_domain,
     )
     # Network Setup
     subnetpools = False
