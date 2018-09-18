@@ -36,6 +36,7 @@ class SeriesUpgradeTest(unittest.TestCase):
         """Run setup for Series Upgrades."""
         cli_utils.setup_logging()
         cls.lts = LTSGuestCreateTest()
+        cls.setUpClass()
         cls.from_series = None
         cls.to_series = None
         # While there are packaging upgrade bugs we need to be cheeky and
@@ -44,7 +45,7 @@ class SeriesUpgradeTest(unittest.TestCase):
         cls.src_workaround_script = os.path.basename(cls.workaround_script)
         cls.files = []
 
-    def validate_pre_series_upgrade_cloud(self):
+    def test_100_validate_pre_series_upgrade_cloud(self):
         """Validate pre series upgrade."""
         logging.info("Validate pre-series-upgrade: Spin up LTS instance")
         self.lts.test_launch_small_instance()
@@ -87,7 +88,7 @@ class SeriesUpgradeTest(unittest.TestCase):
                 workaround_script=self.workaround_script,
                 files=self.files)
 
-    def validate_series_upgraded_cloud(self):
+    def test_500_validate_series_upgraded_cloud(self):
         """Validate post series upgrade."""
         logging.info("Validate post-series-upgrade: Spin up LTS instance")
         self.lts.test_launch_small_instance()
