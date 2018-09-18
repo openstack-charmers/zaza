@@ -1287,6 +1287,23 @@ def get_keystone_ip():
     return unit.public_address
 
 
+def get_keystone_api_version():
+    """Return the keystone api version.
+
+    :returns: Keystone's api version
+    :rtype: int
+    """
+    os_version = get_current_os_versions('keystone')['keystone']
+    api_version = get_application_config_option('keystone',
+                                                'preferred-api-version')
+    if os_version >= 'queens':
+        api_version = 3
+    elif api_version is None:
+        api_version = 2
+
+    return int(api_version)
+
+
 def get_overcloud_auth(address=None):
     """Get overcloud OpenStack authentication from the environment.
 
@@ -1306,18 +1323,9 @@ def get_overcloud_auth(address=None):
     if not address:
         address = get_keystone_ip()
 
-    os_version = get_current_os_versions('keystone')['keystone']
-
-    api_version = get_application_config_option('keystone',
-                                                'preferred-api-version')
-    if os_version >= 'queens':
-        api_version = 3
-    elif api_version is None:
-        api_version = 2
-
     password = juju_utils.leader_get('keystone', 'admin_passwd')
 
-    if api_version == 2:
+    if get_keystone_api_version() == 2:
         # V2 Explicitly, or None when charm does not possess the config key
         logging.info('Using keystone API V2 for overcloud auth')
         auth_settings = {

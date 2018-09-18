@@ -744,3 +744,47 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         xenial_mitaka = openstack_utils.get_os_release('xenial_mitaka')
         release_comp = xenial_queens > xenial_mitaka
         self.assertTrue(release_comp)
+
+    def test_get_keystone_api_version(self):
+        self.patch_object(openstack_utils, "get_current_os_versions")
+        self.patch_object(openstack_utils, "get_application_config_option")
+
+        self.get_current_os_versions.return_value = {"keystone": "liberty"}
+        self.get_application_config_option.return_value = None
+        self.assertEqual(openstack_utils.get_keystone_api_version(), 2)
+
+        self.get_application_config_option.return_value = "3"
+        self.assertEqual(openstack_utils.get_keystone_api_version(), 3)
+
+        self.get_current_os_versions.return_value = {"keystone": "queens"}
+        self.get_application_config_option.return_value = None
+        self.assertEqual(openstack_utils.get_keystone_api_version(), 3)
+
+    def test_get_project_id(self):
+        # No domain
+        self.patch_object(openstack_utils, "get_keystone_api_version")
+        self.get_keystone_api_version.return_value = 2
+        ksclient = mock.MagicMock()
+        project_id = "project-uuid"
+        project_name = "myproject"
+        project = mock.MagicMock()
+        project._info = {"name": project_name, "id": project_id}
+        ksclient.projects.list.return_value = [project]
+        self.assertEqual(
+            openstack_utils.get_project_id(ksclient, project_name),
+            project_id)
+        ksclient.projects.list.assert_called_once_with(domain=None)
+        ksclient.domains.list.assert_not_called()
+
+        # With domain
+        ksclient.reset_mock()
+        domain_name = "mydomain"
+        domain_id = "domain-uuid"
+        domain = mock.MagicMock()
+        domain.id = domain_id
+        ksclient.domains.list.return_value = [domain]
+        self.assertEqual(
+            openstack_utils.get_project_id(
+                ksclient, project_name, domain_name=domain_name), project_id)
+        ksclient.domains.list.assert_called_once_with(name=domain_name)
+        ksclient.projects.list.assert_called_once_with(domain=domain_id)
