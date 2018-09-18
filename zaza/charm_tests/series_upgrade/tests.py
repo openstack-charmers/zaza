@@ -36,7 +36,7 @@ class SeriesUpgradeTest(unittest.TestCase):
         """Run setup for Series Upgrades."""
         cli_utils.setup_logging()
         cls.lts = LTSGuestCreateTest()
-        cls.setUpClass()
+        cls.lts.setUpClass()
         cls.from_series = None
         cls.to_series = None
         # While there are packaging upgrade bugs we need to be cheeky and
