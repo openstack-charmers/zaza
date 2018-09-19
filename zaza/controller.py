@@ -88,7 +88,9 @@ list_models = sync_wrapper(async_list_models)
 def go_list_models():
     """Execute juju models.
 
-    NOTE: Eexcuting the juju models command updates the local cache of models.
+    NOTE: Excuting the juju models command updates the local cache of models.
+    Python-juju currently does not update the local cache on add model.
+    https://github.com/juju/python-libjuju/issues/267
 
     :returns: None
     :rtype: None
