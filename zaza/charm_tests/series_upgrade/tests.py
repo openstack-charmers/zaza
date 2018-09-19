@@ -39,10 +39,7 @@ class SeriesUpgradeTest(unittest.TestCase):
         cls.lts.setUpClass()
         cls.from_series = None
         cls.to_series = None
-        # While there are packaging upgrade bugs we need to be cheeky and
-        # workaround by using the new package's version of files
-        cls.workaround_script = "/home/ubuntu/package-workarounds.sh"
-        cls.src_workaround_script = os.path.basename(cls.workaround_script)
+        cls.workaround_script = None
         cls.files = []
 
     def test_100_validate_pre_series_upgrade_cloud(self):
@@ -103,8 +100,6 @@ class TrustyXenialSeriesUpgrade(SeriesUpgradeTest):
         super(TrustyXenialSeriesUpgrade, cls).setUpClass()
         cls.from_series = "trusty"
         cls.to_series = "xenial"
-        cls.files = [cls.src_workaround_script,
-                     'corosync', 'corosync.conf']
 
 
 class XenialBionicSeriesUpgrade(SeriesUpgradeTest):
@@ -116,8 +111,6 @@ class XenialBionicSeriesUpgrade(SeriesUpgradeTest):
         super(XenialBionicSeriesUpgrade, cls).setUpClass()
         cls.from_series = "xenial"
         cls.to_series = "bionic"
-        cls.files = [cls.src_workaround_script,
-                     'corosync', 'corosync.conf', 'haproxy.cfg']
 
 
 if __name__ == "__main__":
