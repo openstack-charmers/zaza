@@ -46,6 +46,7 @@ import re
 import six
 import subprocess
 import sys
+import tempfile
 import tenacity
 import urllib
 
@@ -1536,7 +1537,7 @@ def upload_image_to_glance(glance, local_path, image_name, disk_format='qcow2',
     return image
 
 
-def create_image(glance, image_url, image_name, image_cache_dir='tests'):
+def create_image(glance, image_url, image_name, image_cache_dir=None):
     """Download the image and upload it to glance.
 
     Download an image from image_url and upload it to glance labelling
@@ -1548,11 +1549,15 @@ def create_image(glance, image_url, image_name, image_cache_dir='tests'):
     :type image_url: str
     :param image_name: display name for new image
     :type image_name: str
-    :param image_cache_dir: Directory to store image in before uploading
-    :type image_cache_dir: str
+    :param image_cache_dir: Directory to store image in before uploading. If it
+        is not passed, or is None, then a tmp directory is used.
+    :type image_cache_dir: Option[str, None]
     :returns: glance image pointer
     :rtype: glanceclient.common.utils.RequestIdProxy
     """
+    if image_cache_dir is None:
+        image_cache_dir = tempfile.gettempdir()
+
     logging.debug('Creating glance cirros image '
                   '({})...'.format(image_name))
 

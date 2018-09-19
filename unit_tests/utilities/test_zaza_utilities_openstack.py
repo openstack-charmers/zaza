@@ -434,15 +434,37 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
                 expected_status='active',
                 msg='Image status wait')
 
-    def test_create_image(self):
+    def test_create_image_use_tempdir(self):
         glance_mock = mock.MagicMock()
         self.patch_object(openstack_utils.os.path, "exists")
         self.patch_object(openstack_utils, "download_image")
         self.patch_object(openstack_utils, "upload_image_to_glance")
+        self.patch_object(openstack_utils.tempfile, "gettempdir")
+        self.gettempdir.return_value = "wibbly"
         openstack_utils.create_image(
             glance_mock,
             'http://cirros/c.img',
             'bob')
+        self.exists.return_value = False
+        self.download_image.assert_called_once_with(
+            'http://cirros/c.img',
+            'wibbly/c.img')
+        self.upload_image_to_glance.assert_called_once_with(
+            glance_mock,
+            'wibbly/c.img',
+            'bob')
+
+    def test_create_image_pass_directory(self):
+        glance_mock = mock.MagicMock()
+        self.patch_object(openstack_utils.os.path, "exists")
+        self.patch_object(openstack_utils, "download_image")
+        self.patch_object(openstack_utils, "upload_image_to_glance")
+        self.patch_object(openstack_utils.tempfile, "gettempdir")
+        openstack_utils.create_image(
+            glance_mock,
+            'http://cirros/c.img',
+            'bob',
+            'tests')
         self.exists.return_value = False
         self.download_image.assert_called_once_with(
             'http://cirros/c.img',
@@ -451,6 +473,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             glance_mock,
             'tests/c.img',
             'bob')
+        self.gettempdir.assert_not_called()
 
     def test_create_ssh_key(self):
         nova_mock = mock.MagicMock()
