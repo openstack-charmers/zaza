@@ -70,23 +70,20 @@ class TestController(ut_utils.BaseTestCase):
         self.Controller.return_value = self.Controller_mock
 
     def test_add_model(self):
-        self.assertEqual(controller.add_model(self.model1.info.name),
-                         self.model1.info.name)
+        self.patch_object(controller, 'go_list_models')
+        controller.add_model(self.model1.info.name)
         self.Controller_mock.add_model.assert_called_once_with(
             self.model1.info.name,
             config=None)
-        self.model1.connect.assert_called_once()
 
     def test_add_model_config(self):
-        self.assertEqual(
-            controller.add_model(
-                self.model1.info.name,
-                {'run-faster': 'true'}),
-            self.model1.info.name)
+        self.patch_object(controller, 'go_list_models')
+        controller.add_model(self.model1.info.name,
+                             {'run-faster': 'true'})
         self.Controller_mock.add_model.assert_called_once_with(
             self.model1.info.name,
             config={'run-faster': 'true'})
-        self.model1.connect.assert_called_once()
+        self.go_list_models.assert_called_once()
 
     def test_destroy_model(self):
         controller.destroy_model(self.model1.info.name)
@@ -104,3 +101,9 @@ class TestController(ut_utils.BaseTestCase):
             controller.list_models(),
             self.models)
         self.Controller_mock.list_models.assert_called_once()
+
+    def test_go_list_models(self):
+        self.patch_object(controller, 'subprocess')
+        controller.go_list_models()
+        self.subprocess.check_call.assert_called_once_with([
+            "juju", "models"])

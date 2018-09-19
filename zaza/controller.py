@@ -16,6 +16,7 @@
 
 import logging
 from juju.controller import Controller
+import subprocess
 from zaza import sync_wrapper
 
 
@@ -30,12 +31,11 @@ async def async_add_model(model_name, config=None):
     controller = Controller()
     await controller.connect()
     logging.debug("Adding model {}".format(model_name))
-    model = await controller.add_model(model_name, config=config)
-    await model.connect()
-    model_name = model.info.name
-    await model.disconnect()
+    await controller.add_model(model_name, config=config)
     await controller.disconnect()
-    return model_name
+    # NOTE: This is necessary to guarantee juju is aware of the newly created
+    # model.
+    go_list_models()
 
 add_model = sync_wrapper(async_add_model)
 
@@ -83,3 +83,17 @@ async def async_list_models():
     return models
 
 list_models = sync_wrapper(async_list_models)
+
+
+def go_list_models():
+    """Execute juju models.
+
+    NOTE: Excuting the juju models command updates the local cache of models.
+    Python-juju currently does not update the local cache on add model.
+    https://github.com/juju/python-libjuju/issues/267
+
+    :returns: None
+    :rtype: None
+    """
+    cmd = ["juju", "models"]
+    subprocess.check_call(cmd)
