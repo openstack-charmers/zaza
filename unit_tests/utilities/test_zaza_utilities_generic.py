@@ -169,8 +169,8 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         _unit = "app/2"
         generic_utils.do_release_upgrade(_unit)
         self.subprocess.check_call.assert_called_once_with(
-            ['juju', 'ssh', _unit, 'sudo', 'do-release-upgrade',
-             '-f', 'DistUpgradeViewNonInteractive'])
+            ['juju', 'ssh', _unit, 'sudo', 'DEBIAN_FRONTEND=noninteractive',
+             'do-release-upgrade', '-f', 'DistUpgradeViewNonInteractive'])
 
     def test_wrap_do_release_upgrade(self):
         self.patch_object(generic_utils, "do_release_upgrade")
@@ -351,3 +351,14 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             workaround_script=_workaround_script, files=_files)
         self.run_action.assert_not_called()
         self.series_upgrade.assert_has_calls(_series_upgrade_calls)
+
+    def test_set_dpkg_non_interactive_on_unit(self):
+        self.patch_object(generic_utils, "model")
+        _unit_name = "app/1"
+        generic_utils.set_dpkg_non_interactive_on_unit(_unit_name)
+        self.model.run_on_unit.assert_called_with(
+            "app/1",
+            'grep \'DPkg::options { "--force-confdef"; };\' '
+            '/etc/apt/apt.conf.d/50unattended-upgrades || '
+            'echo \'DPkg::options { "--force-confdef"; };\' >> '
+            '/etc/apt/apt.conf.d/50unattended-upgrades')

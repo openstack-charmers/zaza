@@ -269,6 +269,7 @@ def series_upgrade(unit_name, machine_num,
     """
     logging.info("Series upgrade {}".format(unit_name))
     application = unit_name.split('/')[0]
+    set_dpkg_non_interactive_on_unit(unit_name)
     logging.info("Prepare series upgrade on {}".format(machine_num))
     model.prepare_series_upgrade(machine_num, to_series=to_series)
     logging.info("Watiing for workload status 'unknown' on {}"
@@ -390,7 +391,7 @@ def do_release_upgrade(unit_name):
     logging.info('Upgrading ' + unit_name)
     # NOTE: It is necessary to run this via juju ssh rather than juju run due
     # to timeout restrictions and error handling.
-    cmd = ['juju', 'ssh', unit_name, 'sudo',
+    cmd = ['juju', 'ssh', unit_name, 'sudo', 'DEBIAN_FRONTEND=noninteractive',
            'do-release-upgrade', '-f', 'DistUpgradeViewNonInteractive']
     try:
         subprocess.check_call(cmd)
@@ -415,3 +416,19 @@ def reboot(unit_name):
     except subprocess.CalledProcessError as e:
         logging.info(e)
         pass
+
+
+def set_dpkg_non_interactive_on_unit(
+        unit_name, apt_conf_d="/etc/apt/apt.conf.d/50unattended-upgrades"):
+    """Set dpkg options on unit.
+
+    :param unit_name: Unit Name
+    :type unit_name: str
+    :param apt_conf_d: Apt.conf file to update
+    :type apt_conf_d: str
+    """
+    DPKG_NON_INTERACTIVE = 'DPkg::options { "--force-confdef"; };'
+    # Check if the option exists. If not, add it to the apt.conf.d file
+    cmd = ("grep '{option}' {file_name} || echo '{option}' >> {file_name}"
+           .format(option=DPKG_NON_INTERACTIVE, file_name=apt_conf_d))
+    model.run_on_unit(unit_name, cmd)
