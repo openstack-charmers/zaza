@@ -35,17 +35,10 @@ class SeriesUpgradeTest(unittest.TestCase):
     def setUpClass(cls):
         """Run setup for Series Upgrades."""
         cli_utils.setup_logging()
-        cls.lts = LTSGuestCreateTest()
-        cls.lts.setUpClass()
         cls.from_series = None
         cls.to_series = None
         cls.workaround_script = None
         cls.files = []
-
-    def test_100_validate_pre_series_upgrade_cloud(self):
-        """Validate pre series upgrade."""
-        logging.info("Validate pre-series-upgrade: Spin up LTS instance")
-        self.lts.test_launch_small_instance()
 
     def test_200_run_series_upgrade(self):
         """Run series upgrade."""
@@ -72,8 +65,11 @@ class SeriesUpgradeTest(unittest.TestCase):
             if "nova-compute" in applications[application]["charm"]:
                 pause_non_leader_primary = False
                 pause_non_leader_subordinate = False
-            # Place holder for Ceph applications
-            # The rest are likley APIs and use defaults
+            if "ceph" in applications[application]["charm"]:
+                origin = "source"
+                pause_non_leader_primary = False
+                pause_non_leader_subordinate = False
+            # The rest are likley APIs use defaults
 
             generic_utils.series_upgrade_application(
                 application,
@@ -85,14 +81,63 @@ class SeriesUpgradeTest(unittest.TestCase):
                 workaround_script=self.workaround_script,
                 files=self.files)
 
+
+class OpenStackSeriesUpgrade(SeriesUpgradeTest):
+    """OpenStack Series Upgrade.
+
+    Full OpenStack series upgrade with VM launch before and after the series
+    upgrade.
+
+    This test requires a full OpenStack including at least: keystone, glance,
+    nova-cloud-controller, nova-compute, neutron-gateway, neutron-api and
+    neutron-openvswitch.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        """Run setup for Series Upgrades."""
+        super(OpenStackSeriesUpgrade, cls).setUpClass()
+        cls.lts = LTSGuestCreateTest()
+        cls.lts.setUpClass()
+
+    def test_100_validate_pre_series_upgrade_cloud(self):
+        """Validate pre series upgrade."""
+        logging.info("Validate pre-series-upgrade: Spin up LTS instance")
+        self.lts.test_launch_small_instance()
+
     def test_500_validate_series_upgraded_cloud(self):
         """Validate post series upgrade."""
         logging.info("Validate post-series-upgrade: Spin up LTS instance")
         self.lts.test_launch_small_instance()
 
 
+class OpenStackTrustyXenialSeriesUpgrade(OpenStackSeriesUpgrade):
+    """OpenStack Trusty to Xenial Series Upgrade."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Run setup for Trusty to Xenial Series Upgrades."""
+        super(OpenStackTrustyXenialSeriesUpgrade, cls).setUpClass()
+        cls.from_series = "trusty"
+        cls.to_series = "xenial"
+
+
+class OpenStackXenialBionicSeriesUpgrade(OpenStackSeriesUpgrade):
+    """OpenStack Xenial to Bionic Series Upgrade."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Run setup for Xenial to Bionic Series Upgrades."""
+        super(OpenStackXenialBionicSeriesUpgrade, cls).setUpClass()
+        cls.from_series = "xenial"
+        cls.to_series = "bionic"
+
+
 class TrustyXenialSeriesUpgrade(SeriesUpgradeTest):
-    """Trusty to Xenial Series Upgrade."""
+    """Trusty to Xenial Series Upgrade.
+
+    Makes no assumptions about what is in the deployment.
+    """
 
     @classmethod
     def setUpClass(cls):
@@ -103,7 +148,10 @@ class TrustyXenialSeriesUpgrade(SeriesUpgradeTest):
 
 
 class XenialBionicSeriesUpgrade(SeriesUpgradeTest):
-    """Xenial to Bionic Series Upgrade."""
+    """Xenial to Bionic Series Upgrade.
+
+    Makes no assumptions about what is in the deployment.
+    """
 
     @classmethod
     def setUpClass(cls):
