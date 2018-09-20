@@ -1,9 +1,28 @@
-sudo: false
+sudo: true
 language: python
-dist: xenial
 python:
   - "3.6"
 install: pip install tox-travis
+env:
+  - ENV=pep8
+  - ENV=py3
+  - ENV=func-travis
+comment: |
+  install dependencies in script phase saving time on simpler test environments
+  sudo back to ourself to activate lxd group membership executable search path
 script:
-  - tox -c tox.ini -e pep8
-  - tox -c tox.ini -e py3
+  - if [ $ENV = 'func-travis' ]; then
+       sudo apt-get -qq update;
+       sudo apt-get -y install snapd;
+       sudo snap install lxd;
+       sudo snap install juju --classic;
+       sudo sh -c 'echo PATH=/snap/bin:$PATH >> /etc/environment';
+       sudo lxd waitready;
+       sudo lxd init --auto;
+       sudo usermod -a -G lxd travis;
+       sudo su travis -c 'juju bootstrap --no-gui localhost';
+    fi
+  - tox -c tox.ini -e $ENV
+  - if [ $ENV = 'func-travis' ]; then
+    sudo su travis -c 'juju status -m $(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/)';
+    fi
