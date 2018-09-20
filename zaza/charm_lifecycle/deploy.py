@@ -220,7 +220,8 @@ def deploy_bundle(bundle, model):
     :param model: Name of model to deploy bundle in
     :type model: str
     """
-    logging.info("Deploying bundle {}".format(bundle))
+    logging.info("Deploying bundle {} on to {} model"
+                 .format(bundle, model))
     cmd = ['juju', 'deploy', '-m', model, bundle]
     with tempfile.TemporaryDirectory() as tmpdirname:
         for overlay in render_overlays(bundle, tmpdirname):
