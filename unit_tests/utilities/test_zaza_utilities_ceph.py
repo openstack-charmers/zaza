@@ -88,3 +88,16 @@ class TestCephUtils(ut_utils.BaseTestCase):
         }
         actual = ceph_utils.get_ceph_pools('ceph-mon/0')
         self.assertEqual(expected, actual)
+        # Bionic Queens output
+        result = {
+            'Code': '0',
+            'Stdout': '1 cinder-ceph\n2 glance',
+            'Stderr': ''
+        }
+        self.run_on_unit.return_value = result
+        expected = {
+            'cinder-ceph': 1,
+            'glance': 2
+        }
+        actual = ceph_utils.get_ceph_pools('ceph-mon/0')
+        self.assertEqual(expected, actual)
