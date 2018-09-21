@@ -369,9 +369,13 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             '/etc/apt/apt.conf.d/50unattended-upgrades || '
             'echo \'DPkg::options { "--force-confdef"; };\' >> '
             '/etc/apt/apt.conf.d/50unattended-upgrades')
+
     def test_get_process_id_list(self):
-        self.patch("zaza.model.run_on_unit", new_callable=mock.MagicMock(),
-                   name="_run")
+        self.patch(
+            "zaza.utilities.generic.model.run_on_unit",
+            new_callable=mock.MagicMock(),
+            name="_run"
+        )
 
         # Return code is OK and STDOUT contains output
         returns_ok = {
