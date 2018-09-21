@@ -248,32 +248,25 @@ class CephTest(test_utils.OpenStackBaseTest):
                 logging.debug('result: {}, other: {}'.format(result, other))
                 self.assertEqual(result, other)
 
-    def test_ceph_cmds_exit_zero(self):
-        """Check ceph CLI.
+    def test_ceph_pool_creation_with_text_file(self):
+        """Check the creation of a pool and a text file.
 
-        Check basic functionality of ceph cli commands against
-        all ceph units.
+        Create a pool, add a text file to it and retrieve its content.
+        Verify that the content matches the original file.
         """
-        unit_names = [
-            'ceph-osd/0',
-            'ceph-mon/0',
-            'ceph-mon/1',
-            'ceph-mon/2',
-        ]
-        commands = [
-            'sudo ceph health',
-            'sudo ceph mds stat',
-            'sudo ceph pg stat',
-            'sudo ceph osd stat',
-            'sudo ceph mon stat',
-        ]
-        for unit_name in unit_names:
-            for cmd in commands:
-                logging.debug('Checking {} on {}'.format(cmd, unit_name))
-                result = zaza_model.run_on_unit(unit_name, cmd)
-                code = result.get('Code')
-                if code != '0':
-                    raise zaza_model.CommandRunFailed(cmd, result)
+        unit_name = 'ceph-mon/0'
+        cmd = 'sudo ceph osd pool create test 128; \
+               echo 123456789 > /tmp/input.txt; \
+               rados put -p test test_input /tmp/input.txt; \
+               rados get -p test test_input /dev/stdout'
+        logging.debug('Creating test pool and putting test file in pool...')
+        result = zaza_model.run_on_unit(unit_name, cmd)
+        code = result.get('Code')
+        if code != '0':
+            raise zaza_model.CommandRunFailed(cmd, result)
+        output = result.get('Stdout').strip()
+        logging.debug('Output received: {}'.format(output))
+        self.assertEqual(output, '123456789')
 
     def test_ceph_encryption(self):
         """Test Ceph encryption.
