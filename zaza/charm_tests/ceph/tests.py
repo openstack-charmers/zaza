@@ -185,34 +185,34 @@ class CephTest(test_utils.OpenStackBaseTest):
         :type services: list
         """
         zaza_model.block_until_service_status(
-            self.first_unit,
+            self.lead_unit,
             services,
             'running',
             model_name=self.model_name)
         zaza_model.block_until_unit_wl_status(
-            self.first_unit,
+            self.lead_unit,
             'active',
             model_name=self.model_name)
         zaza_model.run_action(
-            self.first_unit,
+            self.lead_unit,
             'pause',
             model_name=self.model_name)
         zaza_model.block_until_unit_wl_status(
-            self.first_unit,
+            self.lead_unit,
             'maintenance',
             model_name=self.model_name)
         zaza_model.block_until_all_units_idle(model_name=self.model_name)
         zaza_model.run_action(
-            self.first_unit,
+            self.lead_unit,
             'resume',
             model_name=self.model_name)
         zaza_model.block_until_unit_wl_status(
-            self.first_unit,
+            self.lead_unit,
             'active',
             model_name=self.model_name)
         zaza_model.block_until_all_units_idle(model_name=self.model_name)
         zaza_model.block_until_service_status(
-            self.first_unit,
+            self.lead_unit,
             services,
             'running',
             model_name=self.model_name)
