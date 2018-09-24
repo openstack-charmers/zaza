@@ -20,7 +20,6 @@ from os import (
     path
 )
 import tempfile
-import time
 
 import zaza.charm_tests.test_utils as test_utils
 import zaza.model as zaza_model
@@ -292,46 +291,37 @@ class CephTest(test_utils.OpenStackBaseTest):
         logging.info('Making config change on {}...'.format(juju_service))
         mtime = zaza_model.get_unit_time(unit_name)
 
-        sleep_time = 30
-        retry_count = 30
         file_mtime = None
-        time.sleep(sleep_time)
 
         folder_name = '/etc/ceph/dmcrypt-keys/'
-        tries = 0
-        retry_sleep_time = 10
         with self.config_change(set_default, set_alternate):
             with tempfile.TemporaryDirectory() as tempdir:
-                while tries <= retry_count and not file_mtime:
-                    # Creating a temp dir to copy keys
-                    temp_folder = '/tmp/dmcrypt-keys'
-                    cmd = 'mkdir {}'.format(temp_folder)
-                    ret = zaza_model.run_on_unit(unit_name, cmd)
-                    logging.debug('Ret for cmd {} is {}'.format(cmd, ret))
-                    # Copy keys from /etc to /tmp
-                    cmd = 'sudo cp {}* {}'.format(folder_name, temp_folder)
-                    ret = zaza_model.run_on_unit(unit_name, cmd)
-                    logging.debug('Ret for cmd {} is {}'.format(cmd, ret))
-                    # Changing permissions to be able to SCP the files
-                    cmd = 'sudo chown -R ubuntu:ubuntu {}'.format(temp_folder)
-                    ret = zaza_model.run_on_unit(unit_name, cmd)
-                    logging.debug('Ret for cmd {} is {}'.format(cmd, ret))
-                    # SCP to retrieve all files in folder
-                    # -p: preserve timestamps
-                    source = '/tmp/dmcrypt-keys/*'
-                    zaza_model.scp_from_unit(unit_name=unit_name,
-                                             source=source,
-                                             destination=tempdir,
-                                             scp_opts='-p')
-                    for elt in listdir(tempdir):
-                        file_path = '/'.join([tempdir, elt])
-                        if path.isfile(file_path):
-                            file_mtime = path.getmtime(file_path)
-                            if file_mtime:
-                                break
-                    else:
-                        time.sleep(retry_sleep_time)
-                        tries += 1
+                # Creating a temp dir to copy keys
+                temp_folder = '/tmp/dmcrypt-keys'
+                cmd = 'mkdir {}'.format(temp_folder)
+                ret = zaza_model.run_on_unit(unit_name, cmd)
+                logging.debug('Ret for cmd {} is {}'.format(cmd, ret))
+                # Copy keys from /etc to /tmp
+                cmd = 'sudo cp {}* {}'.format(folder_name, temp_folder)
+                ret = zaza_model.run_on_unit(unit_name, cmd)
+                logging.debug('Ret for cmd {} is {}'.format(cmd, ret))
+                # Changing permissions to be able to SCP the files
+                cmd = 'sudo chown -R ubuntu:ubuntu {}'.format(temp_folder)
+                ret = zaza_model.run_on_unit(unit_name, cmd)
+                logging.debug('Ret for cmd {} is {}'.format(cmd, ret))
+                # SCP to retrieve all files in folder
+                # -p: preserve timestamps
+                source = '/tmp/dmcrypt-keys/*'
+                zaza_model.scp_from_unit(unit_name=unit_name,
+                                         source=source,
+                                         destination=tempdir,
+                                         scp_opts='-p')
+                for elt in listdir(tempdir):
+                    file_path = '/'.join([tempdir, elt])
+                    if path.isfile(file_path):
+                        file_mtime = path.getmtime(file_path)
+                        if file_mtime:
+                            break
 
         if not file_mtime:
             logging.warn('Could not determine mtime, assuming '
