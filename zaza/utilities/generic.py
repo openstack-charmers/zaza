@@ -202,6 +202,7 @@ def series_upgrade_application(application, pause_non_leader_primary=True,
     :rtype: None
     """
     status = model.get_status().applications[application]
+    completed_machines = []
 
     # For some applications (percona-cluster) the leader unit must upgrade
     # first. For API applications the non-leader haclusters must be paused
@@ -226,21 +227,33 @@ def series_upgrade_application(application, pause_non_leader_primary=True,
             logging.info("Pausing {}".format(unit))
             model.run_action(unit, "pause", action_params={})
 
+    machine = status["units"][leader]["machine"]
     # Series upgrade the leader
     logging.info("Series upgrade leader: {}".format(leader))
-    series_upgrade(leader, status["units"][leader]["machine"],
-                   from_series=from_series, to_series=to_series,
-                   origin=origin, workaround_script=workaround_script,
-                   files=files)
-
-    # Series upgrade the non-leaders
-    for unit in non_leaders:
-        logging.info("Series upgrade non-leader unit: {}"
-                     .format(unit))
-        series_upgrade(unit, status["units"][unit]["machine"],
+    if machine not in completed_machines:
+        series_upgrade(leader, machine,
                        from_series=from_series, to_series=to_series,
                        origin=origin, workaround_script=workaround_script,
                        files=files)
+        completed_machines.append(machine)
+    else:
+        logging.info("Skipping unit: {}. Machine: {} already upgraded"
+                     .format(unit, machine))
+
+    # Series upgrade the non-leaders
+    for unit in non_leaders:
+        machine = status["units"][unit]["machine"]
+        if machine not in completed_machines:
+            logging.info("Series upgrade non-leader unit: {}"
+                         .format(unit))
+            series_upgrade(unit, machine,
+                           from_series=from_series, to_series=to_series,
+                           origin=origin, workaround_script=workaround_script,
+                           files=files)
+            completed_machines.append(machine)
+        else:
+            logging.info("Skipping unit: {}. Machine: {} already upgraded"
+                         .format(unit, machine))
 
 
 def series_upgrade(unit_name, machine_num,
