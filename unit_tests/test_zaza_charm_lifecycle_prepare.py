@@ -87,6 +87,10 @@ class TestCharmLifecyclePrepare(ut_utils.BaseTestCase):
             model_name='newmodel')
 
     def test_parser(self):
+        args = lc_prepare.parse_args([])
+        self.assertTrue(args.model_name.startswith('zaza-'))
+
+    def test_parser_model(self):
         args = lc_prepare.parse_args(['-m', 'newmodel'])
         self.assertEqual(args.model_name, 'newmodel')
 

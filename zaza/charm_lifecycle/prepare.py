@@ -22,6 +22,8 @@ import sys
 import zaza.controller
 import zaza.model
 
+import zaza.charm_lifecycle.utils as utils
+
 MODEL_DEFAULTS = {
     # Model defaults from charm-test-infra
     #   https://jujucharms.com/docs/2.1/models-config
@@ -103,11 +105,11 @@ def parse_args(args):
     :rtype: Namespace
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--model-name', help='Name of model to add',
-                        required=True)
+    parser.add_argument('-m', '--model-name', help='Name of model to add')
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
     parser.set_defaults(loglevel='INFO')
+    parser.set_defaults(model_name=utils.generate_model_name())
     return parser.parse_args(args)
 
 
@@ -118,4 +120,5 @@ def main():
     if not isinstance(level, int):
         raise ValueError('Invalid log level: "{}"'.format(args.loglevel))
     logging.basicConfig(level=level)
+    print('model_name: {}'.format(args.model_name))
     prepare(args.model_name)
