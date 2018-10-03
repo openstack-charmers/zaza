@@ -31,7 +31,8 @@ async def async_add_model(model_name, config=None):
     controller = Controller()
     await controller.connect()
     logging.debug("Adding model {}".format(model_name))
-    await controller.add_model(model_name, config=config)
+    model = await controller.add_model(model_name, config=config)
+    await model.disconnect()
     await controller.disconnect()
     # NOTE: This is necessary to guarantee juju is aware of the newly created
     # model.
