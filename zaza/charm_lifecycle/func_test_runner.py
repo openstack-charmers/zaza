@@ -18,7 +18,6 @@ import asyncio
 import logging
 import os
 import sys
-import uuid
 
 import zaza.charm_lifecycle.configure as configure
 import zaza.charm_lifecycle.destroy as destroy
@@ -26,15 +25,6 @@ import zaza.charm_lifecycle.utils as utils
 import zaza.charm_lifecycle.prepare as prepare
 import zaza.charm_lifecycle.deploy as deploy
 import zaza.charm_lifecycle.test as test
-
-
-def generate_model_name():
-    """Generate a unique model name.
-
-    :returns: Model name
-    :rtype: str
-    """
-    return 'zaza-{}'.format(str(uuid.uuid4())[-12:])
 
 
 def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
@@ -60,7 +50,7 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
         bundles = test_config[bundle_key]
     last_test = bundles[-1]
     for t in bundles:
-        model_name = generate_model_name()
+        model_name = utils.generate_model_name()
         # Prepare
         prepare.prepare(model_name)
         # Deploy

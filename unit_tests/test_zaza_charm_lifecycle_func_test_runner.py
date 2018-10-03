@@ -20,12 +20,6 @@ import unit_tests.utils as ut_utils
 
 class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
 
-    def test_generate_model_name(self):
-        self.patch_object(lc_func_test_runner.uuid, "uuid4")
-        self.uuid4.return_value = "longer-than-12characters"
-        self.assertEqual(lc_func_test_runner.generate_model_name(),
-                         "zaza-12characters")
-
     def test_parser(self):
         # Test defaults
         args = lc_func_test_runner.parse_args([])
@@ -47,7 +41,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
 
     def test_func_test_runner(self):
         self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
-        self.patch_object(lc_func_test_runner, 'generate_model_name')
+        self.patch_object(lc_func_test_runner.utils, 'generate_model_name')
         self.patch_object(lc_func_test_runner.prepare, 'prepare')
         self.patch_object(lc_func_test_runner.deploy, 'deploy')
         self.patch_object(lc_func_test_runner.configure, 'configure')
@@ -97,7 +91,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
 
     def test_func_test_runner_smoke(self):
         self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
-        self.patch_object(lc_func_test_runner, 'generate_model_name')
+        self.patch_object(lc_func_test_runner.utils, 'generate_model_name')
         self.patch_object(lc_func_test_runner.prepare, 'prepare')
         self.patch_object(lc_func_test_runner.deploy, 'deploy')
         self.patch_object(lc_func_test_runner.configure, 'configure')
@@ -122,7 +116,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
 
     def test_func_test_runner_dev(self):
         self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
-        self.patch_object(lc_func_test_runner, 'generate_model_name')
+        self.patch_object(lc_func_test_runner.utils, 'generate_model_name')
         self.patch_object(lc_func_test_runner.prepare, 'prepare')
         self.patch_object(lc_func_test_runner.deploy, 'deploy')
         self.patch_object(lc_func_test_runner.configure, 'configure')
@@ -148,7 +142,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
 
     def test_func_test_runner_specify_bundle(self):
         self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
-        self.patch_object(lc_func_test_runner, 'generate_model_name')
+        self.patch_object(lc_func_test_runner.utils, 'generate_model_name')
         self.patch_object(lc_func_test_runner.prepare, 'prepare')
         self.patch_object(lc_func_test_runner.deploy, 'deploy')
         self.patch_object(lc_func_test_runner.configure, 'configure')

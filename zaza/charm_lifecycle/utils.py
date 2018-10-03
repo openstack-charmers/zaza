@@ -14,6 +14,7 @@
 
 """Utilities to support running lifecycle phases."""
 import importlib
+import uuid
 import yaml
 
 BUNDLE_DIR = "./tests/bundles/"
@@ -49,3 +50,12 @@ def get_class(class_str):
     class_name = class_str.split('.')[-1]
     module = importlib.import_module(module_name)
     return getattr(module, class_name)
+
+
+def generate_model_name():
+    """Generate a unique model name.
+
+    :returns: Model name
+    :rtype: str
+    """
+    return 'zaza-{}'.format(str(uuid.uuid4())[-12:])

@@ -20,6 +20,12 @@ import unit_tests.utils as ut_utils
 
 class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
 
+    def test_generate_model_name(self):
+        self.patch_object(lc_utils.uuid, "uuid4")
+        self.uuid4.return_value = "longer-than-12characters"
+        self.assertEqual(lc_utils.generate_model_name(),
+                         "zaza-12characters")
+
     def test_get_charm_config(self):
         self.patch("builtins.open",
                    new_callable=mock.mock_open(),
