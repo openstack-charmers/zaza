@@ -46,6 +46,7 @@ class SeriesUpgradeTest(unittest.TestCase):
         os.environ["JUJU_DEV_FEATURE_FLAGS"] = "upgrade-series"
 
         applications = model.get_status().applications
+        completed_machines = []
         for application in applications:
             # Defaults
             origin = "openstack-origin"
@@ -78,6 +79,7 @@ class SeriesUpgradeTest(unittest.TestCase):
                 from_series=self.from_series,
                 to_series=self.to_series,
                 origin=origin,
+                completed_machines=completed_machines,
                 workaround_script=self.workaround_script,
                 files=self.files)
 

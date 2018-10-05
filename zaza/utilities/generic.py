@@ -172,6 +172,7 @@ def series_upgrade_application(application, pause_non_leader_primary=True,
                                pause_non_leader_subordinate=True,
                                from_series="trusty", to_series="xenial",
                                origin='openstack-origin',
+                               completed_machines=[],
                                files=None, workaround_script=None):
     """Series upgrade application.
 
@@ -194,6 +195,9 @@ def series_upgrade_application(application, pause_non_leader_primary=True,
     :param origin: The configuration setting variable name for changing origin
                    source. (openstack-origin or source)
     :type origin: str
+    :param completed_machines: List of completed machines which do no longer
+                               require series upgrade.
+    :type files: list
     :param files: Workaround files to scp to unit under upgrade
     :type files: list
     :param workaround_script: Workaround script to run during series upgrade
@@ -202,7 +206,6 @@ def series_upgrade_application(application, pause_non_leader_primary=True,
     :rtype: None
     """
     status = model.get_status().applications[application]
-    completed_machines = []
 
     # For some applications (percona-cluster) the leader unit must upgrade
     # first. For API applications the non-leader haclusters must be paused
