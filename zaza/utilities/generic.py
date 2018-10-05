@@ -298,15 +298,15 @@ def series_upgrade(unit_name, machine_num,
     model.block_until_unit_wl_status(unit_name, "blocked")
     logging.info("Watiing for model idleness")
     model.block_until_all_units_idle()
+    logging.info("Set origin on {}".format(application))
+    set_origin(application, origin)
+    model.block_until_all_units_idle()
     logging.info("Complete series upgrade on {}".format(machine_num))
     model.complete_series_upgrade(machine_num)
     model.block_until_all_units_idle()
     logging.info("Watiing for workload status 'active' on {}"
                  .format(unit_name))
     model.block_until_unit_wl_status(unit_name, "active")
-    model.block_until_all_units_idle()
-    logging.info("Set origin on {}".format(application))
-    set_origin(application, origin)
     model.block_until_all_units_idle()
     # This step may be performed by juju in the future
     logging.info("Set series on {} to {}".format(application, to_series))

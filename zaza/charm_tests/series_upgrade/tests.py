@@ -50,7 +50,7 @@ class SeriesUpgradeTest(unittest.TestCase):
             # Defaults
             origin = "openstack-origin"
             pause_non_leader_subordinate = True
-            pause_non_leader_primary = False
+            pause_non_leader_primary = True
             # Skip subordinates
             if applications[application]["subordinate-to"]:
                 continue
