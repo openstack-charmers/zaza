@@ -259,6 +259,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         _origin = "source"
         _files = ["filename", "scriptname"]
         _workaround_script = "scriptname"
+        _completed_machines = []
         # Peers and Subordinates
         _run_action_calls = [
             mock.call("{}-hacluster/1".format(_application),
@@ -283,6 +284,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             to_series=_to_series, from_series=_from_series,
             pause_non_leader_primary=True,
             pause_non_leader_subordinate=True,
+            completed_machines=_completed_machines,
             workaround_script=_workaround_script, files=_files),
         self.run_action.assert_has_calls(_run_action_calls)
         self.series_upgrade.assert_has_calls(_series_upgrade_calls)
@@ -296,6 +298,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         _origin = "source"
         _files = ["filename", "scriptname"]
         _workaround_script = "scriptname"
+        _completed_machines = []
         # Subordinates only
         _run_action_calls = [
             mock.call("{}-hacluster/1".format(_application),
@@ -319,6 +322,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             to_series=_to_series, from_series=_from_series,
             pause_non_leader_primary=False,
             pause_non_leader_subordinate=True,
+            completed_machines=_completed_machines,
             workaround_script=_workaround_script, files=_files),
         self.run_action.assert_has_calls(_run_action_calls)
         self.series_upgrade.assert_has_calls(_series_upgrade_calls)
@@ -333,6 +337,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         _series_upgrade_calls = []
         _files = ["filename", "scriptname"]
         _workaround_script = "scriptname"
+        _completed_machines = []
 
         for machine_num in ("0", "1", "2"):
             _series_upgrade_calls.append(
@@ -348,6 +353,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             to_series=_to_series, from_series=_from_series,
             pause_non_leader_primary=False,
             pause_non_leader_subordinate=False,
+            completed_machines=_completed_machines,
             workaround_script=_workaround_script, files=_files)
         self.run_action.assert_not_called()
         self.series_upgrade.assert_has_calls(_series_upgrade_calls)
