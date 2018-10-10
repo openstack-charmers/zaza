@@ -53,6 +53,29 @@ class CharmOperationTest(BaseKeystoneTest):
         """
         self.pause_resume(['apache2'])
 
+    def test_config_change_restart(self):
+        """Change disk format and check.
+
+        Change debug mode and assert then change propagates to the correct
+        file and that services are restarted as a result
+        """
+        # Expected default and alternate values
+        set_default = {
+            'debug': 'False'}
+        set_alternate = {'debug': 'True'}
+
+        # Config file affected by juju set config change
+        conf_file = '/etc/keystone/keystone.conf'
+
+        # Make config change, check for service restarts
+        logging.debug('Setting debug mode keystone...')
+        self.restart_on_changed(
+            conf_file,
+            set_default,
+            set_alternate,
+            {'DEFAULT': {'debug': 'False'}},
+            {'DEFAULT': {'debug': 'True'}}, ['apache2'])
+
     def test_key_distribution_and_rotation(self):
         """Verify key rotation.
 
