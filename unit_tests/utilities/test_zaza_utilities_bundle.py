@@ -106,3 +106,16 @@ class TestUtilitiesBundle(ut_utils.BaseTestCase):
         expected = yaml.safe_load(TEST_BUNDLE_WITHOUT_PLACEMENT)
 
         self.assertEqual(expected, flattened)
+
+    def test_parser(self):
+        args = bundle.parse_args([
+            '-i', 'bundle.yaml'])
+        self.assertEqual(args.input, 'bundle.yaml')
+        self.assertEqual(args.output, '/dev/stdout')
+
+    def test_parser_output(self):
+        args = bundle.parse_args([
+            '-i', 'bundle.yaml',
+            '-o', 'bundle_out.yaml'])
+        self.assertEqual(args.input, 'bundle.yaml')
+        self.assertEqual(args.output, 'bundle_out.yaml')

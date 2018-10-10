@@ -21,7 +21,7 @@ import sys
 
 def remove_machine_specification(input_yaml):
     """
-    Will remove the machien specifications from a supplied bundle.
+    Will remove the machine specifications from a supplied bundle.
 
     :param input_yaml: Juju bundle to strip machinens from
     :type input_yaml: dict
