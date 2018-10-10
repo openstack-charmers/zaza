@@ -21,6 +21,8 @@ import yaml
 
 from zaza import model
 from zaza.utilities import juju as juju_utils
+from zaza.utilities import exceptions as zaza_exceptions
+from zaza.utilities.os_versions import UBUNTU_OPENSTACK_RELEASE
 
 
 def dict_to_yaml(dict_data):
@@ -458,3 +460,152 @@ def set_dpkg_non_interactive_on_unit(
     cmd = ("grep '{option}' {file_name} || echo '{option}' >> {file_name}"
            .format(option=DPKG_NON_INTERACTIVE, file_name=apt_conf_d))
     model.run_on_unit(unit_name, cmd)
+
+
+def get_process_id_list(unit_name, process_name,
+                        expect_success=True):
+    """Get a list of process ID(s).
+
+    Get a list of process ID(s) from a single sentry juju unit
+    for a single process name.
+
+    :param unit_name: Amulet sentry instance (juju unit)
+    :param process_name: Process name
+    :param expect_success: If False, expect the PID to be missing,
+        raise if it is present.
+    :returns: List of process IDs
+    :raises: zaza_exceptions.ProcessIdsFailed
+    """
+    cmd = 'pidof -x "{}"'.format(process_name)
+    if not expect_success:
+        cmd += " || exit 0 && exit 1"
+    results = model.run_on_unit(unit_name=unit_name, command=cmd)
+    code = results.get("Code", 1)
+    try:
+        code = int(code)
+    except ValueError:
+        code = 1
+    error = results.get("Stderr")
+    output = results.get("Stdout")
+    if code != 0:
+        msg = ('{} `{}` returned {} '
+               '{} with error {}'.format(unit_name, cmd, code, output, error))
+        raise zaza_exceptions.ProcessIdsFailed(msg)
+    return str(output).split()
+
+
+def get_unit_process_ids(unit_processes, expect_success=True):
+    """Get unit process ID(s).
+
+    Construct a dict containing unit sentries, process names, and
+    process IDs.
+
+    :param unit_processes: A dictionary of unit names
+        to list of process names.
+    :param expect_success: if False expect the processes to not be
+        running, raise if they are.
+    :returns: Dictionary of unit names to dictionary
+        of process names to PIDs.
+    :raises: zaza_exceptions.ProcessIdsFailed
+    """
+    pid_dict = {}
+    for unit_name, process_list in unit_processes.items():
+        pid_dict[unit_name] = {}
+        for process in process_list:
+            pids = get_process_id_list(
+                unit_name, process, expect_success=expect_success)
+            pid_dict[unit_name].update({process: pids})
+    return pid_dict
+
+
+def validate_unit_process_ids(expected, actual):
+    """Validate process id quantities for services on units.
+
+    :returns: True if the PIDs are validated, raises an exception
+        if it is not the case.
+    :raises: zaza_exceptions.UnitCountMismatch
+    :raises: zaza_exceptions.UnitNotFound
+    :raises: zaza_exceptions.ProcessNameCountMismatch
+    :raises: zaza_exceptions.ProcessNameMismatch
+    :raises: zaza_exceptions.PIDCountMismatch
+    """
+    logging.debug('Checking units for running processes...')
+    logging.debug('Expected PIDs: {}'.format(expected))
+    logging.debug('Actual PIDs: {}'.format(actual))
+
+    if len(actual) != len(expected):
+        msg = ('Unit count mismatch.  expected, actual: {}, '
+               '{} '.format(len(expected), len(actual)))
+        raise zaza_exceptions.UnitCountMismatch(msg)
+
+    for (e_unit_name, e_proc_names) in expected.items():
+        if e_unit_name in actual.keys():
+            a_proc_names = actual[e_unit_name]
+        else:
+            msg = ('Expected unit ({}) not found in actual dict data.'.
+                   format(e_unit_name))
+            raise zaza_exceptions.UnitNotFound(msg)
+
+        if len(e_proc_names.keys()) != len(a_proc_names.keys()):
+            msg = ('Process name count mismatch.  expected, actual: {}, '
+                   '{}'.format(len(expected), len(actual)))
+            raise zaza_exceptions.ProcessNameCountMismatch(msg)
+
+        for (e_proc_name, e_pids), (a_proc_name, a_pids) in \
+                zip(e_proc_names.items(), a_proc_names.items()):
+            if e_proc_name != a_proc_name:
+                msg = ('Process name mismatch.  expected, actual: {}, '
+                       '{}'.format(e_proc_name, a_proc_name))
+                raise zaza_exceptions.ProcessNameMismatch(msg)
+
+            a_pids_length = len(a_pids)
+            fail_msg = ('PID count mismatch. {} ({}) expected, actual: '
+                        '{}, {} ({})'.format(e_unit_name, e_proc_name,
+                                             e_pids, a_pids_length,
+                                             a_pids))
+
+            # If expected is a list, ensure at least one PID quantity match
+            if isinstance(e_pids, list) and \
+                    a_pids_length not in e_pids:
+                raise zaza_exceptions.PIDCountMismatch(fail_msg)
+            # If expected is not bool and not list,
+            # ensure PID quantities match
+            elif not isinstance(e_pids, bool) and \
+                    not isinstance(e_pids, list) and \
+                    a_pids_length != e_pids:
+                raise zaza_exceptions.PIDCountMismatch(fail_msg)
+            # If expected is bool True, ensure 1 or more PIDs exist
+            elif isinstance(e_pids, bool) and \
+                    e_pids is True and a_pids_length < 1:
+                raise zaza_exceptions.PIDCountMismatch(fail_msg)
+            # If expected is bool False, ensure 0 PIDs exist
+            elif isinstance(e_pids, bool) and \
+                    e_pids is False and a_pids_length != 0:
+                raise zaza_exceptions.PIDCountMismatch(fail_msg)
+            else:
+                logging.debug('PID check OK: {} {} {}: '
+                              '{}'.format(e_unit_name, e_proc_name,
+                                          e_pids, a_pids))
+    return True
+
+
+def get_ubuntu_release(ubuntu_name):
+    """Get index of Ubuntu release.
+
+    Returns the index of the name of the Ubuntu release in
+        UBUNTU_OPENSTACK_RELEASE.
+
+    :param ubuntu_name: Name of the Ubuntu release.
+    :type ubuntu_name: string
+    :returns: Index of the Ubuntu release
+    :rtype: integer
+    :raises: zaza_exceptions.UbuntuReleaseNotFound
+    """
+    ubuntu_releases = list(UBUNTU_OPENSTACK_RELEASE.keys())
+    try:
+        index = ubuntu_releases.index(ubuntu_name)
+    except ValueError:
+        msg = ('Could not find Ubuntu release {} in {}'.
+               format(ubuntu_name, UBUNTU_OPENSTACK_RELEASE))
+        raise zaza_exceptions.UbuntuReleaseNotFound(msg)
+    return index

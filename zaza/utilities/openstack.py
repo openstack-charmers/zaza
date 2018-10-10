@@ -23,6 +23,7 @@ from .os_versions import (
     OPENSTACK_RELEASES_PAIRS,
 )
 
+from cinderclient import client as cinderclient
 from glanceclient import Client as GlanceClient
 
 from keystoneclient.v2_0 import client as keystoneclient_v2
@@ -197,6 +198,17 @@ def get_neutron_session_client(session):
     :rtype: neutronclient.Client object
     """
     return neutronclient.Client(session=session)
+
+
+def get_cinder_session_client(session):
+    """Return cinderclient authenticated by keystone session.
+
+    :param session: Keystone session object
+    :type session: keystoneauth1.session.Session object
+    :returns: Authenticated cinderclient
+    :rtype: cinderclient.Client object
+    """
+    return cinderclient.Client(session=session)
 
 
 def get_keystone_scope():

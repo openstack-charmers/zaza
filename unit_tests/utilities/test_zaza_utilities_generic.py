@@ -15,6 +15,7 @@
 import mock
 import unit_tests.utils as ut_utils
 from zaza.utilities import generic as generic_utils
+import zaza.utilities.exceptions as zaza_exceptions
 
 FAKE_STATUS = {
     'can-upgrade-to': '',
@@ -368,3 +369,179 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             '/etc/apt/apt.conf.d/50unattended-upgrades || '
             'echo \'DPkg::options { "--force-confdef"; };\' >> '
             '/etc/apt/apt.conf.d/50unattended-upgrades')
+
+    def test_get_process_id_list(self):
+        self.patch(
+            "zaza.utilities.generic.model.run_on_unit",
+            new_callable=mock.MagicMock(),
+            name="_run"
+        )
+
+        # Return code is OK and STDOUT contains output
+        returns_ok = {
+            "Code": 0,
+            "Stdout": "1 2",
+            "Stderr": ""
+        }
+        self._run.return_value = returns_ok
+        p_id_list = generic_utils.get_process_id_list(
+            "ceph-osd/0",
+            "ceph-osd",
+            False
+        )
+        expected = ["1", "2"]
+        cmd = 'pidof -x "ceph-osd" || exit 0 && exit 1'
+        self.assertEqual(p_id_list, expected)
+        self._run.assert_called_once_with(unit_name="ceph-osd/0",
+                                          command=cmd)
+
+        # Return code is not OK
+        returns_nok = {
+            "Code": 1,
+            "Stdout": "",
+            "Stderr": "Something went wrong"
+        }
+        self._run.return_value = returns_nok
+        with self.assertRaises(zaza_exceptions.ProcessIdsFailed):
+            generic_utils.get_process_id_list("ceph-osd/0", "ceph")
+            cmd = 'pidof -x "ceph"'
+            self._run.assert_called_once_with(unit_name="ceph-osd/0",
+                                              command=cmd)
+
+    def test_get_unit_process_ids(self):
+        self.patch(
+            "zaza.utilities.generic.get_process_id_list",
+            new_callable=mock.MagicMock(),
+            name="_get_pids"
+        )
+
+        pids = ["1", "2"]
+        self._get_pids.return_value = pids
+        unit_processes = {
+            "ceph-osd/0": {
+                "ceph-osd": 2
+            },
+            "unit/0": {
+                "pr1": 2,
+                "pr2": 2
+            }
+        }
+        expected = {
+            "ceph-osd/0": {
+                "ceph-osd": ["1", "2"]
+            },
+            "unit/0": {
+                "pr1": ["1", "2"],
+                "pr2": ["1", "2"]
+            }
+        }
+        result = generic_utils.get_unit_process_ids(unit_processes)
+        self.assertEqual(result, expected)
+
+    def test_validate_unit_process_ids(self):
+        expected = {
+            "ceph-osd/0": {
+                "ceph-osd": 2
+            },
+            "unit/0": {
+                "pr1": 2,
+                "pr2": [1, 2]
+            }
+        }
+
+        # Unit count mismatch
+        actual = {}
+        with self.assertRaises(zaza_exceptions.UnitCountMismatch):
+            generic_utils.validate_unit_process_ids(expected, actual)
+
+        # Unit not found in actual dict
+        actual = {
+            "ceph-osd/0": {
+                "ceph-osd": ["1", "2"]
+            },
+            # unit/0 not in the dict
+            "unit/1": {
+                "pr1": ["1", "2"],
+                "pr2": ["1", "2"]
+            }
+        }
+        with self.assertRaises(zaza_exceptions.UnitNotFound):
+            generic_utils.validate_unit_process_ids(expected, actual)
+
+        # Process names count doesn't match
+        actual = {
+            "ceph-osd/0": {
+                "ceph-osd": ["1", "2"]
+            },
+            "unit/0": {
+                # Only one process name instead of 2 expected
+                "pr1": ["1", "2"]
+            }
+        }
+        with self.assertRaises(zaza_exceptions.ProcessNameCountMismatch):
+            generic_utils.validate_unit_process_ids(expected, actual)
+
+        # Process name doesn't match
+        actual = {
+            "ceph-osd/0": {
+                "ceph-osd": ["1", "2"]
+            },
+            "unit/0": {
+                # Bad process name
+                "bad_name": ["1", "2"],
+                "pr2": ["1", "2"]
+            }
+        }
+        with self.assertRaises(zaza_exceptions.ProcessNameMismatch):
+            generic_utils.validate_unit_process_ids(expected, actual)
+
+        # PID count doesn't match
+        actual = {
+            "ceph-osd/0": {
+                "ceph-osd": ["1", "2"]
+            },
+            "unit/0": {
+                # Only one PID instead of 2 expected
+                "pr1": ["2"],
+                "pr2": ["1", "2"]
+            }
+        }
+        with self.assertRaises(zaza_exceptions.PIDCountMismatch):
+            generic_utils.validate_unit_process_ids(expected, actual)
+
+        actual = {
+            "ceph-osd/0": {
+                "ceph-osd": ["1", "2"]
+            },
+            "unit/0": {
+                "pr1": ["1", "2"],
+                # 3 PID instead of [1, 2] expected
+                "pr2": ["1", "2", "3"]
+            }
+        }
+        with self.assertRaises(zaza_exceptions.PIDCountMismatch):
+            generic_utils.validate_unit_process_ids(expected, actual)
+
+        # It should work now...
+        actual = {
+            "ceph-osd/0": {
+                "ceph-osd": ["1", "2"]
+            },
+            "unit/0": {
+                "pr1": ["1", "2"],
+                "pr2": ["1", "2"]
+            }
+        }
+        ret = generic_utils.validate_unit_process_ids(expected, actual)
+        self.assertTrue(ret)
+
+    def test_get_ubuntu_release(self):
+        # Normal case
+        expected = 0
+        actual = generic_utils.get_ubuntu_release('oneiric')
+        self.assertEqual(expected, actual)
+
+        # Ubuntu release doesn't exist
+        bad_name = 'bad_name'
+        with self.assertRaises(zaza_exceptions.UbuntuReleaseNotFound):
+            generic_utils.get_ubuntu_release(bad_name)
