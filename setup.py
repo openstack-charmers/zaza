@@ -99,7 +99,7 @@ setup(
             'functest-test = zaza.charm_lifecycle.test:main',
             'current-apps = zaza.model:main',
             'tempest-config = zaza.tempest_config:main',
-            'flatten-bundle = zaza.utilities.bundle:main',
+            'remove-placement = zaza.utilities.bundle:main',
         ]
     },
     license='Apache-2.0: http://www.apache.org/licenses/LICENSE-2.0',

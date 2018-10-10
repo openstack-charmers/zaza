@@ -51,7 +51,7 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input',
-                        help='Bundle to flatten',
+                        help='Bundle to remove placement from',
                         required=True)
     parser.add_argument('-o', '--output',
                         help='Where to output',
@@ -62,9 +62,7 @@ def parse_args(args):
 def main():
     """Run the configuration defined by the command line args.
 
-    Run the configuration defined by the command line args or if none were
-    provided read the configuration functions  from the charms tests.yaml
-    config file
+    Remove machine placement as specified in the command line args
     """
     args = parse_args(sys.argv[1:])
     with open(args.input, 'r') as file:
