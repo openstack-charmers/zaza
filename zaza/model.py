@@ -323,7 +323,8 @@ async def async_get_unit_service_start_time(unit_name, service,
     :rtype: int
     :raises: ServiceNotRunning
     """
-    cmd = "stat -c %Y /proc/$(pidof -x {} | cut -f1 -d ' ')".format(service)
+    cmd = ("stat -c %Y /proc/$(pgrep {} --nslist pid"
+           " --ns 1 | head -n1)").format(service)
     out = await async_run_on_unit(
         unit_name=unit_name,
         command=cmd,
