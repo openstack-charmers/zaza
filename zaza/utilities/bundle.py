@@ -29,12 +29,15 @@ def remove_machine_specification(input_yaml):
     :rtype: dict
     """
     machines = input_yaml.pop("machines", None)
-    if not input_yaml.get('series'):
-        if machines:
-            for (name, details) in machines.items():
-                if details['series']:
-                    input_yaml['series'] = details['series']
-                    break
+
+    input_series = input_yaml.get('series', None)
+    if machines:
+        for (name, details) in machines.items():
+            if details['series']:
+                if input_series and details['series'] != input_series:
+                    raise Exception("Mixing series is not supported")
+                input_yaml['series'] = details['series']
+                input_series = input_yaml['series']
 
     for (application_name, application) in input_yaml['services'].items():
         application.pop("to", None)
