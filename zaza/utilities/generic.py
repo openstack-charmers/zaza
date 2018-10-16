@@ -170,6 +170,67 @@ def get_yaml_config(config_file):
     return yaml.load(open(config_file, 'r').read())
 
 
+def series_upgrade_mongodb(application, from_series="trusty",
+                           to_series="xenial", completed_machines=[]):
+    """Series upgrade mongodb.
+
+    Wrap all the functionality to handle series upgrade for mongodb.
+    Mongodb must have its secondaries upgraded first.
+
+    :param application: Name of application to upgrade series
+    :type application: str
+    :param from_series: The series from which to upgrade
+    :type from_series: str
+    :param to_series: The series to which to upgrade
+    :type to_series: str
+    :param completed_machines: List of completed machines which do no longer
+                               require series upgrade.
+    :type completed_machines: list
+    :returns: None
+    :rtype: None
+    """
+    status = model.get_status().applications[application]
+    leader = None
+    non_leaders = []
+    for unit in status["units"]:
+        if status["units"][unit].get("leader"):
+            leader = unit
+        else:
+            non_leaders.append(unit)
+
+    # Series upgrade the non-leaders first
+    for unit in non_leaders:
+        machine = status["units"][unit]["machine"]
+        if machine not in completed_machines:
+            logging.info("Series upgrade non-leader unit: {}"
+                         .format(unit))
+            series_upgrade(unit, machine,
+                           from_series=from_series, to_series=to_series,
+                           pause_non_leader_primary=False,
+                           pause_non_leader_subordinate=False,
+                           origin=None)
+            completed_machines.append(machine)
+        else:
+            logging.info("Skipping unit: {}. Machine: {} already upgraded. "
+                         .format(unit, machine, application))
+            model.block_until_all_units_idle()
+
+    # Series upgrade the leader
+    machine = status["units"][leader]["machine"]
+    logging.info("Series upgrade leader: {}".format(leader))
+    if machine not in completed_machines:
+        series_upgrade(leader, machine,
+                       from_series=from_series, to_series=to_series,
+                       pause_non_leader_primary=False,
+                       pause_non_leader_subordinate=False,
+                       origin=None)
+        completed_machines.append(machine)
+    else:
+        logging.info("Skipping unit: {}. Machine: {} already upgraded."
+                     .format(unit, machine, application))
+        model.block_until_all_units_idle()
+
+
 def series_upgrade_application(application, pause_non_leader_primary=True,
                                pause_non_leader_subordinate=True,
                                from_series="trusty", to_series="xenial",
@@ -199,7 +260,7 @@ def series_upgrade_application(application, pause_non_leader_primary=True,
     :type origin: str
     :param completed_machines: List of completed machines which do no longer
                                require series upgrade.
-    :type files: list
+    :type completed_machines: list
     :param files: Workaround files to scp to unit under upgrade
     :type files: list
     :param workaround_script: Workaround script to run during series upgrade
@@ -211,7 +272,7 @@ def series_upgrade_application(application, pause_non_leader_primary=True,
 
     # For some applications (percona-cluster) the leader unit must upgrade
     # first. For API applications the non-leader haclusters must be paused
-    # before upgrade. Finally, for some applications this is aribtrary but
+    # before upgrade. Finally, for some applications this is arbitrary but
     # generalized.
     leader = None
     non_leaders = []
@@ -298,28 +359,30 @@ def series_upgrade(unit_name, machine_num,
     set_dpkg_non_interactive_on_unit(unit_name)
     logging.info("Prepare series upgrade on {}".format(machine_num))
     model.prepare_series_upgrade(machine_num, to_series=to_series)
-    logging.info("Watiing for workload status 'blocked' on {}"
+    logging.info("Waiting for workload status 'blocked' on {}"
                  .format(unit_name))
     model.block_until_unit_wl_status(unit_name, "blocked")
-    logging.info("Watiing for model idleness")
+    logging.info("Waiting for model idleness")
     model.block_until_all_units_idle()
     wrap_do_release_upgrade(unit_name, from_series=from_series,
                             to_series=to_series, files=files,
                             workaround_script=workaround_script)
     logging.info("Reboot {}".format(unit_name))
     reboot(unit_name)
-    logging.info("Watiing for workload status 'blocked' on {}"
+    logging.info("Waiting for workload status 'blocked' on {}"
                  .format(unit_name))
     model.block_until_unit_wl_status(unit_name, "blocked")
-    logging.info("Watiing for model idleness")
+    logging.info("Waiting for model idleness")
     model.block_until_all_units_idle()
     logging.info("Set origin on {}".format(application))
-    set_origin(application, origin)
+    # Allow for charms which have neither source nor openstack-origin
+    if origin:
+        set_origin(application, origin)
     model.block_until_all_units_idle()
     logging.info("Complete series upgrade on {}".format(machine_num))
     model.complete_series_upgrade(machine_num)
     model.block_until_all_units_idle()
-    logging.info("Watiing for workload status 'active' on {}"
+    logging.info("Waiting for workload status 'active' on {}"
                  .format(unit_name))
     model.block_until_unit_wl_status(unit_name, "active")
     model.block_until_all_units_idle()
