@@ -70,6 +70,20 @@ class SeriesUpgradeTest(unittest.TestCase):
                 origin = "source"
                 pause_non_leader_primary = False
                 pause_non_leader_subordinate = False
+            if "memcached" in applications[application]["charm"]:
+                origin = None
+                pause_non_leader_primary = False
+                pause_non_leader_subordinate = False
+            if "mongodb" in applications[application]["charm"]:
+                # Mongodb is sligthly different. It needs to run series upgrade
+                # on its secondaries first. It has its own function.
+                generic_utils.series_upgrade_mongodb(
+                    application,
+                    from_series=self.from_series,
+                    to_series=self.to_series,
+                    completed_machines=completed_machines)
+                continue
+
             # The rest are likley APIs use defaults
 
             generic_utils.series_upgrade_application(
