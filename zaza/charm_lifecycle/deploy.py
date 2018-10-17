@@ -196,7 +196,7 @@ def render_local_overlay(target_dir):
     rendered_template_file = os.path.join(
         target_dir,
         os.path.basename(LOCAL_OVERLAY_TEMPLATE_NAME))
-    if utils.get_charm_config().get('charm-name', None):
+    if utils.get_charm_config().get('charm_name', None):
         render_template(template, rendered_template_file)
         return rendered_template_file
 

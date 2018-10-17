@@ -133,6 +133,9 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.assertIsNone(lc_deploy.render_overlay('mybundle.yaml', '/tmp/'))
 
     def test_render_local_overlay(self):
+        self.patch_object(lc_deploy.utils, 'get_charm_config')
+        self.get_charm_config.return_value = {
+            'charm_name': 'mycharm'}
         self.patch_object(lc_deploy.jinja2, 'Environment')
         self.patch_object(lc_deploy, 'get_template', return_value='atemplate')
         self.patch_object(lc_deploy, 'render_template')
@@ -147,6 +150,9 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
     def test_render_local_overlay_default(self):
         jenv_mock = mock.MagicMock()
         jenv_mock.from_string.return_value = 'atemplate'
+        self.patch_object(lc_deploy.utils, 'get_charm_config')
+        self.get_charm_config.return_value = {
+            'charm_name': 'mycharm'}
         self.patch_object(lc_deploy.jinja2, 'Environment',
                           return_value=jenv_mock)
         self.patch_object(lc_deploy, 'get_template', return_value=None)
