@@ -88,7 +88,12 @@ def get_template_overlay_context():
     context = {}
     contexts = [
         get_template_context_from_env(),
-        get_charm_config_context()]
+    ]
+    try:
+        contexts.append(get_charm_config_context())
+    except KeyError:
+        pass
+
     for c in contexts:
         context.update(c)
     return context
@@ -191,8 +196,9 @@ def render_local_overlay(target_dir):
     rendered_template_file = os.path.join(
         target_dir,
         os.path.basename(LOCAL_OVERLAY_TEMPLATE_NAME))
-    render_template(template, rendered_template_file)
-    return rendered_template_file
+    if utils.get_charm_config().get('charm_name', None):
+        render_template(template, rendered_template_file)
+        return rendered_template_file
 
 
 def render_overlays(bundle, target_dir):
@@ -205,7 +211,10 @@ def render_overlays(bundle, target_dir):
     :returns: List of rendered overlays
     :rtype: [str, str,...]
     """
-    overlays = [render_local_overlay(target_dir)]
+    overlays = []
+    local_overlay = render_local_overlay(target_dir)
+    if local_overlay:
+        overlays.append(local_overlay)
     rendered_bundle_overlay = render_overlay(bundle, target_dir)
     if rendered_bundle_overlay:
         overlays.append(rendered_bundle_overlay)

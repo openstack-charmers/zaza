@@ -89,6 +89,8 @@ async def deployed():
         # Disconnect from the api server and cleanup.
         await model.disconnect()
 
+sync_deployed = sync_wrapper(deployed)
+
 
 def get_unit_from_name(unit_name, model=None, model_name=None):
     """Return the units that corresponds to the name in the given model.
