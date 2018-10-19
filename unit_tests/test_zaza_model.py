@@ -983,7 +983,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         model.prepare_series_upgrade(_machine_num, to_series=_to_series)
         self.subprocess.check_call.assert_called_once_with(
             ["juju", "upgrade-series", "-m", self.model_name,
-             "prepare", _machine_num, _to_series, "--agree"])
+             "prepare", _machine_num, _to_series, "--yes"])
 
     def test_complete_series_upgrade(self):
         self.patch_object(model, 'get_juju_model',

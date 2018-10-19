@@ -74,10 +74,11 @@ class SeriesUpgradeTest(unittest.TestCase):
                 origin = None
                 pause_non_leader_primary = False
                 pause_non_leader_subordinate = False
-            if "mongodb" in applications[application]["charm"]:
-                # Mongodb is sligthly different. It needs to run series upgrade
-                # on its secondaries first. It has its own function.
-                generic_utils.series_upgrade_mongodb(
+            if ("mongodb" in applications[application]["charm"] or
+                    "vault" in applications[application]["charm"]):
+                # Mongodb and vault need to run series upgrade
+                # on its secondaries first.
+                generic_utils.series_upgrade_non_leaders_first(
                     application,
                     from_series=self.from_series,
                     to_series=self.to_series,
