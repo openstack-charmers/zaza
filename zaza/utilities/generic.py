@@ -170,12 +170,13 @@ def get_yaml_config(config_file):
     return yaml.load(open(config_file, 'r').read())
 
 
-def series_upgrade_mongodb(application, from_series="trusty",
-                           to_series="xenial", completed_machines=[]):
-    """Series upgrade mongodb.
+def series_upgrade_non_leaders_first(application, from_series="trusty",
+                                     to_series="xenial",
+                                     completed_machines=[]):
+    """Series upgrade non leaders first.
 
-    Wrap all the functionality to handle series upgrade for mongodb.
-    Mongodb must have its secondaries upgraded first.
+    Wrap all the functionality to handle series upgrade for charms
+    which must have non leaders upgraded first.
 
     :param application: Name of application to upgrade series
     :type application: str
@@ -206,8 +207,6 @@ def series_upgrade_mongodb(application, from_series="trusty",
                          .format(unit))
             series_upgrade(unit, machine,
                            from_series=from_series, to_series=to_series,
-                           pause_non_leader_primary=False,
-                           pause_non_leader_subordinate=False,
                            origin=None)
             completed_machines.append(machine)
         else:
@@ -221,8 +220,6 @@ def series_upgrade_mongodb(application, from_series="trusty",
     if machine not in completed_machines:
         series_upgrade(leader, machine,
                        from_series=from_series, to_series=to_series,
-                       pause_non_leader_primary=False,
-                       pause_non_leader_subordinate=False,
                        origin=None)
         completed_machines.append(machine)
     else:
