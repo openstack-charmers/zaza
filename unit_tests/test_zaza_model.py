@@ -14,6 +14,7 @@
 
 import aiounittest
 import asyncio.futures
+import concurrent
 import mock
 
 import unit_tests.utils as ut_utils
@@ -386,8 +387,14 @@ class TestModel(ut_utils.BaseTestCase):
 
     def _application_states_setup(self, setup, units_idle=True):
         self.system_ready = True
+        self._block_until_calls = 0
 
-        async def _block_until(f, timeout=None):
+        async def _block_until(f, timeout=0):
+            # Mimic timeouts
+            timeout = timeout + self._block_until_calls
+            self._block_until_calls += 1
+            if timeout == -1:
+                raise concurrent.futures._base.TimeoutError
             result = f()
             if not result:
                 self.system_ready = False
@@ -539,7 +546,7 @@ class TestModel(ut_utils.BaseTestCase):
             timeout=1)
         self.assertTrue(self.system_ready)
 
-    def test_wait_for_application_states_bespoke_msg_bloked_ok(self):
+    def test_wait_for_application_states_bespoke_msg_blocked_ok(self):
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Sure, I could do something'})
@@ -550,6 +557,29 @@ class TestModel(ut_utils.BaseTestCase):
                 'workload-status-message': 'Sure, I could do something'}},
             timeout=1)
         self.assertTrue(self.system_ready)
+
+    def test_wait_for_application_states_idle_timeout(self):
+        self._application_states_setup({
+            'agent-status': 'executing',
+            'workload-status': 'blocked',
+            'workload-status-message': 'Sure, I could do something'})
+        with self.assertRaises(model.ModelTimeout) as timeout:
+            model.wait_for_application_states('modelname', timeout=-2)
+        self.assertEqual(
+            timeout.exception.args[0],
+            "Zaza has timed out waiting on the model to reach idle state.")
+
+    def test_wait_for_application_states_timeout(self):
+        self._application_states_setup({
+            'agent-status': 'executing',
+            'workload-status': 'blocked',
+            'workload-status-message': 'Sure, I could do something'})
+        with self.assertRaises(model.ModelTimeout) as timeout:
+            model.wait_for_application_states('modelname', timeout=-3)
+        self.assertEqual(
+            timeout.exception.args[0],
+            "Zaza has timed out waiting on the model to reach expected "
+            "workload statuses.")
 
     def test_get_current_model(self):
         self.patch_object(model, 'Model')
