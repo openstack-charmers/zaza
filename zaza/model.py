@@ -739,9 +739,9 @@ async def async_wait_for_application_states(model_name=None, states=None,
             raise ModelTimeout("Zaza has timed out waiting on the model to "
                                "reach idle state.")
         try:
-            for application in model.applications:
+            for application, app_data in model.applications.items():
                 check_info = states.get(application, {})
-                for unit in model.applications[application].units:
+                for unit in app_data.units:
                     logging.info("Checking workload status of {}".format(
                         unit.entity_id))
                     await model.block_until(
