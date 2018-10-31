@@ -27,6 +27,7 @@ import subprocess
 import tempfile
 import yaml
 from oslo_config import cfg
+import concurrent
 
 from juju.errors import JujuError
 from juju.model import Model
@@ -34,6 +35,12 @@ from juju.model import Model
 from zaza import sync_wrapper
 
 CURRENT_MODEL = None
+
+
+class ModelTimeout(Exception):
+    """Model timeout exception."""
+
+    pass
 
 
 def set_juju_model(model_name):
@@ -725,32 +732,40 @@ async def async_wait_for_application_states(model_name=None, states=None,
             lambda: len(model.units) > 0
         )
         logging.info("Waiting for all units to be idle")
-        await model.block_until(
-            lambda: model.all_units_idle(), timeout=timeout)
-        for application in model.applications:
-            check_info = states.get(application, {})
-            for unit in model.applications[application].units:
-                logging.info("Checking workload status of {}".format(
-                    unit.entity_id))
-                await model.block_until(
-                    lambda: check_unit_workload_status(
-                        model,
-                        unit,
-                        check_info.get('workload-status', 'active')),
-                    timeout=timeout)
-                check_msg = check_info.get('workload-status-message')
-                logging.info("Checking workload status message of {}".format(
-                    unit.entity_id))
-                if check_msg is not None:
-                    prefixes = (check_msg)
-                else:
-                    prefixes = approved_message_prefixes
-                await model.block_until(
-                    lambda: check_unit_workload_status_message(
-                        model,
-                        unit,
-                        prefixes=prefixes),
-                    timeout=timeout)
+        try:
+            await model.block_until(
+                lambda: model.all_units_idle(), timeout=timeout)
+        except concurrent.futures._base.TimeoutError:
+            raise ModelTimeout("Zaza has timed out waiting on the model to "
+                               "reach idle state.")
+        try:
+            for application, app_data in model.applications.items():
+                check_info = states.get(application, {})
+                for unit in app_data.units:
+                    logging.info("Checking workload status of {}".format(
+                        unit.entity_id))
+                    await model.block_until(
+                        lambda: check_unit_workload_status(
+                            model,
+                            unit,
+                            check_info.get('workload-status', 'active')),
+                        timeout=timeout)
+                    check_msg = check_info.get('workload-status-message')
+                    logging.info("Checking workload status message of {}"
+                                 .format(unit.entity_id))
+                    if check_msg is not None:
+                        prefixes = (check_msg)
+                    else:
+                        prefixes = approved_message_prefixes
+                    await model.block_until(
+                        lambda: check_unit_workload_status_message(
+                            model,
+                            unit,
+                            prefixes=prefixes),
+                        timeout=timeout)
+        except concurrent.futures._base.TimeoutError:
+            raise ModelTimeout("Zaza has timed out waiting on the model to "
+                               "reach expected workload statuses.")
 
 wait_for_application_states = sync_wrapper(async_wait_for_application_states)
 
