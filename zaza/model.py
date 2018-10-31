@@ -735,7 +735,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
         try:
             await model.block_until(
                 lambda: model.all_units_idle(), timeout=timeout)
-        except concurrent.futures._base.TimeoutError as e:
+        except concurrent.futures._base.TimeoutError:
             raise ModelTimeout("Zaza has timed out waiting on the model to "
                                "reach idle state.")
         try:
@@ -763,7 +763,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
                             unit,
                             prefixes=prefixes),
                         timeout=timeout)
-        except concurrent.futures._base.TimeoutError as e:
+        except concurrent.futures._base.TimeoutError:
             raise ModelTimeout("Zaza has timed out waiting on the model to "
                                "reach expected workload statuses.")
 

@@ -394,7 +394,7 @@ class TestModel(ut_utils.BaseTestCase):
             timeout = timeout + self._block_until_calls
             self._block_until_calls += 1
             if timeout == -1:
-                raise concurrent.futures._base.TimeoutError
+                raise concurrent.futures._base.TimeoutError("Timeout", 1)
             result = f()
             if not result:
                 self.system_ready = False
