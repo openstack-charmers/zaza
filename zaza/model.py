@@ -1221,7 +1221,7 @@ def prepare_series_upgrade(machine_num, to_series="xenial"):
     """
     juju_model = get_juju_model()
     cmd = ["juju", "upgrade-series", "-m", juju_model,
-           "prepare", machine_num, to_series, "--yes"]
+           machine_num, "prepare", to_series, "--yes"]
     subprocess.check_call(cmd)
 
 
@@ -1239,7 +1239,7 @@ def complete_series_upgrade(machine_num):
     """
     juju_model = get_juju_model()
     cmd = ["juju", "upgrade-series", "-m", juju_model,
-           "complete", machine_num]
+           machine_num, "complete"]
     subprocess.check_call(cmd)
 
 
