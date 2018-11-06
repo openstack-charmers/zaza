@@ -28,7 +28,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.assertTrue(lc_deploy.is_valid_env_key('NAME_SERVER'))
         self.assertTrue(lc_deploy.is_valid_env_key('NET_ID'))
         self.assertTrue(lc_deploy.is_valid_env_key('VIP_RANGE'))
-        self.assertFalse(lc_deploy.is_valid_env_key('AMULET_OS_VIP'))
+        self.assertTrue(lc_deploy.is_valid_env_key('AMULET_OS_VIP'))
         self.assertFalse(lc_deploy.is_valid_env_key('ZAZA_TEMPLATE_VIP00'))
         self.assertFalse(lc_deploy.is_valid_env_key('PATH'))
 
@@ -41,7 +41,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             ('PATH', 'aa')]
         self.assertEqual(
             lc_deploy.get_template_context_from_env(),
-            {'OS_VIP04': '10.10.0.2'}
+            {'OS_VIP04': '10.10.0.2',
+             'AMULET_OS_VIP': '10.10.0.2'}
         )
 
     def test_get_charm_config_context(self):

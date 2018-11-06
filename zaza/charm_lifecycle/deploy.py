@@ -32,6 +32,8 @@ VALID_ENVIRONMENT_KEY_PREFIXES = [
     'NET_ID',
     'OS_',
     'VIP_RANGE',
+    'AMULET_',
+    'MOJO_',
 ]
 LOCAL_OVERLAY_TEMPLATE = """
 applications:
