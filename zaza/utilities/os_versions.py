@@ -31,6 +31,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('zesty', 'ocata'),
     ('artful', 'pike'),
     ('bionic', 'queens'),
+    ('cosmic', 'rocky'),
 ])
 
 
@@ -49,6 +50,7 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2017.1', 'ocata'),
     ('2017.2', 'pike'),
     ('2018.1', 'queens'),
+    ('2018.2', 'rocky'),
 ])
 
 OPENSTACK_RELEASES_PAIRS = [
@@ -86,6 +88,10 @@ SWIFT_CODENAMES = OrderedDict([
         ['2.11.0', '2.12.0', '2.13.0']),
     ('pike',
         ['2.13.0', '2.15.0']),
+    ('queens',
+        ['2.16.0', '2.17.0']),
+    ('rocky',
+        ['2.18.0', '2.19.0']),
 ])
 
 # >= Liberty version->codename mapping
