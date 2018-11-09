@@ -30,8 +30,8 @@ import zaza.utilities.cert
 import zaza.model
 
 
-class VaultTest(unittest.TestCase):
-    """Encapsulate vault tests."""
+class BaseVaultTest(unittest.TestCase):
+    """Base class for vault tests."""
 
     @classmethod
     def setUpClass(cls):
@@ -43,6 +43,41 @@ class VaultTest(unittest.TestCase):
         cls.vault_creds = vault_utils.get_credentails()
         vault_utils.unseal_all(cls.clients, cls.vault_creds['keys'][0])
         vault_utils.auth_all(cls.clients, cls.vault_creds['root_token'])
+
+
+class UnsealVault(BaseVaultTest):
+    """Unseal Vault only.
+
+    Useful for bootstrapping Vault when it is present in test bundles for other
+    charms.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        """Run setup for UnsealVault class."""
+        super(UnsealVault, cls).setUpClass()
+
+    def test_unseal(self, test_config=None):
+        """Unseal Vault.
+
+        :param test_config: (Optional) Zaza test config
+        :type test_config: charm_lifecycle.utils.get_charm_config()
+        """
+        vault_utils.run_charm_authorize(self.vault_creds['root_token'])
+        if not test_config:
+            test_config = lifecycle_utils.get_charm_config()
+        del test_config['target_deploy_status']['vault']
+        zaza.model.wait_for_application_states(
+            states=test_config.get('target_deploy_status', {}))
+
+
+class VaultTest(BaseVaultTest):
+    """Encapsulate vault tests."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Run setup for Vault tests."""
+        super(VaultTest, cls).setUpClass()
 
     def test_csr(self):
         """Test generating a csr and uploading a signed certificate."""
