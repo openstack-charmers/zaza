@@ -110,6 +110,7 @@ class OpenStackBaseTest(unittest.TestCase):
             model.wait_for_application_states(
                 model_name=self.model_name,
                 states=self.test_config.get('target_deploy_status', {}))
+            model.block_until_all_units_idle()
 
             yield
 
@@ -124,6 +125,7 @@ class OpenStackBaseTest(unittest.TestCase):
         model.wait_for_application_states(
             model_name=self.model_name,
             states=self.test_config.get('target_deploy_status', {}))
+        model.block_until_all_units_idle()
 
     def restart_on_changed(self, config_file, default_config, alternate_config,
                            default_entry, alternate_entry, services):
