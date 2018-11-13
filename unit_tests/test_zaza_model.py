@@ -450,7 +450,7 @@ class TestModel(ut_utils.BaseTestCase):
             'workload-status-message': 'Unit is ready'})
         self.assertTrue(
             model.check_unit_workload_status(self.Model_mock,
-                                             self.unit1, 'active'))
+                                             self.unit1, ['active']))
 
     def test_check_unit_workload_status_no_match(self):
         self.patch_object(model, 'check_model_for_hard_errors')
@@ -459,7 +459,17 @@ class TestModel(ut_utils.BaseTestCase):
             'workload-status-message': 'Unit is ready'})
         self.assertFalse(
             model.check_unit_workload_status(self.Model_mock,
-                                             self.unit1, 'active'))
+                                             self.unit1, ['active']))
+
+    def test_check_unit_workload_status_multi(self):
+        self.patch_object(model, 'check_model_for_hard_errors')
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'Unit is ready'})
+        self.assertTrue(
+            model.check_unit_workload_status(
+                self.Model_mock,
+                self.unit1, ['active', 'blocked']))
 
     def test_check_unit_workload_status_message_message(self):
         self.patch_object(model, 'check_model_for_hard_errors')
@@ -490,7 +500,7 @@ class TestModel(ut_utils.BaseTestCase):
             model.check_unit_workload_status_message(
                 self.Model_mock,
                 self.unit1,
-                prefixes=('Readyish', 'Unit is ready')))
+                prefixes=['Readyish', 'Unit is ready']))
 
     def test_check_unit_workload_status_message_prefix_no_match(self):
         self.patch_object(model, 'check_model_for_hard_errors')
@@ -501,7 +511,7 @@ class TestModel(ut_utils.BaseTestCase):
             model.check_unit_workload_status_message(
                 self.Model_mock,
                 self.unit1,
-                prefixes=('Readyish', 'Unit is ready')))
+                prefixes=['Readyish', 'Unit is ready']))
 
     def test_wait_for_application_states(self):
         self._application_states_setup({
