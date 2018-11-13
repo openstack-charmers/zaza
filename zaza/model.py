@@ -608,7 +608,7 @@ def check_model_for_hard_errors(model):
         raise UnitError(errored_units)
 
 
-def check_unit_workload_status(model, unit, state):
+def check_unit_workload_status(model, unit, states):
     """Check that the units workload status matches the supplied state.
 
     This function has the side effect of also checking for *any* units
@@ -618,14 +618,14 @@ def check_unit_workload_status(model, unit, state):
     :type model: juju.Model
     :param unit: Unit to check wl status of
     :type unit: juju.Unit
-    :param state: Acceptable unit work load states
-    :type state: list
+    :param states: Acceptable unit work load states
+    :type states: list
     :raises: UnitError
     :returns: Whether units workload status matches desired state
     :rtype: bool
     """
     check_model_for_hard_errors(model)
-    return unit.workload_status in state
+    return unit.workload_status in states
 
 
 def check_unit_workload_status_message(model, unit, message=None,
