@@ -618,14 +618,14 @@ def check_unit_workload_status(model, unit, state):
     :type model: juju.Model
     :param unit: Unit to check wl status of
     :type unit: juju.Unit
-    :param state: Expected unit work load state
-    :type state: str
+    :param state: Acceptable unit work load states
+    :type state: list
     :raises: UnitError
     :returns: Whether units workload status matches desired state
     :rtype: bool
     """
     check_model_for_hard_errors(model)
-    return unit.workload_status == state
+    return unit.workload_status in state
 
 
 def check_unit_workload_status_message(model, unit, message=None,
@@ -645,7 +645,7 @@ def check_unit_workload_status_message(model, unit, message=None,
     :param message: Expected message text
     :type message: str
     :param prefixes: Prefixes to match message against
-    :type prefixes: tuple
+    :type prefixes: list
     :raises: ValueError, UnitError
     :returns: Whether message matches desired string
     :rtype: bool
@@ -654,7 +654,7 @@ def check_unit_workload_status_message(model, unit, message=None,
     if message is not None:
         return unit.workload_status_message == message
     elif prefixes is not None:
-        return unit.workload_status_message.startswith(prefixes)
+        return unit.workload_status_message.startswith(tuple(prefixes))
     else:
         raise ValueError("Must be called with message or prefixes")
 
@@ -721,7 +721,8 @@ async def async_wait_for_application_states(model_name=None, states=None,
     :param timeout: Time to wait for status to be achieved
     :type timeout: int
     """
-    approved_message_prefixes = ('ready', 'Ready', 'Unit is ready')
+    approved_message_prefixes = ['ready', 'Ready', 'Unit is ready']
+    approved_statuses = ['active']
 
     if not states:
         states = {}
@@ -742,26 +743,26 @@ async def async_wait_for_application_states(model_name=None, states=None,
             for application, app_data in model.applications.items():
                 check_info = states.get(application, {})
                 for unit in app_data.units:
+                    if check_info.get('workload-status'):
+                        approved_statuses.append(check_info['workload-status'])
                     logging.info("Checking workload status of {}".format(
                         unit.entity_id))
                     await model.block_until(
                         lambda: check_unit_workload_status(
                             model,
                             unit,
-                            check_info.get('workload-status', 'active')),
+                            approved_statuses),
                         timeout=timeout)
                     check_msg = check_info.get('workload-status-message')
                     logging.info("Checking workload status message of {}"
                                  .format(unit.entity_id))
-                    if check_msg is not None:
-                        prefixes = (check_msg)
-                    else:
-                        prefixes = approved_message_prefixes
+                    if check_msg:
+                        approved_message_prefixes.append(check_msg)
                     await model.block_until(
                         lambda: check_unit_workload_status_message(
                             model,
                             unit,
-                            prefixes=prefixes),
+                            prefixes=approved_message_prefixes),
                         timeout=timeout)
         except concurrent.futures._base.TimeoutError:
             raise ModelTimeout("Zaza has timed out waiting on the model to "
