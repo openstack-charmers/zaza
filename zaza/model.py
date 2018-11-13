@@ -743,26 +743,32 @@ async def async_wait_for_application_states(model_name=None, states=None,
             for application, app_data in model.applications.items():
                 check_info = states.get(application, {})
                 for unit in app_data.units:
-                    if check_info.get('workload-status'):
-                        approved_statuses.append(check_info['workload-status'])
+                    app_wls = check_info.get('workload-status')
+                    if app_wls:
+                        all_approved_statuses = approved_statuses + [app_wls]
+                    else:
+                        all_approved_statuses = approved_statuses
                     logging.info("Checking workload status of {}".format(
                         unit.entity_id))
                     await model.block_until(
                         lambda: check_unit_workload_status(
                             model,
                             unit,
-                            approved_statuses),
+                            all_approved_statuses),
                         timeout=timeout)
                     check_msg = check_info.get('workload-status-message')
                     logging.info("Checking workload status message of {}"
                                  .format(unit.entity_id))
-                    if check_msg:
-                        approved_message_prefixes.append(check_msg)
+                    prefixes = approved_message_prefixes
+                    if check_msg is not None:
+                        prefixes = approved_message_prefixes + [check_msg]
+                    else:
+                        prefixes = approved_message_prefixes
                     await model.block_until(
                         lambda: check_unit_workload_status_message(
                             model,
                             unit,
-                            prefixes=approved_message_prefixes),
+                            prefixes=prefixes),
                         timeout=timeout)
         except concurrent.futures._base.TimeoutError:
             raise ModelTimeout("Zaza has timed out waiting on the model to "
