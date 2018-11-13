@@ -45,6 +45,24 @@ class CharmOperationTest(BaseKeystoneTest):
         """Run class setup for running Keystone charm operation tests."""
         super(CharmOperationTest, cls).setUpClass()
 
+    def test_001_vip_in_catalog(self):
+        """Verify the VIP is in the identity catalog entry.
+
+        This test should run early. It validates that if a VIP is set it is in
+        the catalog entry for kesytone.
+        """
+        vip = (zaza.model.get_application_config('keystone')
+               .get('vip').get('value'))
+        if not vip:
+            # If the vip is not set skip this test.
+            return
+        endpoint_filter = {'service_type': 'identity',
+                           'interface': 'public',
+                           'region_name': 'RegionOne'}
+        ep = self.admin_keystone_client.session.get_endpoint(**endpoint_filter)
+        assert vip in ep, (
+            "VIP: {} not found in catalog entry: {}".format(vip, ep))
+
     def test_pause_resume(self):
         """Run pause and resume tests.
 
