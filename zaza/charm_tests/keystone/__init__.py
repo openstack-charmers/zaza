@@ -39,3 +39,9 @@ class BaseKeystoneTest(test_utils.OpenStackBaseTest):
             cls.default_api_version = '2'
         else:
             cls.default_api_version = '3'
+        cls.admin_keystone_session = (
+            openstack_utils.get_overcloud_keystone_session())
+        cls.admin_keystone_client = (
+            openstack_utils.get_keystone_session_client(
+                cls.admin_keystone_session,
+                client_api_version=cls.default_api_version))
