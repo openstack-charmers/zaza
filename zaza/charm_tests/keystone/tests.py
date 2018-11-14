@@ -49,7 +49,7 @@ class CharmOperationTest(BaseKeystoneTest):
         """Verify the VIP is in the identity catalog entry.
 
         This test should run early. It validates that if a VIP is set it is in
-        the catalog entry for kesytone.
+        the catalog entry for keystone.
         """
         vip = (zaza.model.get_application_config('keystone')
                .get('vip').get('value'))
