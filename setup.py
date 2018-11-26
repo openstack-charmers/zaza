@@ -38,6 +38,7 @@ install_require = [
     'python-keystoneclient',
     'python-novaclient',
     'python-neutronclient',
+    'python-octaviaclient',
     'python-cinderclient',
 ]
 

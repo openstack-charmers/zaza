@@ -27,6 +27,7 @@ python-heatclient
 python-keystoneclient
 python-neutronclient
 python-novaclient
+python-octaviaclient
 python-swiftclient
 tenacity
 distro-info

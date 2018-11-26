@@ -37,6 +37,7 @@ import zaza.utilities.cert as cert
 from novaclient import client as novaclient_client
 from neutronclient.v2_0 import client as neutronclient
 from neutronclient.common import exceptions as neutronexceptions
+from octaviaclient.api.v2 import octavia as octaviaclient
 
 import io
 import juju_wait
@@ -198,6 +199,31 @@ def get_neutron_session_client(session):
     :rtype: neutronclient.Client object
     """
     return neutronclient.Client(session=session)
+
+
+def get_octavia_session_client(session, service_type='load-balancer',
+                               interface='internal'):
+    """Return neutronclient authenticated by keystone session.
+
+    :param session: Keystone session object
+    :type session: keystoneauth1.session.Session object
+    :param service_type: Service type to look for in catalog
+    :type service_type: str
+    :param interface: Interface to look for in catalog
+    :type interface: str
+    :returns: Authenticated octaviaclient
+    :rtype: octaviaclient.OctaviaAPI object
+    """
+    keystone_client = get_keystone_session_client(session)
+    lbaas_service = keystone_client.services.list(type=service_type)
+    for service in lbaas_service:
+        lbaas_endpoint = keystone_client.endpoints.list(service=service,
+                                                        interface='internal')
+        for endpoint in lbaas_endpoint:
+            break
+    return octaviaclient.OctaviaAPI(session=session,
+                                    service_type=service_type,
+                                    endpoint=endpoint.url)
 
 
 def get_cinder_session_client(session):
