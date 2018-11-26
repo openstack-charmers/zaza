@@ -171,13 +171,11 @@ class CephTest(test_utils.OpenStackBaseTest):
         """Run the ceph's common class setup."""
         super(CephTest, cls).setUpClass()
 
-    def pause_resume(self, services):
-        """Run Pause and resume tests.
+    def osd_out_in(self, services):
+        """Run OSD out and OSD in tests.
 
-        Override the default implementation since pausing ceph units
-        doesn't stop the services.
-        Pause and then resume a unit checking that services are in the
-        required state after each action
+        Remove OSDs and then add them back in on a unit checking that services
+        are in the required state after each action
 
         :param services: Services expected to be restarted when config_file is
                          changed.
@@ -194,7 +192,7 @@ class CephTest(test_utils.OpenStackBaseTest):
             model_name=self.model_name)
         zaza_model.run_action(
             self.lead_unit,
-            'pause',
+            'osd-out',
             model_name=self.model_name)
         zaza_model.block_until_unit_wl_status(
             self.lead_unit,
@@ -203,7 +201,7 @@ class CephTest(test_utils.OpenStackBaseTest):
         zaza_model.block_until_all_units_idle(model_name=self.model_name)
         zaza_model.run_action(
             self.lead_unit,
-            'resume',
+            'osd-in',
             model_name=self.model_name)
         zaza_model.block_until_unit_wl_status(
             self.lead_unit,
