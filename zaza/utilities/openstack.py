@@ -1575,7 +1575,7 @@ def upload_image_to_glance(glance, local_path, image_name, disk_format='qcow2',
     return image
 
 
-def create_image(glance, image_url, image_name, image_cache_dir=None):
+def create_image(glance, image_url, image_name, image_cache_dir=None, tags=[]):
     """Download the image and upload it to glance.
 
     Download an image from image_url and upload it to glance labelling
@@ -1590,6 +1590,8 @@ def create_image(glance, image_url, image_name, image_cache_dir=None):
     :param image_cache_dir: Directory to store image in before uploading. If it
         is not passed, or is None, then a tmp directory is used.
     :type image_cache_dir: Option[str, None]
+    :param tags: Tags to add to image
+    :type tags: list of str
     :returns: glance image pointer
     :rtype: glanceclient.common.utils.RequestIdProxy
     """
@@ -1606,6 +1608,11 @@ def create_image(glance, image_url, image_name, image_cache_dir=None):
         download_image(image_url, local_path)
 
     image = upload_image_to_glance(glance, local_path, image_name)
+    for tag in tags:
+        result = glance.image_tags.update(image.id, tag)
+        logging.debug(
+            'applying tag to image: glance.image_tags.update({}, {}) = {}'
+            .format(image.id, tags, result))
     return image
 
 
