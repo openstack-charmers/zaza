@@ -42,6 +42,9 @@ class NeutronOpenvSwitchOverlayTest(unittest.TestCase):
         ports = resp['ports']
         host_port = {}
         for port in ports:
+            if (port['device_owner'].startswith('network:') or
+                    port['device_owner'].startswith('compute:')):
+                continue
             host_port[port['binding:host_id']] = port
 
         for unit in zaza.model.get_units('neutron-openvswitch'):
