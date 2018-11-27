@@ -100,7 +100,8 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         self.patch_object(cert, 'rsa')
         self.patch_object(cert, 'cryptography')
         cert.generate_cert('unit_test.ci.local', password='secret')
-        self.serialization.BestAvailableEncryption.assert_called_with('secret')
+        self.serialization.BestAvailableEncryption.assert_called_with(
+            b'secret')
         self.cryptography.x509.NameAttribute.assert_called_with(
             self.cryptography.x509.oid.NameOID.COMMON_NAME,
             'unit_test.ci.local',
@@ -163,7 +164,7 @@ class TestUtilitiesCert(ut_utils.BaseTestCase):
         self.assertTrue(self.serialization.NoEncryption.called)
         self.serialization.load_pem_private_key.assert_called_with(
             'signing_key',
-            password='signing_key_password',
+            password=b'signing_key_password',
             backend=self.cryptography.hazmat.backends.default_backend(),
         )
         self.cryptography.x509.NameAttribute.assert_called_with(

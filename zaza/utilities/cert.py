@@ -58,11 +58,14 @@ def generate_cert(common_name,
     :rtype: cryptography.x509.Certificate
     """
     if password is not None:
-        encryption_algorithm = serialization.BestAvailableEncryption(password)
+        encryption_algorithm = serialization.BestAvailableEncryption(
+            password.encode('utf-8'))
     else:
         encryption_algorithm = serialization.NoEncryption()
 
     if signing_key:
+        if signing_key_password:
+            signing_key_password = signing_key_password.encode('utf-8')
         _signing_key = serialization.load_pem_private_key(
             signing_key,
             password=signing_key_password,
