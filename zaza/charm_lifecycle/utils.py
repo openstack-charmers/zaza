@@ -32,7 +32,7 @@ def get_charm_config(yaml_file=None):
     if not yaml_file:
         yaml_file = DEFAULT_TEST_CONFIG
     with open(yaml_file, 'r') as stream:
-        return yaml.load(stream)
+        return yaml.safe_load(stream)
 
 
 def get_class(class_str):

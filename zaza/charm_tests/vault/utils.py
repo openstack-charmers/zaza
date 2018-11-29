@@ -158,7 +158,7 @@ def get_credentails():
             '~/{}'.format(AUTH_FILE),
             tmp_file)
         with open(tmp_file, 'r') as stream:
-            creds = yaml.load(stream)
+            creds = yaml.safe_load(stream)
     return creds
 
 
@@ -190,7 +190,7 @@ def get_credentails_from_file(auth_file):
     :rtype: dict
     """
     with open(auth_file, 'r') as stream:
-        vault_creds = yaml.load(stream)
+        vault_creds = yaml.safe_load(stream)
     return vault_creds
 
 
