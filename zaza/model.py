@@ -855,7 +855,7 @@ def get_actions(application_name, model_name=None):
     # https://github.com/juju/python-libjuju/issues/226
     cmd = ['juju', 'actions', '-m', model_name, application_name,
            '--format', 'yaml']
-    return yaml.load(subprocess.check_output(cmd))
+    return yaml.safe_load(subprocess.check_output(cmd))
 
 
 async def async_get_current_model():

@@ -167,7 +167,7 @@ def get_yaml_config(config_file):
     # through mojo stage directories. This version assumes the yaml file is in
     # the pwd.
     logging.info('Using config %s' % (config_file))
-    return yaml.load(open(config_file, 'r').read())
+    return yaml.safe_load(open(config_file, 'r').read())
 
 
 def series_upgrade_non_leaders_first(application, from_series="trusty",

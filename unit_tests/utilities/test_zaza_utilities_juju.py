@@ -193,7 +193,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.model.run_on_unit.assert_called_with(
             'aunit/0',
             'relation-get --format=yaml -r "42" - "otherunit/0"')
-        self.yaml.load.assert_called_with(str(data))
+        self.yaml.safe_load.assert_called_with(str(data))
 
     def test_get_relation_from_unit_fails(self):
         self.patch_object(juju_utils, '_get_unit_names')
@@ -208,7 +208,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.model.run_on_unit.assert_called_with(
             'aunit/0',
             'relation-get --format=yaml -r "42" - "otherunit/0"')
-        self.assertFalse(self.yaml.load.called)
+        self.assertFalse(self.yaml.safe_load.called)
 
     def test_leader_get(self):
         self.patch_object(juju_utils, 'yaml')
@@ -219,7 +219,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         juju_utils.leader_get('application')
         self.model.run_on_leader.assert_called_with(
             'application', 'leader-get --format=yaml ')
-        self.yaml.load.assert_called_with(str(data))
+        self.yaml.safe_load.assert_called_with(str(data))
 
     def test_leader_get_key(self):
         self.patch_object(juju_utils, 'yaml')
@@ -230,7 +230,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         juju_utils.leader_get('application', 'foo')
         self.model.run_on_leader.assert_called_with(
             'application', 'leader-get --format=yaml foo')
-        self.yaml.load.assert_called_with(data['foo'])
+        self.yaml.safe_load.assert_called_with(data['foo'])
 
     def test_leader_get_fails(self):
         self.patch_object(juju_utils, 'yaml')
@@ -241,7 +241,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
             juju_utils.leader_get('application')
         self.model.run_on_leader.assert_called_with(
             'application', 'leader-get --format=yaml ')
-        self.assertFalse(self.yaml.load.called)
+        self.assertFalse(self.yaml.safe_load.called)
 
     def test_get_machine_series(self):
         self.patch(

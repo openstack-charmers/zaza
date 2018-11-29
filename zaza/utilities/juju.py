@@ -238,7 +238,7 @@ def get_relation_from_unit(entity, remote_entity, remote_interface_name):
     cmd = 'relation-get --format=yaml -r "{}" - "{}"' .format(rid, remote_unit)
     result = model.run_on_unit(unit, cmd)
     if result and int(result.get('Code')) == 0:
-        return yaml.load(result.get('Stdout'))
+        return yaml.safe_load(result.get('Stdout'))
     else:
         raise model.CommandRunFailed(cmd, result)
 
@@ -255,6 +255,6 @@ def leader_get(application, key=''):
     cmd = 'leader-get --format=yaml {}'.format(key)
     result = model.run_on_leader(application, cmd)
     if result and int(result.get('Code')) == 0:
-        return yaml.load(result.get('Stdout'))
+        return yaml.safe_load(result.get('Stdout'))
     else:
         raise model.CommandRunFailed(cmd, result)

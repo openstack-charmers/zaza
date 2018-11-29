@@ -33,7 +33,7 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         self.patch_object(lc_utils, 'yaml')
         _yaml = "testconfig: someconfig"
         _yaml_dict = {'test_config': 'someconfig'}
-        self.yaml.load.return_value = _yaml_dict
+        self.yaml.safe_load.return_value = _yaml_dict
         _filename = "filename"
         _fileobj = mock.MagicMock()
         _fileobj.__enter__.return_value = _yaml
@@ -42,7 +42,7 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         self.assertEqual(lc_utils.get_charm_config(yaml_file=_filename),
                          _yaml_dict)
         self._open.assert_called_once_with(_filename, "r")
-        self.yaml.load.assert_called_once_with(_yaml)
+        self.yaml.safe_load.assert_called_once_with(_yaml)
 
     def test_get_class(self):
         self.assertEqual(
