@@ -162,6 +162,9 @@ def render_template(template, target_file):
         fh.write(
             template.render(get_template_overlay_context()))
 
+    logging.info("Rendered template '{}' to file '{}'".format(template,
+                                                              target_file))
+
 
 def render_overlay(overlay_name, target_dir):
     """Render the overlay template in the directory supplied.
@@ -231,11 +234,13 @@ def deploy_bundle(bundle, model):
     :param model: Name of model to deploy bundle in
     :type model: str
     """
-    logging.info("Deploying bundle {} on to {} model"
+    logging.info("Deploying bundle '{}' on to '{}' model"
                  .format(bundle, model))
     cmd = ['juju', 'deploy', '-m', model, bundle]
     with tempfile.TemporaryDirectory() as tmpdirname:
         for overlay in render_overlays(bundle, tmpdirname):
+            logging.info("Deploying overlay '{}' on to '{}' model"
+                         .format(overlay, model))
             cmd.extend(['--overlay', overlay])
         subprocess.check_call(cmd)
 
