@@ -91,13 +91,13 @@ def add_demo_user():
             project_domain=domain,
             project=project)
 
-    if (openstack_utils.get_os_release() <
+    if (openstack_utils.get_os_release() <=
             openstack_utils.get_os_release('trusty_mitaka')):
         # create only V2 user
         _v2()
         return
 
-    if (openstack_utils.get_os_release() >=
+    if (openstack_utils.get_os_release() >
         openstack_utils.get_os_release('trusty_mitaka') and
         openstack_utils.get_os_release() <
             openstack_utils.get_os_release('xenial_queens')):
