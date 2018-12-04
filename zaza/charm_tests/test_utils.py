@@ -54,7 +54,8 @@ class OpenStackBaseTest(unittest.TestCase):
         logging.debug('Leader unit is {}'.format(cls.lead_unit))
 
     @contextlib.contextmanager
-    def config_change(self, default_config, alternate_config):
+    def config_change(self, default_config, alternate_config,
+                      application_name=None):
         """Run change config tests.
 
         Change config to `alternate_config`, wait for idle workload status,
@@ -70,11 +71,17 @@ class OpenStackBaseTest(unittest.TestCase):
         :type default_config: dict
         :param alternate_config: Dict of charm settings to change to
         :type alternate_config: dict
+        :param application_name: String application name for use when called
+                                 by a charm under test other than the object's
+                                 application.
+        :type application_name: str
         """
+        if not application_name:
+            application_name = self.application_name
         # we need to compare config values to what is already applied before
         # attempting to set them.  otherwise the model will behave differently
         # than we would expect while waiting for completion of the change
-        _app_config = model.get_application_config(self.application_name)
+        _app_config = model.get_application_config(application_name)
         app_config = {}
         # convert the more elaborate config structure from libjuju to something
         # we can compare to what the caller supplies to this function
@@ -97,7 +104,7 @@ class OpenStackBaseTest(unittest.TestCase):
             logging.debug('Changing charm setting to {}'
                           .format(alternate_config))
             model.set_application_config(
-                self.application_name,
+                application_name,
                 alternate_config,
                 model_name=self.model_name)
 
@@ -117,7 +124,7 @@ class OpenStackBaseTest(unittest.TestCase):
 
         logging.debug('Restoring charm setting to {}'.format(default_config))
         model.set_application_config(
-            self.application_name,
+            application_name,
             default_config,
             model_name=self.model_name)
 
