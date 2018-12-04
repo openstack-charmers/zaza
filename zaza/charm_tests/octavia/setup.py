@@ -42,8 +42,15 @@ def add_amphora_image(image_url=None):
         tags=['octavia-amphora'])
 
 
-def configure_amphora_certs():
-    """Configure certificates for internal Octavia client/server auth."""
+def configure_octavia():
+    """Do mandatory post deployment configuration of Octavia."""
+    # Tell Octavia charm it is safe to create cloud resources
+    logging.info('Running `configure-resources` action on Octavia leader unit')
+    zaza.model.run_action_on_leader(
+        'octavia',
+        'configure-resources',
+        action_params={})
+    # Generate certificates for controller/load balancer instance communication
     (issuing_cakey, issuing_cacert) = zaza.utilities.cert.generate_cert(
         'OSCI Zaza Issuer',
         password='zaza',
