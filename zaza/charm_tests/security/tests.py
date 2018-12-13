@@ -51,7 +51,7 @@ def _make_test_function(application, file_details):
 def _add_tests():
     def class_decorator(cls):
         """Add tests based on input yaml to `cls`."""
-        files = utils.get_charm_config('./files.yaml')
+        files = utils.get_charm_config('./file-assertions.yaml')
         deployed_applications = model.sync_deployed()
         for name, attributes in files.items():
             # Lets make sure to only add tests for deployed applications
