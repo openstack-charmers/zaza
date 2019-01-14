@@ -15,6 +15,7 @@
 """Utilities to support running lifecycle phases."""
 import importlib
 import uuid
+import sys
 import yaml
 
 BUNDLE_DIR = "./tests/bundles/"
@@ -46,9 +47,12 @@ def get_class(class_str):
     :returns: Test class
     :rtype: class
     """
+    old_syspath = sys.path
+    sys.path.append('.')
     module_name = '.'.join(class_str.split('.')[:-1])
     class_name = class_str.split('.')[-1]
     module = importlib.import_module(module_name)
+    sys.path = old_syspath
     return getattr(module, class_name)
 
 

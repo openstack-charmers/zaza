@@ -31,6 +31,7 @@ def run_test_list(tests):
     :raises: AssertionError if test run fails
     """
     for _testcase in tests:
+        logging.info('## Running Test {} ##'.format(_testcase))
         testcase = utils.get_class(_testcase)
         suite = unittest.TestLoader().loadTestsFromTestCase(testcase)
         test_result = unittest.TextTestRunner(verbosity=2).run(suite)
