@@ -17,6 +17,7 @@
 This module contains a number of functions for interacting with Openstack.
 """
 from .os_versions import (
+    CEPH_CODENAMES,
     OPENSTACK_CODENAMES,
     SWIFT_CODENAMES,
     PACKAGE_CODENAMES,
@@ -95,6 +96,14 @@ CHARM_TYPES = {
         'pkg': 'ceilometer-common',
         'origin_setting': 'openstack-origin'
     },
+    'ceph-mon': {
+        'pkg': 'ceph',
+        'origin_setting': 'source'
+    },
+    'ceph-osd': {
+        'pkg': 'ceph',
+        'origin_setting': 'source'
+    },
 }
 UPGRADE_SERVICES = [
     {'name': 'keystone', 'type': CHARM_TYPES['keystone']},
@@ -107,6 +116,8 @@ UPGRADE_SERVICES = [
     {'name': 'openstack-dashboard',
      'type': CHARM_TYPES['openstack-dashboard']},
     {'name': 'ceilometer', 'type': CHARM_TYPES['ceilometer']},
+    {'name': 'ceph-mon', 'type': CHARM_TYPES['ceph-mon']},
+    {'name': 'ceph-osd', 'type': CHARM_TYPES['ceph-osd']},
 ]
 
 
@@ -1099,6 +1110,11 @@ def create_floating_ip(neutron_client, network_name, port=None):
     return floatingip
 
 
+def get_ceph_codename(version):
+    """Determine ceph package version from version number."""
+    return CEPH_CODENAMES[version]
+
+
 # Codename and package versions
 def get_swift_codename(version):
     """Determine OpenStack codename that corresponds to swift version.
@@ -1146,6 +1162,8 @@ def get_os_code_info(package, pkg_version):
         # < Liberty co-ordinated project versions
         if 'swift' in package:
             return get_swift_codename(vers)
+        elif 'ceph' in package:
+            return get_ceph_codename(vers)
         else:
             return OPENSTACK_CODENAMES[vers]
 
@@ -1220,7 +1238,15 @@ def get_os_release(release_pair=None):
     if release_pair is None:
         release_pair = get_current_os_release_pair()
     try:
-        index = OPENSTACK_RELEASES_PAIRS.index(release_pair)
+        try:
+            release_codename = release_pair.split('_')[-1]
+        except AttributeError:
+            release_codename = release_pair
+        ceph_releases = list(CEPH_CODENAMES.values())
+        if release_codename in ceph_releases:
+            index = ceph_releases.index(release_codename)
+        else:
+            index = OPENSTACK_RELEASES_PAIRS.index(release_pair)
     except ValueError:
         msg = 'Release pair: {} not found in {}'.format(
             release_pair,
