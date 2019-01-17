@@ -768,6 +768,20 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         release_comp = xenial_queens > xenial_mitaka
         self.assertTrue(release_comp)
 
+        # Ceph tests
+
+        # We can compare releases xenial_jewel > xenial_luminous
+        xenial_jewel = openstack_utils.get_os_release('xenial_jewel')
+        xenial_luminous = openstack_utils.get_os_release('xenial_luminous')
+        release_comp = xenial_luminous > xenial_jewel
+        self.assertTrue(release_comp)
+
+        # We can compare releases jewel > luminous
+        jewel = openstack_utils.get_os_release('jewel')
+        luminous = openstack_utils.get_os_release('luminous')
+        release_comp = luminous > jewel
+        self.assertTrue(release_comp)
+
     def test_get_keystone_api_version(self):
         self.patch_object(openstack_utils, "get_current_os_versions")
         self.patch_object(openstack_utils, "get_application_config_option")
