@@ -94,6 +94,15 @@ SWIFT_CODENAMES = OrderedDict([
         ['2.18.0', '2.19.0']),
 ])
 
+# Map UCA codenames to ceph codenames
+CEPH_CODENAMES = OrderedDict({
+    '0.80': 'firefly',
+    '0.94': 'hammer',
+    '10.2': 'jewel',
+    '12.2': 'luminous',
+    '13.2': 'mimic',
+})
+
 # >= Liberty version->codename mapping
 PACKAGE_CODENAMES = {
     'nova-common': OrderedDict([

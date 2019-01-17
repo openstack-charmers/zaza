@@ -20,14 +20,32 @@ import unittest
 
 import zaza.model as model
 import zaza.charm_lifecycle.utils as utils
+import zaza.utilities.openstack as zaza_openstack
 
 
 def _make_test_function(application, file_details):
     def test(self):
+        until = file_details.get('until')
+        since = file_details.get('since')
         expected_owner = file_details.get("owner", "root")
         expected_group = file_details.get("group", "root")
         expected_mode = file_details.get("mode", "600")
         for unit in model.get_units(application):
+            # Have we configured a until or since for this file?
+            if until or since:
+                release = zaza_openstack \
+                    .get_current_os_release_pair(application).split('_')[-1]
+                current_release = zaza_openstack.get_os_release(release)
+                if until:
+                    until_release = zaza_openstack.get_os_release(until)
+                    if current_release >= until_release:
+                        return self.skipTest("{!r} is before {!r}".
+                                             format(until, release))
+                if since:
+                    since_release = zaza_openstack.get_os_release(since)
+                    if current_release <= since_release:
+                        return self.skipTest("{!r} is after {!r}".
+                                             format(since, release))
             unit = unit.entity_id
             result = model.run_on_unit(
                 unit, 'stat -c "%U %G %a" {}'.format(file_details['path']))
@@ -58,9 +76,14 @@ def _add_tests():
             if name in deployed_applications:
                 for file in attributes['files']:
                     test_func = _make_test_function(name, file)
+                    test_name = 'test_{}_{}'.format(name, file['path'])
+                    if file.get('until'):
+                        test_name += '_until_{}'.format(file['until'])
+                    if file.get('since'):
+                        test_name += '_since_{}'.format(file['since'])
                     setattr(
                         cls,
-                        'test_{}_{}'.format(name, file['path']),
+                        test_name,
                         test_func)
         return cls
     return class_decorator
