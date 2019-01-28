@@ -292,7 +292,8 @@ class CephTest(test_utils.OpenStackBaseTest):
         file_mtime = None
 
         folder_name = '/etc/ceph/dmcrypt-keys/'
-        with self.config_change(set_default, set_alternate):
+        with self.config_change(set_default, set_alternate,
+                                application_name=juju_service):
             with tempfile.TemporaryDirectory() as tempdir:
                 # Creating a temp dir to copy keys
                 temp_folder = '/tmp/dmcrypt-keys'
@@ -501,3 +502,56 @@ class CephTest(test_utils.OpenStackBaseTest):
             'active'
         )
         logging.debug('OK')
+
+
+class CephRGWDaemonTest(test_utils.OpenStackBaseTest):
+    """Ceph RADOS Gateway Daemons Test Class."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Run class setup for running ceph low level tests."""
+        super(CephRGWDaemonTest, cls).setUpClass()
+
+    def test_processes(self):
+        """Verify Ceph processes.
+
+        Verify that the expected service processes are running
+        on each ceph unit.
+        """
+        logging.info('Checking radosgw processes...')
+        # Process name and quantity of processes to expect on each unit
+        ceph_radosgw_processes = {
+            'radosgw': 1,
+        }
+
+        # Units with process names and PID quantities expected
+        expected_processes = {
+            'ceph-radosgw/0': ceph_radosgw_processes,
+        }
+
+        actual_pids = zaza_utils.get_unit_process_ids(expected_processes)
+        ret = zaza_utils.validate_unit_process_ids(expected_processes,
+                                                   actual_pids)
+        self.assertTrue(ret)
+
+    def test_services(self):
+        """Verify the ceph services.
+
+        Verify the expected services are running on the service units.
+        """
+        logging.info('Checking radosgw services...')
+        current_release = zaza_openstack.get_os_release()
+        xenial_mitaka = zaza_openstack.get_os_release('xenial_mitaka')
+        for unit in zaza_model.get_units('ceph-radosgw'):
+            if current_release >= xenial_mitaka:
+                result = zaza_model.run_on_unit(unit.entity_id, 'hostname')
+                hostname = result['Stdout'].rstrip()
+                services = ['ceph-radosgw@rgw.{hostname}'.format(hostname),
+                            'haproxy']
+            else:
+                services = ['radosgw', 'haproxy']
+            zaza_model.block_until_service_status(
+                unit_name=unit.entity_id,
+                services=services,
+                target_status='running'
+            )
