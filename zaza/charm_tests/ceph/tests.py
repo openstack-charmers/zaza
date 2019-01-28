@@ -546,8 +546,10 @@ class CephRGWDaemonTest(test_utils.OpenStackBaseTest):
             if current_release >= xenial_mitaka:
                 result = zaza_model.run_on_unit(unit.entity_id, 'hostname')
                 hostname = result['Stdout'].rstrip()
-                services = ['ceph-radosgw@rgw.{hostname}'.format(hostname),
-                            'haproxy']
+                services = [
+                    'ceph-radosgw@rgw.{hostname}'.format(hostname=hostname),
+                    'haproxy'
+                ]
             else:
                 services = ['radosgw', 'haproxy']
             zaza_model.block_until_service_status(
