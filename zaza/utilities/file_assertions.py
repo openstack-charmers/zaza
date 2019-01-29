@@ -20,7 +20,9 @@ import zaza.model as model
 def assert_path_glob(test_case, unit, file_details, paths=[]):
     """Verify all files in a given directory."""
     result = model.run_on_unit(
-        unit, 'stat -c "%n %U %G %a" {}'.format(file_details['path']))
+        unit, 'bash -c "'
+        'shopt -s -q globstar; '
+        'stat -c "%n %U %G %a" {}"'.format(file_details['path']))
     files = result['Stdout']
     for file in files.splitlines():
         file, owner, group, mode = file.split()

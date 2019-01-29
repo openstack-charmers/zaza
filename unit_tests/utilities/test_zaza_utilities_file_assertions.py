@@ -37,7 +37,8 @@ class TestFileAssertionUtils(ut_utils.BaseTestCase):
         file_assertions.assert_path_glob(
             self._assert, 'test/0', file_details)
         self.run_on_unit.assert_called_once_with(
-            'test/0', 'stat -c "%n %U %G %a" *')
+            'test/0', 'bash -c "shopt -s -q globstar;'
+            ' stat -c "%n %U %G %a" *"')
 
     def test_single_path(self):
         self.run_on_unit.return_value = {
