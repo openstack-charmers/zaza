@@ -17,8 +17,10 @@
 import zaza.model as model
 
 
-def assert_path_glob(test_case, unit, file_details, paths=[]):
+def assert_path_glob(test_case, unit, file_details, paths=None):
     """Verify all files in a given directory."""
+    if not paths:
+        paths = []
     result = model.run_on_unit(
         unit, 'bash -c "'
         'shopt -s -q globstar; '

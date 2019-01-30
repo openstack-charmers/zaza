@@ -26,7 +26,7 @@ from zaza.utilities.file_assertions import (
 )
 
 
-def _make_test_function(application, file_details, paths=[]):
+def _make_test_function(application, file_details, paths=None):
     def test(self):
         for unit in model.get_units(application):
             unit = unit.entity_id
