@@ -45,9 +45,12 @@ def _add_tests():
         for name, attributes in files.items():
             # Lets make sure to only add tests for deployed applications
             if name in deployed_applications:
+                paths = [
+                    file['path'] for
+                    file in attributes['files']
+                    if "*" not in file["path"]
+                ]
                 for file in attributes['files']:
-                    paths = [file['path'] for file in attributes['files']]
-                    paths = [path for path in paths if path[-1] is not "*"]
                     test_func = _make_test_function(name, file, paths=paths)
                     setattr(
                         cls,
