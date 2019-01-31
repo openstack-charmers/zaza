@@ -27,6 +27,17 @@ from zaza.utilities.file_assertions import (
 
 
 def _make_test_function(application, file_details, paths=None):
+    """Generate a test function given the specified inputs.
+
+    :param application: Application name to assert file ownership on
+    :type application: str
+    :param file_details: Dictionary of file details to test
+    :type file_details: dict
+    :param paths: List of paths to test in this application
+    :type paths: Optional[list(str)]
+    :returns: Test function
+    :rtype: unittest.TestCase
+    """
     def test(self):
         for unit in model.get_units(application):
             unit = unit.entity_id
@@ -38,6 +49,7 @@ def _make_test_function(application, file_details, paths=None):
 
 
 def _add_tests():
+    """Add tests to the unittest.TestCase."""
     def class_decorator(cls):
         """Add tests based on input yaml to `cls`."""
         files = utils.get_charm_config('./file-assertions.yaml')
