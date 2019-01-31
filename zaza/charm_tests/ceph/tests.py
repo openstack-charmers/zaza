@@ -540,18 +540,8 @@ class CephRGWDaemonTest(test_utils.OpenStackBaseTest):
         Verify the expected services are running on the service units.
         """
         logging.info('Checking radosgw services...')
-        current_release = zaza_openstack.get_os_release()
-        xenial_mitaka = zaza_openstack.get_os_release('xenial_mitaka')
+        services = ['radosgw', 'haproxy']
         for unit in zaza_model.get_units('ceph-radosgw'):
-            if current_release >= xenial_mitaka:
-                result = zaza_model.run_on_unit(unit.entity_id, 'hostname')
-                hostname = result['Stdout'].rstrip()
-                services = [
-                    'ceph-radosgw@rgw.{hostname}'.format(hostname=hostname),
-                    'haproxy'
-                ]
-            else:
-                services = ['radosgw', 'haproxy']
             zaza_model.block_until_service_status(
                 unit_name=unit.entity_id,
                 services=services,
