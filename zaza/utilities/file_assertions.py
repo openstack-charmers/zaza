@@ -18,7 +18,19 @@ import zaza.model as model
 
 
 def assert_path_glob(test_case, unit, file_details, paths=None):
-    """Verify all files in a given directory."""
+    """Verify all files in a given directory.
+
+    :param test_case: Test case that we are asserting in
+    :type test_case: unittest.TestCase
+    :param unit: Unit name to operate on
+    :type unit: str
+    :param file_details: Dictionary with details of the file
+    :type file_details: dict
+    :param paths: list of paths that are explicitly tested
+    :type paths: list
+    :returns: Nothing
+    :rtype: None
+    """
     if not paths:
         paths = []
     result = model.run_on_unit(
@@ -29,27 +41,53 @@ def assert_path_glob(test_case, unit, file_details, paths=None):
     for file in files.splitlines():
         file, owner, group, mode = file.split()
         if file not in paths and file not in ['.', '..']:
-            verify_file(test_case,
-                        unit,
-                        file_details,
-                        owner,
-                        group,
-                        mode,
-                        path=file)
+            _verify_file(test_case,
+                         unit,
+                         file_details,
+                         owner,
+                         group,
+                         mode,
+                         path=file)
 
 
 def assert_single_file(test_case, unit, file_details):
-    """Verify ownership of a single file."""
+    """Verify ownership of a single file.
+
+    :param test_case: Test case that we are asserting in
+    :type test_case: unittest.TestCase
+    :param unit: Unit name to operate on
+    :type unit: str
+    :param file_details: Dictionary with details of the file
+    :type file_details: dict
+    :returns: Nothing
+    :rtype: None
+    """
     result = model.run_on_unit(
         unit, 'stat -c "%U %G %a" {}'.format(file_details['path']))
     ownership = result['Stdout']
     owner, group, mode = ownership.split()
-    verify_file(test_case, unit, file_details, owner, group, mode)
+    _verify_file(test_case, unit, file_details, owner, group, mode)
 
 
-def verify_file(test_case, unit, file_details,
-                actual_owner, actual_group, actual_mode, path=None):
-    """Assert file has correct permissions."""
+def _verify_file(test_case, unit, file_details,
+                 actual_owner, actual_group, actual_mode, path=None):
+    """Assert file has correct permissions.
+
+    :param test_case: Test case that we are asserting in
+    :type test_case: unittest.TestCase
+    :param unit: Unit name to operate on
+    :type unit: str
+    :param file_details: Dictionary with details of the file
+    :type file_details: dict
+    :param actual_owner: Owner of the file
+    :type actual_owner str
+    :param actual_group: Group of the file
+    :type actual_group str
+    :param actual_mode: Mode of the file
+    :type actual_mode str
+    :returns: Nothing
+    :rtype: None
+    """
     expected_owner = file_details.get("owner", "root")
     expected_group = file_details.get("group", "root")
     expected_mode = file_details.get("mode", "600")
@@ -65,6 +103,19 @@ def verify_file(test_case, unit, file_details,
 
 
 def _error_message(thing, unit, value, path=None):
+    """Format assertion error based on presence of path.
+
+    :param thing: Ownership type
+    :type thing: str
+    :param unit: Unit tested
+    :type unit: str
+    :param value: Actual value from test
+    :type value: str
+    :param path: Path tested
+    :type path: Optional[str]
+    :returns: Erorr Message
+    :rtype: str
+    """
     if path:
         return "{} is incorrect for {} on {}: {}".format(
             thing, path, unit, value)
