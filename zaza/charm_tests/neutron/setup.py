@@ -76,7 +76,7 @@ def basic_overcloud_network():
     network_config.update(generic_utils.get_undercloud_env_vars())
     # Deployed model settings
     if (model.get_application_config('neutron-api')
-       .get('enable-dvr').get('value')):
+            .get('enable-dvr').get('value')):
         network_config.update({"dvr_enabled": True})
 
     # Get keystone session
