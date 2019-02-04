@@ -564,4 +564,5 @@ class CephRGWTest(test_utils.OpenStackBaseTest):
                                 contents='Test data from Zaza',
                                 content_type='text/plain')
         _, content = swift_client.get_object(_container, 'testfile')
-        self.assertEqual(content, 'Test data from Zaza')
+        self.assertEqual(content.decode('UTF-8'),
+                         'Test data from Zaza')
