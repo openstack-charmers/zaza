@@ -38,6 +38,7 @@ from novaclient import client as novaclient_client
 from neutronclient.v2_0 import client as neutronclient
 from neutronclient.common import exceptions as neutronexceptions
 from octaviaclient.api.v2 import octavia as octaviaclient
+from swiftclient import client as swiftclient
 
 import io
 import juju_wait
@@ -199,6 +200,17 @@ def get_neutron_session_client(session):
     :rtype: neutronclient.Client object
     """
     return neutronclient.Client(session=session)
+
+
+def get_swift_session_client(session):
+    """Return swiftclient authenticated by keystone session.
+
+    :param session: Keystone session object
+    :type session: keystoneauth1.session.Session object
+    :returns: Authenticated swiftclient
+    :rtype: swiftclient.Client object
+    """
+    return swiftclient.Connection(session=session)
 
 
 def get_octavia_session_client(session, service_type='load-balancer',

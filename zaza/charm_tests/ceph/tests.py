@@ -504,13 +504,13 @@ class CephTest(test_utils.OpenStackBaseTest):
         logging.debug('OK')
 
 
-class CephRGWDaemonTest(test_utils.OpenStackBaseTest):
+class CephRGWTest(test_utils.OpenStackBaseTest):
     """Ceph RADOS Gateway Daemons Test Class."""
 
     @classmethod
     def setUpClass(cls):
         """Run class setup for running ceph low level tests."""
-        super(CephRGWDaemonTest, cls).setUpClass()
+        super(CephRGWTest, cls).setUpClass()
 
     def test_processes(self):
         """Verify Ceph processes.
@@ -547,3 +547,21 @@ class CephRGWDaemonTest(test_utils.OpenStackBaseTest):
                 services=services,
                 target_status='running'
             )
+
+    def test_object_storage(self):
+        """Verify object storage API.
+
+        Verify that the object storage API works as expected.
+        """
+        logging.info('Checking Swift REST API')
+        keystone_session = zaza_openstack.get_overcloud_keystone_session()
+        swift_client = zaza_openstack.get_swift_session_client(
+            keystone_session)
+        _container = 'demo-container'
+        swift_client.put_container(_container)
+        swift_client.put_object('testfile',
+                                container=_container,
+                                contents='Test data from Zaza')
+        _, content = swift_client.get_object('testfile',
+                                             container=_container)
+        self.assertEqual(content, 'Test data from Zaza')
