@@ -559,9 +559,10 @@ class CephRGWTest(test_utils.OpenStackBaseTest):
             keystone_session)
         _container = 'demo-container'
         swift_client.put_container(_container)
-        swift_client.put_object('testfile',
-                                container=_container,
-                                contents='Test data from Zaza')
+        swift_client.put_object(_container,
+                                'testfile',
+                                contents='Test data from Zaza',
+                                content_type='text/plain')
         _, content = swift_client.get_object('testfile',
                                              container=_container)
         self.assertEqual(content, 'Test data from Zaza')
