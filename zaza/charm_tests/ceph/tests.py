@@ -292,7 +292,8 @@ class CephTest(test_utils.OpenStackBaseTest):
         file_mtime = None
 
         folder_name = '/etc/ceph/dmcrypt-keys/'
-        with self.config_change(set_default, set_alternate):
+        with self.config_change(set_default, set_alternate,
+                                application_name=juju_service):
             with tempfile.TemporaryDirectory() as tempdir:
                 # Creating a temp dir to copy keys
                 temp_folder = '/tmp/dmcrypt-keys'
@@ -501,3 +502,67 @@ class CephTest(test_utils.OpenStackBaseTest):
             'active'
         )
         logging.debug('OK')
+
+
+class CephRGWTest(test_utils.OpenStackBaseTest):
+    """Ceph RADOS Gateway Daemons Test Class."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Run class setup for running ceph low level tests."""
+        super(CephRGWTest, cls).setUpClass()
+
+    def test_processes(self):
+        """Verify Ceph processes.
+
+        Verify that the expected service processes are running
+        on each ceph unit.
+        """
+        logging.info('Checking radosgw processes...')
+        # Process name and quantity of processes to expect on each unit
+        ceph_radosgw_processes = {
+            'radosgw': 1,
+        }
+
+        # Units with process names and PID quantities expected
+        expected_processes = {
+            'ceph-radosgw/0': ceph_radosgw_processes,
+        }
+
+        actual_pids = zaza_utils.get_unit_process_ids(expected_processes)
+        ret = zaza_utils.validate_unit_process_ids(expected_processes,
+                                                   actual_pids)
+        self.assertTrue(ret)
+
+    def test_services(self):
+        """Verify the ceph services.
+
+        Verify the expected services are running on the service units.
+        """
+        logging.info('Checking radosgw services...')
+        services = ['radosgw', 'haproxy']
+        for unit in zaza_model.get_units('ceph-radosgw'):
+            zaza_model.block_until_service_status(
+                unit_name=unit.entity_id,
+                services=services,
+                target_status='running'
+            )
+
+    def test_object_storage(self):
+        """Verify object storage API.
+
+        Verify that the object storage API works as expected.
+        """
+        logging.info('Checking Swift REST API')
+        keystone_session = zaza_openstack.get_overcloud_keystone_session()
+        swift_client = zaza_openstack.get_swift_session_client(
+            keystone_session)
+        _container = 'demo-container'
+        swift_client.put_container(_container)
+        swift_client.put_object(_container,
+                                'testfile',
+                                contents='Test data from Zaza',
+                                content_type='text/plain')
+        _, content = swift_client.get_object(_container, 'testfile')
+        self.assertEqual(content.decode('UTF-8'),
+                         'Test data from Zaza')

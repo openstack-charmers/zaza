@@ -57,8 +57,9 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
         deploy.deploy(
             os.path.join(utils.BUNDLE_DIR, '{}.yaml'.format(t)),
             model_name)
-        # Configure
-        configure.configure(model_name, test_config['configure'])
+        if 'configure' in test_config:
+            # Configure
+            configure.configure(model_name, test_config['configure'])
         # Test
         test.test(model_name, test_config['tests'])
         # Destroy
