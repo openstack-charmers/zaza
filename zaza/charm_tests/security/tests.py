@@ -20,35 +20,36 @@ import unittest
 
 import zaza.model as model
 import zaza.charm_lifecycle.utils as utils
+from zaza.utilities.file_assertions import (
+    assert_path_glob,
+    assert_single_file,
+)
 
 
-def _make_test_function(application, file_details):
+def _make_test_function(application, file_details, paths=None):
+    """Generate a test function given the specified inputs.
+
+    :param application: Application name to assert file ownership on
+    :type application: str
+    :param file_details: Dictionary of file details to test
+    :type file_details: dict
+    :param paths: List of paths to test in this application
+    :type paths: Optional[list(str)]
+    :returns: Test function
+    :rtype: unittest.TestCase
+    """
     def test(self):
-        expected_owner = file_details.get("owner", "root")
-        expected_group = file_details.get("group", "root")
-        expected_mode = file_details.get("mode", "600")
         for unit in model.get_units(application):
             unit = unit.entity_id
-            result = model.run_on_unit(
-                unit, 'stat -c "%U %G %a" {}'.format(file_details['path']))
-            ownership = result['Stdout']
-            owner, group, mode = ownership.split()
-            self.assertEqual(expected_owner,
-                             owner,
-                             "Owner is incorrect for {}: {}"
-                             .format(unit, owner))
-            self.assertEqual(expected_group,
-                             group,
-                             "Group is incorrect for {}: {}"
-                             .format(unit, group))
-            self.assertEqual(expected_mode,
-                             mode,
-                             "Mode is incorrect for {}: {}"
-                             .format(unit, mode))
+            if '*' in file_details['path']:
+                assert_path_glob(self, unit, file_details, paths)
+            else:
+                assert_single_file(self, unit, file_details)
     return test
 
 
 def _add_tests():
+    """Add tests to the unittest.TestCase."""
     def class_decorator(cls):
         """Add tests based on input yaml to `cls`."""
         files = utils.get_charm_config('./file-assertions.yaml')
@@ -56,8 +57,13 @@ def _add_tests():
         for name, attributes in files.items():
             # Lets make sure to only add tests for deployed applications
             if name in deployed_applications:
+                paths = [
+                    file['path'] for
+                    file in attributes['files']
+                    if "*" not in file["path"]
+                ]
                 for file in attributes['files']:
-                    test_func = _make_test_function(name, file)
+                    test_func = _make_test_function(name, file, paths=paths)
                     setattr(
                         cls,
                         'test_{}_{}'.format(name, file['path']),

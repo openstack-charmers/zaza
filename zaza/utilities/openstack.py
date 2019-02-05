@@ -238,15 +238,17 @@ def get_octavia_session_client(session, service_type='load-balancer',
                                     endpoint=endpoint.url)
 
 
-def get_cinder_session_client(session):
+def get_cinder_session_client(session, version=2):
     """Return cinderclient authenticated by keystone session.
 
     :param session: Keystone session object
     :type session: keystoneauth1.session.Session object
+    :param version: Cinder API version
+    :type version: int
     :returns: Authenticated cinderclient
     :rtype: cinderclient.Client object
     """
-    return cinderclient.Client(session=session)
+    return cinderclient.Client(session=session, version=version)
 
 
 def get_keystone_scope():
