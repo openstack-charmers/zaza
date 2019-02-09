@@ -40,6 +40,7 @@ install_require = [
     'python-neutronclient',
     'python-octaviaclient',
     'python-cinderclient',
+    'python-swiftclient',
 ]
 
 tests_require = [
