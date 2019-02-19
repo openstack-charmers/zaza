@@ -40,6 +40,12 @@ def basic_setup(cacert=None):
         vault_creds = vault_utils.init_vault(unseal_client)
         vault_utils.store_credentails(vault_creds)
 
+
 def auto_inititialize():
+    """Auto initialize vault for testing.
+
+    In a stack that includes and relies on certificate in vault initialize
+    vault by unsealing and creating a certificate authority.
+    """
     suite = unittest.TestLoader().loadTestsFromTestCase(vault_tests.VaultTest)
-    test_result = unittest.TextTestRunner(verbosity=2).run(suite)
+    unittest.TextTestRunner(verbosity=2).run(suite)

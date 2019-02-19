@@ -319,7 +319,8 @@ def get_keystone_session(openrc_creds, scope='PROJECT', verify=None):
         if os.path.exists(tmp_file):
             os.chmod(tmp_file, 0o644)
             openrc_creds['OS_CACERT'] = tmp_file
-            keystone_creds['auth_url'] = keystone_creds['auth_url'].replace("http:", "https:")
+            keystone_creds['auth_url'] = (keystone_creds['auth_url']
+                                          .replace("http:", "https:"))
 
     if not verify and openrc_creds.get('OS_CACERT'):
         verify = openrc_creds['OS_CACERT']
