@@ -193,7 +193,8 @@ class AuthenticationAuthorizationTest(BaseKeystoneTest):
             return
         with self.config_change(
                 {'preferred-api-version': self.default_api_version},
-                {'preferred-api-version': '3'}):
+                {'preferred-api-version': '3'},
+                application_name="keystone"):
             for ip in self.keystone_ips:
                 try:
                     logging.info('keystone IP {}'.format(ip))
@@ -225,7 +226,8 @@ class AuthenticationAuthorizationTest(BaseKeystoneTest):
             return
         with self.config_change(
                 {'preferred-api-version': self.default_api_version},
-                {'preferred-api-version': '3'}):
+                {'preferred-api-version': '3'},
+                application_name="keystone"):
             for ip in self.keystone_ips:
                 openrc = {
                     'API_VERSION': 3,
@@ -320,7 +322,8 @@ class AuthenticationAuthorizationTest(BaseKeystoneTest):
             }
             with self.config_change(
                     {'preferred-api-version': self.default_api_version},
-                    {'preferred-api-version': '3'}):
+                    {'preferred-api-version': '3'},
+                    application_name="keystone"):
                 for ip in self.keystone_ips:
                     openrc.update(
                         {'OS_AUTH_URL': 'http://{}:5000/v3'.format(ip)})
