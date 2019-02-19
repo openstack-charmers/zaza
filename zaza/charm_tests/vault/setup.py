@@ -14,7 +14,9 @@
 
 """Run configuration phase."""
 
+import unittest
 import zaza.charm_tests.vault.utils as vault_utils
+import zaza.charm_tests.vault.tests as vault_tests
 
 
 def basic_setup(cacert=None):
@@ -37,3 +39,7 @@ def basic_setup(cacert=None):
     else:
         vault_creds = vault_utils.init_vault(unseal_client)
         vault_utils.store_credentails(vault_creds)
+
+def auto_inititialize():
+    suite = unittest.TestLoader().loadTestsFromTestCase(vault_tests.VaultTest)
+    test_result = unittest.TextTestRunner(verbosity=2).run(suite)
