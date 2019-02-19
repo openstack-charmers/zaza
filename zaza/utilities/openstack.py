@@ -289,7 +289,7 @@ def get_keystone_scope():
     return scope
 
 
-def get_keystone_session(opentackrc_creds, scope='PROJECT', verify=None):
+def get_keystone_session(openrc_creds, scope='PROJECT', verify=None):
     """Return keystone session.
 
     :param openrc_creds: Openstack RC credentials
@@ -304,8 +304,26 @@ def get_keystone_session(opentackrc_creds, scope='PROJECT', verify=None):
     :returns: Keystone session object
     :rtype: keystoneauth1.session.Session object
     """
-    keystone_creds = get_ks_creds(opentackrc_creds, scope=scope)
-    if opentackrc_creds.get('API_VERSION', 2) == 2:
+    keystone_creds = get_ks_creds(openrc_creds, scope=scope)
+    # Check if we are using HTTP with the certificate relation to vault
+    tls_rid = model.get_relation_id('keystone', 'vault',
+                                    remote_interface_name='certificates')
+    if tls_rid:
+        tmp_file = "/tmp/keystone_juju_ca_cert.crt"
+        unit = model.get_first_unit_name('keystone')
+        model.scp_from_unit(
+            unit,
+            '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
+            tmp_file)
+
+        if os.path.exists(tmp_file):
+            os.chmod(tmp_file, 0o644)
+            openrc_creds['OS_CACERT'] = tmp_file
+            keystone_creds['auth_url'] = keystone_creds['auth_url'].replace("http:", "https:")
+
+    if not verify and openrc_creds.get('OS_CACERT'):
+        verify = openrc_creds['OS_CACERT']
+    if openrc_creds.get('API_VERSION', 2) == 2:
         auth = v2.Password(**keystone_creds)
     else:
         auth = v3.Password(**keystone_creds)
@@ -353,7 +371,7 @@ def get_keystone_session_client(session, client_api_version=3):
         return keystoneclient_v3.Client(session=session)
 
 
-def get_keystone_client(opentackrc_creds, verify=None):
+def get_keystone_client(openrc_creds, verify=None):
     """Return authenticated keystoneclient and set auth_ref for service_catalog.
 
     :param openrc_creds: Openstack RC credentials
@@ -363,10 +381,10 @@ def get_keystone_client(opentackrc_creds, verify=None):
     :returns: Authenticated keystoneclient
     :rtype: keystoneclient.v3.Client object
     """
-    session = get_keystone_session(opentackrc_creds, verify=verify)
+    session = get_keystone_session(openrc_creds, verify=verify)
     client = get_keystone_session_client(session)
-    keystone_creds = get_ks_creds(opentackrc_creds)
-    if opentackrc_creds.get('API_VERSION', 2) == 2:
+    keystone_creds = get_ks_creds(openrc_creds)
+    if openrc_creds.get('API_VERSION', 2) == 2:
         auth = v2.Password(**keystone_creds)
     else:
         auth = v3.Password(**keystone_creds)
