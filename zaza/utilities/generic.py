@@ -68,6 +68,33 @@ def get_network_config(net_topology, ignore_env_vars=False,
     return net_info
 
 
+def audit_assertions(action, expected_passes, expected_failures=None):
+    """Check expected assertion failures in security-checklist actions.
+
+    :param action: Action object from running the security-checklist action
+    :type action: juju.action.Action
+    :param expected_passes: List of test names that are expected to pass
+    :type expected_passes: List(str)
+    :param expected_failures: List of test names that are expected to fail
+    :type expexted_failures: List(str)
+    """
+    if expected_failures is None:
+        expected_failures = []
+    if expected_failures:
+        assert action.data["status"] == "failed", \
+            "Security check is not expected to pass by default"
+    else:
+        assert action.data["status"] == "completed", \
+            "Security check is expected to pass by default"
+
+    results = action.data['results']
+    for key, value in results.items():
+        if key in expected_failures:
+            assert "FAIL" in value, "Unexpected test pass: {}".format(key)
+        if key in expected_passes:
+            assert value == "PASS", "Unexpected failure: {}".format(key)
+
+
 def get_pkg_version(application, pkg):
     """Return package version.
 

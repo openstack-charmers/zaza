@@ -24,6 +24,7 @@ import zaza.model
 import zaza.utilities.exceptions as zaza_exceptions
 import zaza.utilities.juju as juju_utils
 import zaza.utilities.openstack as openstack_utils
+import zaza.utilities.generic as generic_utils
 
 from zaza.charm_tests.keystone import (
     BaseKeystoneTest,
@@ -153,15 +154,7 @@ class CharmOperationTest(BaseKeystoneTest):
                                      pprint.pformat(lead_repo)))
 
     def test_security_checklist(self):
-        """Verify expected state with security-checklist"""
-        logging.info('Running `security-checklist` action on Keystone leader unit')
-        action = zaza.model.run_action_on_leader(
-            'keystone',
-            'security-checklist',
-            action_params={})
-        assert action.data["status"] == "failed", \
-            "Security check is expected to not pass by default"
-        results = action.data['results']
+        """Verify expected state with security-checklist."""
         expected_failures = [
             'check-max-request-body-size',
             'disable-admin-token',
@@ -169,19 +162,20 @@ class CharmOperationTest(BaseKeystoneTest):
             'validate-file-ownership',
             'validate-file-permissions',
         ]
-        expected_pass = [
+        expected_passes = [
             'uses-fernet-token-after-default',
             'insecure-debug-is-false',
         ]
-        for key, value in results.items():
-            if key in expected_failures:
-                assert "FAIL" in value, "Unexpected test pass: {}".format(key)
-            if key in expected_pass:
-                self.assertEqual(value,
-                                 "PASS",
-                                 "Unexpected failure: {}".format(key))
-        assert results['uses-fernet-token-after-default'] == 'PASS'
-        assert results['insecure-debug-is-false'] == 'PASS'
+
+        logging.info('Running `security-checklist` action'
+                     ' on Keystone leader unit')
+        generic_utils.audit_assertions(
+            zaza.model.run_action_on_leader(
+                'keystone',
+                'security-checklist',
+                action_params={}),
+            expected_passes,
+            expected_failures)
 
 
 class AuthenticationAuthorizationTest(BaseKeystoneTest):
