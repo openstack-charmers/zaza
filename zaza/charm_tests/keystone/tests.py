@@ -152,6 +152,37 @@ class CharmOperationTest(BaseKeystoneTest):
                              .format(pprint.pformat(unit_repo),
                                      pprint.pformat(lead_repo)))
 
+    def test_security_checklist(self):
+        """Verify expected state with security-checklist"""
+        logging.info('Running `security-checklist` action on Keystone leader unit')
+        action = zaza.model.run_action_on_leader(
+            'keystone',
+            'security-checklist',
+            action_params={})
+        assert action.data["status"] == "failed", \
+            "Security check is expected to not pass by default"
+        results = action.data['results']
+        expected_failures = [
+            'check-max-request-body-size',
+            'disable-admin-token',
+            'uses-sha256-for-hashing-tokens',
+            'validate-file-ownership',
+            'validate-file-permissions',
+        ]
+        expected_pass = [
+            'uses-fernet-token-after-default',
+            'insecure-debug-is-false',
+        ]
+        for key, value in results.items():
+            if key in expected_failures:
+                assert "FAIL" in value, "Unexpected test pass: {}".format(key)
+            if key in expected_pass:
+                self.assertEqual(value,
+                                 "PASS",
+                                 "Unexpected failure: {}".format(key))
+        assert results['uses-fernet-token-after-default'] == 'PASS'
+        assert results['insecure-debug-is-false'] == 'PASS'
+
 
 class AuthenticationAuthorizationTest(BaseKeystoneTest):
     """Keystone authentication and authorization tests."""
