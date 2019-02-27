@@ -24,8 +24,8 @@ import zaza.model
 import zaza.utilities.exceptions as zaza_exceptions
 import zaza.utilities.juju as juju_utils
 import zaza.utilities.openstack as openstack_utils
-import zaza.utilities.generic as generic_utils
 
+import zaza.charm_tests.test_utils as test_utils
 from zaza.charm_tests.keystone import (
     BaseKeystoneTest,
     DEMO_DOMAIN,
@@ -169,7 +169,7 @@ class CharmOperationTest(BaseKeystoneTest):
 
         logging.info('Running `security-checklist` action'
                      ' on Keystone leader unit')
-        generic_utils.audit_assertions(
+        test_utils.audit_assertions(
             zaza.model.run_action_on_leader(
                 'keystone',
                 'security-checklist',
