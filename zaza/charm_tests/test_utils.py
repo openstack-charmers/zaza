@@ -47,9 +47,9 @@ def audit_assertions(action,
     :param action: Action object from running the security-checklist action
     :type action: juju.action.Action
     :param expected_passes: List of test names that are expected to pass
-    :type expected_passes: List(str)
+    :type expected_passes: List[str]
     :param expected_failures: List of test names that are expected to fail
-    :type expexted_failures: List(str)
+    :type expexted_failures: List[str]
     """
     if expected_failures is None:
         expected_failures = []
