@@ -175,7 +175,8 @@ class CharmOperationTest(BaseKeystoneTest):
                 'security-checklist',
                 action_params={}),
             expected_passes,
-            expected_failures)
+            expected_failures,
+            expected_to_pass=False)
 
 
 class AuthenticationAuthorizationTest(BaseKeystoneTest):
