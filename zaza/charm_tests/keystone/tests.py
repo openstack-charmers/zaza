@@ -25,6 +25,7 @@ import zaza.utilities.exceptions as zaza_exceptions
 import zaza.utilities.juju as juju_utils
 import zaza.utilities.openstack as openstack_utils
 
+import zaza.charm_tests.test_utils as test_utils
 from zaza.charm_tests.keystone import (
     BaseKeystoneTest,
     DEMO_DOMAIN,
@@ -151,6 +152,31 @@ class CharmOperationTest(BaseKeystoneTest):
                 logging.info('"{}" == "{}"'
                              .format(pprint.pformat(unit_repo),
                                      pprint.pformat(lead_repo)))
+
+    def test_security_checklist(self):
+        """Verify expected state with security-checklist."""
+        expected_failures = [
+            'check-max-request-body-size',
+            'disable-admin-token',
+            'uses-sha256-for-hashing-tokens',
+            'validate-file-ownership',
+            'validate-file-permissions',
+        ]
+        expected_passes = [
+            'uses-fernet-token-after-default',
+            'insecure-debug-is-false',
+        ]
+
+        logging.info('Running `security-checklist` action'
+                     ' on Keystone leader unit')
+        test_utils.audit_assertions(
+            zaza.model.run_action_on_leader(
+                'keystone',
+                'security-checklist',
+                action_params={}),
+            expected_passes,
+            expected_failures,
+            expected_to_pass=False)
 
 
 class AuthenticationAuthorizationTest(BaseKeystoneTest):
