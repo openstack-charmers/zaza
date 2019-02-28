@@ -38,37 +38,6 @@ def skipIfNotHA(service_name):
     return _skipIfNotHA_inner_1
 
 
-def audit_assertions(action,
-                     expected_passes,
-                     expected_failures=None,
-                     expected_to_pass=True):
-    """Check expected assertion failures in security-checklist actions.
-
-    :param action: Action object from running the security-checklist action
-    :type action: juju.action.Action
-    :param expected_passes: List of test names that are expected to pass
-    :type expected_passes: List[str]
-    :param expected_failures: List of test names that are expected to fail
-    :type expexted_failures: List[str]
-    :raises: AssertionError if the assertion fails.
-    """
-    if expected_failures is None:
-        expected_failures = []
-    if expected_to_pass:
-        assert action.data["status"] == "completed", \
-            "Security check is expected to pass by default"
-    else:
-        assert action.data["status"] == "failed", \
-            "Security check is not expected to pass by default"
-
-    results = action.data['results']
-    for key, value in results.items():
-        if key in expected_failures:
-            assert "FAIL" in value, "Unexpected test pass: {}".format(key)
-        if key in expected_passes:
-            assert value == "PASS", "Unexpected failure: {}".format(key)
-
-
 class OpenStackBaseTest(unittest.TestCase):
     """Generic helpers for testing OpenStack API charms."""
 
