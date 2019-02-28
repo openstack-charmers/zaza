@@ -50,6 +50,7 @@ def audit_assertions(action,
     :type expected_passes: List[str]
     :param expected_failures: List of test names that are expected to fail
     :type expexted_failures: List[str]
+    :raises: AssertionError if the assertion fails.
     """
     if expected_failures is None:
         expected_failures = []
