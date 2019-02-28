@@ -503,6 +503,25 @@ class CephTest(test_utils.OpenStackBaseTest):
         )
         logging.debug('OK')
 
+    def test_osd_security_checklist(self):
+        """Verify expected state with security-checklist."""
+        expected_failures = []
+        expected_passes = [
+            'validate-file-ownership',
+            'validate-file-permissions',
+        ]
+
+        logging.info('Running `security-checklist` action'
+                     ' on Ceph OSD leader unit')
+        test_utils.audit_assertions(
+            zaza_model.run_action_on_leader(
+                'ceph-osd',
+                'security-checklist',
+                action_params={}),
+            expected_passes,
+            expected_failures,
+            expected_to_pass=True)
+
 
 class CephRGWTest(test_utils.OpenStackBaseTest):
     """Ceph RADOS Gateway Daemons Test Class."""
