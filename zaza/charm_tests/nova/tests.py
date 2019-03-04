@@ -16,6 +16,7 @@
 
 """Encapsulate nova testing."""
 
+import logging
 import unittest
 
 import zaza.charm_tests.glance.setup as glance_setup
@@ -27,6 +28,8 @@ class BaseGuestCreateTest(unittest.TestCase):
 
     def launch_instance(self, instance_key):
         """Deprecated: Use zaza.configure.guest.launch_instance."""
+        logging.info('BaseGuestCreateTest.launch_instance is deprecated '
+                     'please use zaza.configure.guest.launch_instance')
         zaza.configure.guest.launch_instance(instance_key)
 
 
