@@ -43,11 +43,11 @@ def launch_instance(instance_key, use_boot_volume=False, vm_name=None,
 
     :param instance_key: Key to collect associated config data with.
     :type instance_key: str
-    :param use_boot_volume: Whether to boot guest froma shared volume.
+    :param use_boot_volume: Whether to boot guest from a shared volume.
     :type use_boot_volume: boolean
     :param vm_name: Name to give guest.
     :type vm_name: str
-    :param private_network_name: Name of private network to attatch guest to.
+    :param private_network_name: Name of private network to attach guest to.
     :type private_network_name: str
     :param image_name: Image name to use with guest.
     :type image_name: str
