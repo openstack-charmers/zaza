@@ -1889,3 +1889,59 @@ def neutron_bgp_speaker_appears_on_agent(neutron_client, agent_id):
             'No BGP Speaker appeared on agent "{}"'
             ''.format(agent_id))
     return result
+
+
+@tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
+                reraise=True, stop=tenacity.stop_after_attempt(80))
+def wait_for_server_migration(nova_client, vm_name, original_hypervisor):
+    """Wait for guest to migrate to a different hypervisor.
+
+    :param nova_client: Authenticated nova client
+    :type nova_client: novaclient.v2.client.Client
+    :param vm_name: Name of guest to monitor
+    :type vm_name: str
+    :param original_hypervisor: Name of hypervisor that was hosting guest
+                                prior to migration.
+    :type original_hypervisor: str
+    :raises: exceptions.NovaGuestMigrationFailed
+    """
+    server = nova_client.servers.find(name=vm_name)
+    current_hypervisor = getattr(server, 'OS-EXT-SRV-ATTR:host')
+    logging.info('{} is on {} in state {}'.format(
+        vm_name,
+        current_hypervisor,
+        server.status))
+    if original_hypervisor == current_hypervisor or server.status != 'ACTIVE':
+        raise exceptions.NovaGuestMigrationFailed(
+            'Migration of {} away from {} timed out of failed'.format(
+                vm_name,
+                original_hypervisor))
+    else:
+        logging.info('SUCCESS {} has migrated to {}'.format(
+            vm_name,
+            current_hypervisor))
+
+
+def enable_all_nova_services(nova_client):
+    """Enable all nova services.
+
+    :param nova_client: Authenticated nova client
+    :type nova_client: novaclient.v2.client.Client
+    """
+    for svc in nova_client.services.list():
+        if svc.status == 'disabled':
+            logging.info("Enabling {} on {}".format(svc.binary, svc.host))
+            nova_client.services.enable(svc.host, svc.binary)
+
+
+def get_hypervisor_for_guest(nova_client, guest_name):
+    """Return the name of the hypervisor hosting a guest.
+
+    :param nova_client: Authenticated nova client
+    :type nova_client: novaclient.v2.client.Client
+    :param vm_name: Name of guest to loohup
+    :type vm_name: str
+    """
+    logging.info('Finding hosting hypervisor')
+    server = nova_client.servers.find(name=guest_name)
+    return getattr(server, 'OS-EXT-SRV-ATTR:host')
