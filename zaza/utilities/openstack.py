@@ -1913,7 +1913,7 @@ def wait_for_server_migration(nova_client, vm_name, original_hypervisor):
         server.status))
     if original_hypervisor == current_hypervisor or server.status != 'ACTIVE':
         raise exceptions.NovaGuestMigrationFailed(
-            'Migration of {} away from {} timed out of failed'.format(
+            'Migration of {} away from {} timed out or failed'.format(
                 vm_name,
                 original_hypervisor))
     else:
