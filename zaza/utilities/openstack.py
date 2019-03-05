@@ -23,6 +23,8 @@ from .os_versions import (
     OPENSTACK_RELEASES_PAIRS,
 )
 
+from openstack import connection
+
 from cinderclient import client as cinderclient
 from glanceclient import Client as GlanceClient
 
@@ -215,7 +217,7 @@ def get_swift_session_client(session):
 
 def get_octavia_session_client(session, service_type='load-balancer',
                                interface='internal'):
-    """Return neutronclient authenticated by keystone session.
+    """Return octavia client authenticated by keystone session.
 
     :param session: Keystone session object
     :type session: keystoneauth1.session.Session object
@@ -249,6 +251,25 @@ def get_cinder_session_client(session, version=2):
     :rtype: cinderclient.Client object
     """
     return cinderclient.Client(session=session, version=version)
+
+
+def get_masakari_session_client(session, interface='internal',
+                                region_name='RegionOne'):
+    """Return masakari client authenticated by keystone session.
+
+    :param session: Keystone session object
+    :type session: keystoneauth1.session.Session object
+    :param interface: Interface to look for in catalog
+    :type interface: str
+    :param region_name: Region name to use in catalogue lookup
+    :type region_name: str
+    :returns: Authenticated masakari client
+    :rtype: openstack.instance_ha.v1._proxy.Proxy
+    """
+    conn = connection.Connection(session=session,
+                                 interface=interface,
+                                 region_name=region_name)
+    return conn.instance_ha
 
 
 def get_keystone_scope():
