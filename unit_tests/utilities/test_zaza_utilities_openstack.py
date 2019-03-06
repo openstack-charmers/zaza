@@ -811,3 +811,78 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
                 ksclient, project_name, domain_name=domain_name), project_id)
         ksclient.domains.list.assert_called_once_with(name=domain_name)
         ksclient.projects.list.assert_called_once_with(domain=domain_id)
+
+    def test_wait_for_server_migration(self):
+        openstack_utils.wait_for_server_migration.retry.stop = \
+            tenacity.stop_after_attempt(1)
+        novaclient = mock.MagicMock()
+        servermock = mock.MagicMock()
+        setattr(servermock, 'OS-EXT-SRV-ATTR:host', 'newhypervisor')
+        servermock.status = 'ACTIVE'
+        novaclient.servers.find.return_value = servermock
+        # Implicit assertion that exception is not raised.
+        openstack_utils.wait_for_server_migration(
+            novaclient,
+            'myvm',
+            'org-hypervisor')
+
+    def test_wait_for_server_migration_fail_no_host_change(self):
+        openstack_utils.wait_for_server_migration.retry.stop = \
+            tenacity.stop_after_attempt(1)
+        novaclient = mock.MagicMock()
+        servermock = mock.MagicMock()
+        setattr(servermock, 'OS-EXT-SRV-ATTR:host', 'org-hypervisor')
+        servermock.status = 'ACTIVE'
+        novaclient.servers.find.return_value = servermock
+        with self.assertRaises(exceptions.NovaGuestMigrationFailed):
+            openstack_utils.wait_for_server_migration(
+                novaclient,
+                'myvm',
+                'org-hypervisor')
+
+    def test_wait_for_server_migration_fail_not_active(self):
+        openstack_utils.wait_for_server_migration.retry.stop = \
+            tenacity.stop_after_attempt(1)
+        novaclient = mock.MagicMock()
+        servermock = mock.MagicMock()
+        setattr(servermock, 'OS-EXT-SRV-ATTR:host', 'newhypervisor')
+        servermock.status = 'NOTACTIVE'
+        novaclient.servers.find.return_value = servermock
+        with self.assertRaises(exceptions.NovaGuestMigrationFailed):
+            openstack_utils.wait_for_server_migration(
+                novaclient,
+                'myvm',
+                'org-hypervisor')
+
+    def test_enable_all_nova_services(self):
+        novaclient = mock.MagicMock()
+        svc_mock1 = mock.MagicMock()
+        svc_mock1.status = 'disabled'
+        svc_mock1.binary = 'nova-compute'
+        svc_mock1.host = 'juju-bb659c-zaza-ad7c662d7f1d-13'
+        svc_mock2 = mock.MagicMock()
+        svc_mock2.status = 'enabled'
+        svc_mock2.binary = 'nova-compute'
+        svc_mock2.host = 'juju-bb659c-zaza-ad7c662d7f1d-14'
+        svc_mock3 = mock.MagicMock()
+        svc_mock3.status = 'disabled'
+        svc_mock3.binary = 'nova-compute'
+        svc_mock3.host = 'juju-bb659c-zaza-ad7c662d7f1d-15'
+        novaclient.services.list.return_value = [
+            svc_mock1,
+            svc_mock2,
+            svc_mock3]
+        openstack_utils.enable_all_nova_services(novaclient)
+        expected_calls = [
+            mock.call('juju-bb659c-zaza-ad7c662d7f1d-13', 'nova-compute'),
+            mock.call('juju-bb659c-zaza-ad7c662d7f1d-15', 'nova-compute')]
+        novaclient.services.enable.assert_has_calls(expected_calls)
+
+    def test_get_hypervisor_for_guest(self):
+        novaclient = mock.MagicMock()
+        servermock = mock.MagicMock()
+        setattr(servermock, 'OS-EXT-SRV-ATTR:host', 'newhypervisor')
+        novaclient.servers.find.return_value = servermock
+        self.assertEqual(
+            openstack_utils.get_hypervisor_for_guest(novaclient, 'vmname'),
+            'newhypervisor')
