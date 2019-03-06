@@ -337,6 +337,9 @@ class SecurityTests(BaseKeystoneTest):
 
     def test_security_checklist(self):
         """Verify expected state with security-checklist."""
+        # Changes fixing the below expected failures will be made following
+        # this initial work to get validation in. There will be bugs targeted
+        # to each one and resolved independently where possible.
         expected_failures = [
             'check-max-request-body-size',
             'disable-admin-token',
