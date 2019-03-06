@@ -98,6 +98,23 @@ def get_machines_for_application(application):
     return machines
 
 
+def get_unit_name_from_host_name(host_name, application):
+    """Return the juju unit name corresponding to a hostname.
+
+    :param host_name: Host name to map to unit name.
+    :type host_name: string
+    :param application: Application name
+    :type application: string
+    """
+    # Assume that a juju managed hostname always ends in the machine number.
+    machine_number = host_name.split('-')[-1]
+    unit_names = [
+        u.entity_id
+        for u in model.get_units(application_name=application)
+        if int(u.data['machine-id']) == int(machine_number)]
+    return unit_names[0]
+
+
 def get_machine_status(machine, key=None):
     """Return the juju status for a machine.
 

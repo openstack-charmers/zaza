@@ -119,6 +119,18 @@ class TestJujuUtils(ut_utils.BaseTestCase):
                 self.subordinate_application),
             [self.machine])
 
+    def test_get_unit_name_from_host_name(self):
+        unit_mock1 = mock.MagicMock()
+        unit_mock1.data = {'machine-id': 12}
+        unit_mock1.entity_id = 'myapp/2'
+        unit_mock2 = mock.MagicMock()
+        unit_mock2.data = {'machine-id': 15}
+        unit_mock2.entity_id = 'myapp/5'
+        self.model.get_units.return_value = [unit_mock1, unit_mock2]
+        self.assertEqual(
+            juju_utils.get_unit_name_from_host_name('juju-model-12', 'myapp'),
+            'myapp/2')
+
     def test_get_machine_status(self):
         self.patch_object(juju_utils, "get_full_juju_status")
         self.get_full_juju_status.return_value = self.juju_status
