@@ -56,20 +56,23 @@ def get_expected_pools(radosgw=False):
     return pools
 
 
-def get_ceph_pools(unit_name):
+def get_ceph_pools(unit_name, model_name=None):
     """Get ceph pools.
 
     Return a dict of ceph pools from a single ceph unit, with
     pool name as keys, pool id as vals.
+
     :param unit_name: Name of the unit to get the pools on
     :type unit_name: string
+    :param model_name: Name of model to operate in
+    :type model_name: str
     :returns: Dict of ceph pools
     :rtype: dict
     :raise: zaza_model.CommandRunFailed
     """
     pools = {}
     cmd = 'sudo ceph osd lspools'
-    result = zaza_model.run_on_unit(unit_name, cmd)
+    result = zaza_model.run_on_unit(unit_name, cmd, model_name=model_name)
     output = result.get('Stdout').strip()
     code = int(result.get('Code'))
     if code != 0:
