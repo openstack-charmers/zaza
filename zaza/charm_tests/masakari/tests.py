@@ -16,6 +16,7 @@
 
 """Encapsulate masakari testing."""
 
+from datetime import datetime
 import logging
 
 import novaclient
@@ -40,27 +41,74 @@ class MasakariTest(test_utils.OpenStackBaseTest):
         cls.nova_client = openstack_utils.get_nova_session_client(
             cls.keystone_session)
 
-    def test_instance_failover(self):
-        """Test masakari managed guest migration."""
-        # Launch guest
-        vm_name = 'zaza-test-instance-failover'
+    @classmethod
+    def tearDown(cls):
+        """Bring hypervisors and services back up."""
+        logging.info('Running teardown')
+        for unit in zaza.model.get_units('nova-compute',
+                                         model_name=cls.model_name):
+            zaza.configure.masakari.simulate_compute_host_recovery(
+                unit.entity_id,
+                model_name=cls.model_name)
+        zaza.utilities.openstack.enable_all_nova_services(cls.nova_client)
+        zaza.configure.masakari.enable_hosts()
+
+    def ensure_guest(self, vm_name):
+        """Return the existing guest or boot a new one.
+
+        :param vm_name: Name of guest to lookup
+        :type vm_name: str
+        """
         try:
-            self.nova_client.servers.find(name=vm_name)
+            guest = self.nova_client.servers.find(name=vm_name)
             logging.info('Found existing guest')
         except novaclient.exceptions.NotFound:
             logging.info('Launching new guest')
-            zaza.configure.guest.launch_instance(
+            guest = zaza.configure.guest.launch_instance(
                 'bionic',
                 use_boot_volume=True,
                 vm_name=vm_name)
+        return guest
 
-        # Locate hypervisor hosting guest and shut it down
+    def get_guests_compute_info(self, vm_name):
+        """Return the hostname & juju unit of compute host hosting vm.
+
+        :param vm_name: Name of guest to lookup
+        :type vm_name: str
+        """
         current_hypervisor = zaza.utilities.openstack.get_hypervisor_for_guest(
             self.nova_client,
             vm_name)
         unit_name = juju_utils.get_unit_name_from_host_name(
             current_hypervisor,
             'nova-compute')
+        return current_hypervisor, unit_name
+
+    def get_guest_qemu_pid(self, compute_unit_name, vm_uuid, model_name=None):
+        """Return the qemu pid of process running guest.
+
+        :param compute_unit_name: Juju unit name of hypervisor running guest
+        :type compute_unit_name: str
+        :param vm_uuid: Guests UUID
+        :type vm_uuid: str
+        :param model_name: Name of model running cloud.
+        :type model_name: str
+        """
+        pid_find_cmd = 'pgrep -u libvirt-qemu -f {}'.format(vm_uuid)
+        out = zaza.model.run_on_unit(
+            compute_unit_name,
+            pid_find_cmd,
+            model_name=self.model_name)
+        return int(out['Stdout'].strip())
+
+    def test_instance_failover(self):
+        """Test masakari managed guest migration."""
+        # Launch guest
+        vm_name = 'zaza-test-instance-failover'
+        self.ensure_guest(vm_name)
+
+        # Locate hypervisor hosting guest and shut it down
+        current_hypervisor, unit_name = self.get_guests_compute_info(vm_name)
         zaza.configure.masakari.simulate_compute_host_failure(
             unit_name,
             model_name=self.model_name)
@@ -80,3 +128,36 @@ class MasakariTest(test_utils.OpenStackBaseTest):
             model_name=self.model_name)
         zaza.utilities.openstack.enable_all_nova_services(self.nova_client)
         zaza.configure.masakari.enable_hosts()
+
+    def test_instance_restart_on_fail(self):
+        """Test singlee guest crash and recovery."""
+        vm_name = 'zaza-test-instance-failover'
+        vm = self.ensure_guest(vm_name)
+        _, unit_name = self.get_guests_compute_info(vm_name)
+        logging.info('{} is running on {}'.format(vm_name, unit_name))
+        guest_pid = self.get_guest_qemu_pid(
+            unit_name,
+            vm.id,
+            model_name=self.model_name)
+        logging.info('{} pid is {}'.format(vm_name, guest_pid))
+        inital_update_time = datetime.strptime(
+            vm.updated,
+            "%Y-%m-%dT%H:%M:%SZ")
+        logging.info('Simulating vm crash of {}'.format(vm_name))
+        zaza.configure.masakari.simulate_vm_crash(
+            guest_pid,
+            unit_name,
+            model_name=self.model_name)
+        logging.info('Waiting for {} to be updated and become active'.format(
+            vm_name))
+        zaza.utilities.openstack.wait_for_server_update_and_active(
+            self.nova_client,
+            vm_name,
+            inital_update_time)
+        new_guest_pid = self.get_guest_qemu_pid(
+            unit_name,
+            vm.id,
+            model_name=self.model_name)
+        logging.info('{} pid is now {}'.format(vm_name, guest_pid))
+        assert new_guest_pid and new_guest_pid != guest_pid, (
+            "Restart failed or never happened")

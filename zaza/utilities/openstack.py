@@ -42,6 +42,7 @@ from neutronclient.common import exceptions as neutronexceptions
 from octaviaclient.api.v2 import octavia as octaviaclient
 from swiftclient import client as swiftclient
 
+import datetime
 import io
 import juju_wait
 import logging
@@ -1920,6 +1921,37 @@ def wait_for_server_migration(nova_client, vm_name, original_hypervisor):
         logging.info('SUCCESS {} has migrated to {}'.format(
             vm_name,
             current_hypervisor))
+
+
+@tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
+                reraise=True, stop=tenacity.stop_after_attempt(80),
+                retry=tenacity.retry_if_exception_type(
+                    exceptions.NovaGuestRestartFailed))
+def wait_for_server_update_and_active(nova_client, vm_name,
+                                      original_updatetime):
+    """Wait for guests metadata to be updated and for status to become active.
+
+    :param nova_client: Authenticated nova client
+    :type nova_client: novaclient.v2.client.Client
+    :param vm_name: Name of guest to monitor
+    :type vm_name: str
+    :param original_updatetime: The time the metadata was previously updated.
+    :type original_updatetime: datetime
+    :raises: exceptions.NovaGuestMigrationFailed
+    """
+    server = nova_client.servers.find(name=vm_name)
+    current_updatetime = datetime.datetime.strptime(
+        server.updated,
+        "%Y-%m-%dT%H:%M:%SZ")
+    if current_updatetime <= original_updatetime or server.status != 'ACTIVE':
+        logging.info('{} Updated: {} Satus: {})'.format(
+            vm_name,
+            current_updatetime,
+            server.status))
+        raise exceptions.NovaGuestRestartFailed(
+            'Restart of {} after crash failed'.format(vm_name))
+    else:
+        logging.info('SUCCESS {} has restarted'.format(vm_name))
 
 
 def enable_all_nova_services(nova_client):

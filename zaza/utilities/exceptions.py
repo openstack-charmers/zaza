@@ -166,3 +166,9 @@ class NovaGuestMigrationFailed(Exception):
     """Nova guest migration failed."""
 
     pass
+
+
+class NovaGuestRestartFailed(Exception):
+    """Nova guest restart failed."""
+
+    pass

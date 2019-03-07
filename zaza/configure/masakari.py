@@ -167,3 +167,20 @@ def simulate_compute_host_recovery(unit_name, model_name):
         'start',
         ['corosync', 'pacemaker', 'nova-compute'],
         model_name)
+
+
+def simulate_guest_crash(guest_pid, compute_unit_name, model_name):
+    """Simulate a guest crashing.
+
+    :param guest_pid: PID of running qemu provess for guest.
+    :type guest_pid: str
+    :param compute_unit_name: Juju name of hypervisor hosting guest (app/n)
+    :type compute_unit_name: str
+    :param model_name: Name of model unit_name resides in.
+    :type model_name: str
+    """
+    pid_kill_cmd = 'kill -9 {}'
+    zaza.model.run_on_unit(
+        compute_unit_name,
+        pid_kill_cmd.format(guest_pid),
+        model_name=model_name)
