@@ -69,6 +69,7 @@ class MasakariTest(test_utils.OpenStackBaseTest):
             guest = zaza.configure.guest.launch_instance(
                 'bionic',
                 use_boot_volume=True,
+                meta={'HA_Enabled': 'True'},
                 vm_name=vm_name)
         return guest
 
