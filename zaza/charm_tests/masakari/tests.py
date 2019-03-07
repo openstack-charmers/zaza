@@ -150,7 +150,7 @@ class MasakariTest(test_utils.OpenStackBaseTest):
             vm.updated,
             "%Y-%m-%dT%H:%M:%SZ")
         logging.info('Simulating vm crash of {}'.format(vm_name))
-        zaza.configure.masakari.simulate_vm_crash(
+        zaza.configure.masakari.simulate_guest_crash(
             guest_pid,
             unit_name,
             model_name=self.model_name)
