@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import copy
+import datetime
 import io
 import mock
 import tenacity
@@ -853,6 +854,54 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
                 novaclient,
                 'myvm',
                 'org-hypervisor')
+
+    def test_wait_for_server_update_and_active(self):
+        openstack_utils.wait_for_server_migration.retry.stop = \
+            tenacity.stop_after_attempt(1)
+        novaclient = mock.MagicMock()
+        servermock = mock.MagicMock()
+        servermock.updated = '2019-03-07T13:41:58Z'
+        servermock.status = 'ACTIVE'
+        novaclient.servers.find.return_value = servermock
+        # Implicit assertion that exception is not raised.
+        openstack_utils.wait_for_server_update_and_active(
+            novaclient,
+            'myvm',
+            datetime.datetime.strptime(
+                '2019-03-07T13:40:58Z',
+                '%Y-%m-%dT%H:%M:%SZ'))
+
+    def test_wait_for_server_update_and_active_fail_no_meeta_update(self):
+        openstack_utils.wait_for_server_update_and_active.retry.stop = \
+            tenacity.stop_after_attempt(1)
+        novaclient = mock.MagicMock()
+        servermock = mock.MagicMock()
+        servermock.updated = '2019-03-07T13:41:58Z'
+        servermock.status = 'ACTIVE'
+        novaclient.servers.find.return_value = servermock
+        with self.assertRaises(exceptions.NovaGuestRestartFailed):
+            openstack_utils.wait_for_server_update_and_active(
+                novaclient,
+                'myvm',
+                datetime.datetime.strptime(
+                    '2019-03-07T13:41:58Z',
+                    '%Y-%m-%dT%H:%M:%SZ'))
+
+    def test_wait_for_server_update_and_active_fail_not_active(self):
+        openstack_utils.wait_for_server_update_and_active.retry.stop = \
+            tenacity.stop_after_attempt(1)
+        novaclient = mock.MagicMock()
+        servermock = mock.MagicMock()
+        servermock.updated = '2019-03-07T13:41:58Z'
+        servermock.status = 'NOTACTIVE'
+        novaclient.servers.find.return_value = servermock
+        with self.assertRaises(exceptions.NovaGuestRestartFailed):
+            openstack_utils.wait_for_server_update_and_active(
+                novaclient,
+                'myvm',
+                datetime.datetime.strptime(
+                    '2019-03-07T13:40:58Z',
+                    '%Y-%m-%dT%H:%M:%SZ'))
 
     def test_enable_all_nova_services(self):
         novaclient = mock.MagicMock()
