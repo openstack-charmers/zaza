@@ -58,6 +58,8 @@ class MasakariTest(test_utils.OpenStackBaseTest):
 
         :param vm_name: Name of guest to lookup
         :type vm_name: str
+        :returns: Guest matching name.
+        :rtype: novaclient.v2.servers.Server
         """
         try:
             guest = self.nova_client.servers.find(name=vm_name)
@@ -75,6 +77,8 @@ class MasakariTest(test_utils.OpenStackBaseTest):
 
         :param vm_name: Name of guest to lookup
         :type vm_name: str
+        :returns: Hypervisor name and juju unit name
+        :rtype: (str, str)
         """
         current_hypervisor = zaza.utilities.openstack.get_hypervisor_for_guest(
             self.nova_client,
@@ -93,6 +97,8 @@ class MasakariTest(test_utils.OpenStackBaseTest):
         :type vm_uuid: str
         :param model_name: Name of model running cloud.
         :type model_name: str
+        :returns: PID of qemu process
+        :rtype: int
         """
         pid_find_cmd = 'pgrep -u libvirt-qemu -f {}'.format(vm_uuid)
         out = zaza.model.run_on_unit(
