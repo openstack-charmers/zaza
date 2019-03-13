@@ -52,17 +52,15 @@ class CharmOperationTest(BaseKeystoneTest):
         This test should run early. It validates that if a VIP is set it is in
         the catalog entry for keystone.
         """
-        vip = (zaza.model.get_application_config('keystone')
-               .get('vip').get('value'))
-        if not vip:
+        if not self.vip:
             # If the vip is not set skip this test.
             return
         endpoint_filter = {'service_type': 'identity',
                            'interface': 'public',
                            'region_name': 'RegionOne'}
         ep = self.admin_keystone_client.session.get_endpoint(**endpoint_filter)
-        assert vip in ep, (
-            "VIP: {} not found in catalog entry: {}".format(vip, ep))
+        assert self.vip in ep, (
+            "VIP: {} not found in catalog entry: {}".format(self.vip, ep))
 
     def test_pause_resume(self):
         """Run pause and resume tests.
@@ -237,6 +235,10 @@ class AuthenticationAuthorizationTest(BaseKeystoneTest):
                     'OS_USER_DOMAIN_NAME': DEMO_DOMAIN,
                     'OS_DOMAIN_NAME': DEMO_DOMAIN,
                 }
+                if self.tls_rid:
+                    openrc['OS_CACERT'] = self.LOCAL_KEYSTONE_CACERT
+                    openrc['OS_AUTH_URL'] = (
+                        openrc['OS_AUTH_URL'].replace('http', 'https'))
                 logging.info('keystone IP {}'.format(ip))
                 keystone_session = openstack_utils.get_keystone_session(
                     openrc, scope='DOMAIN')
@@ -263,6 +265,10 @@ class AuthenticationAuthorizationTest(BaseKeystoneTest):
         of `token-provider`.
         """
         def _validate_token_data(openrc):
+            if self.tls_rid:
+                openrc['OS_CACERT'] = self.LOCAL_KEYSTONE_CACERT
+                openrc['OS_AUTH_URL'] = (
+                    openrc['OS_AUTH_URL'].replace('http', 'https'))
             keystone_session = openstack_utils.get_keystone_session(
                 openrc)
             keystone_client = openstack_utils.get_keystone_session_client(

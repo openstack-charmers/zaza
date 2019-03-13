@@ -33,7 +33,23 @@ class BaseKeystoneTest(test_utils.OpenStackBaseTest):
     def setUpClass(cls):
         """Run class setup for running Keystone charm operation tests."""
         super(BaseKeystoneTest, cls).setUpClass()
+        # Local copy of keystone's CA certificate
+        cls.LOCAL_KEYSTONE_CACERT = "/tmp/keystone_juju_ca_cert.crt"
+        # Check if we are related to Vault TLS certificates
+        cls.tls_rid = zaza.model.get_relation_id(
+            'keystone', 'vault', remote_interface_name='certificates')
+        # Check for VIP
+        cls.vip = (zaza.model.get_application_config('keystone')
+                   .get('vip').get('value'))
         cls.keystone_ips = zaza.model.get_app_ips('keystone')
+        # If we have a VIP set and we are using TLS only check the VIP
+        # If you check the individual IP haproxy may send to a different
+        # back end which leads to mismatched certificates.
+        if cls.vip:
+            if cls.tls_rid:
+                cls.keystone_ips = [cls.vip]
+            else:
+                cls.keystone_ips.append(cls.vip)
         if (openstack_utils.get_os_release() <
                 openstack_utils.get_os_release('xenial_queens')):
             cls.default_api_version = '2'
