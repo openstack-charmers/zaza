@@ -305,23 +305,6 @@ def get_keystone_session(openrc_creds, scope='PROJECT', verify=None):
     :rtype: keystoneauth1.session.Session object
     """
     keystone_creds = get_ks_creds(openrc_creds, scope=scope)
-    # Check if we are using HTTP with the certificate relation to vault
-    tls_rid = model.get_relation_id('keystone', 'vault',
-                                    remote_interface_name='certificates')
-    if tls_rid:
-        tmp_file = "/tmp/keystone_juju_ca_cert.crt"
-        unit = model.get_first_unit_name('keystone')
-        model.scp_from_unit(
-            unit,
-            '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
-            tmp_file)
-
-        if os.path.exists(tmp_file):
-            os.chmod(tmp_file, 0o644)
-            openrc_creds['OS_CACERT'] = tmp_file
-            keystone_creds['auth_url'] = (keystone_creds['auth_url']
-                                          .replace("http:", "https:"))
-
     if not verify and openrc_creds.get('OS_CACERT'):
         verify = openrc_creds['OS_CACERT']
     if openrc_creds.get('API_VERSION', 2) == 2:
@@ -1444,6 +1427,19 @@ def get_overcloud_auth(address=None):
             'OS_PROJECT_DOMAIN_NAME': 'admin_domain',
             'API_VERSION': 3,
         }
+    if tls_rid:
+        tmp_file = "/tmp/keystone_juju_ca_cert.crt"
+        unit = model.get_first_unit_name('keystone')
+        model.scp_from_unit(
+            unit,
+            '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
+            tmp_file)
+
+        if os.path.exists(tmp_file):
+            os.chmod(tmp_file, 0o644)
+            auth_settings['OS_CACERT'] = tmp_file
+
+
     return auth_settings
 
 
