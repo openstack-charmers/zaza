@@ -22,6 +22,11 @@ import zaza.charm_tests.vault.utils as vault_utils
 import zaza.model
 import zaza.utilities.cert
 
+KEYSTONE_CACERT = "keystone_juju_ca_cert.crt"
+KEYSTONE_REMOTE_CACERT = (
+    "/usr/local/share/ca-certificates/{}".format(KEYSTONE_CACERT))
+KEYSTONE_LOCAL_CACERT = ("/tmp/{}".format(KEYSTONE_CACERT))
+
 
 def basic_setup(cacert=None, unseal_and_authorize=False):
     """Run basic setup for vault tests.
@@ -47,8 +52,7 @@ def basic_setup(cacert=None, unseal_and_authorize=False):
     if unseal_and_authorize:
         vault_utils.unseal_all(clients, vault_creds['keys'][0])
         vault_utils.auth_all(clients, vault_creds['root_token'])
-        action = vault_utils.run_charm_authorize(
-            vault_creds['root_token'])
+        vault_utils.run_charm_authorize(vault_creds['root_token'])
 
 
 def auto_inititialize(cacert=None):
@@ -58,9 +62,8 @@ def auto_inititialize(cacert=None):
     In a stack that includes and relies on certificates in vault initialize
     vault by unsealing and creating a certificate authority.
     """
-
     basic_setup(cacert=cacert, unseal_and_authorize=True)
-    
+
     action = vault_utils.run_get_csr()
     intermediate_csr = action.data['results']['output']
     (cakey, cacert) = zaza.utilities.cert.generate_cert(
@@ -75,22 +78,25 @@ def auto_inititialize(cacert=None):
         pem=intermediate_cert,
         root_ca=cacert,
         allowed_domains='openstack.local')
-    
+
     validate_ca(cacert)
 
 
 def validate_ca(cacert, application="keystone", port=5000):
+    """Validate Certificate Authority.
 
-    vault_creds = vault_utils.get_credentails()
-    test_config = lifecycle_utils.get_charm_config()
-
+    :param cacert: Path to CA cert used for vaults api cert.
+    :type cacert: str
+    """
     zaza.model.block_until_file_has_contents(
         application,
         '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
         cacert.decode().strip())
+    test_config = lifecycle_utils.get_charm_config()
     zaza.model.wait_for_application_states(
         states=test_config.get('target_deploy_status', {}))
-    vip = zaza.model.get_application_config(application).get("vip").get("value")
+    vip = (zaza.model.get_application_config(application)
+           .get("vip").get("value"))
     if vip:
         ip = vip
     else:

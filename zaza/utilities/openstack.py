@@ -1439,7 +1439,6 @@ def get_overcloud_auth(address=None):
             os.chmod(tmp_file, 0o644)
             auth_settings['OS_CACERT'] = tmp_file
 
-
     return auth_settings
 
 
