@@ -33,8 +33,6 @@ class BaseKeystoneTest(test_utils.OpenStackBaseTest):
     def setUpClass(cls):
         """Run class setup for running Keystone charm operation tests."""
         super(BaseKeystoneTest, cls).setUpClass()
-        # Local copy of keystone's CA certificate
-        cls.LOCAL_KEYSTONE_CACERT = "/tmp/keystone_juju_ca_cert.crt"
         # Check if we are related to Vault TLS certificates
         cls.tls_rid = zaza.model.get_relation_id(
             'keystone', 'vault', remote_interface_name='certificates')

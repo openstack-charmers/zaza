@@ -131,6 +131,12 @@ WORKLOAD_STATUS_EXCEPTIONS = {
     'postgresql': {
         'workload-status-message': 'Live'}}
 
+# For vault TLS certificates
+KEYSTONE_CACERT = "keystone_juju_ca_cert.crt"
+KEYSTONE_REMOTE_CACERT = (
+    "/usr/local/share/ca-certificates/{}".format(KEYSTONE_CACERT))
+KEYSTONE_LOCAL_CACERT = ("/tmp/{}".format(KEYSTONE_CACERT))
+
 
 # Openstack Client helpers
 def get_ks_creds(cloud_creds, scope='PROJECT'):
@@ -1428,16 +1434,15 @@ def get_overcloud_auth(address=None):
             'API_VERSION': 3,
         }
     if tls_rid:
-        tmp_file = "/tmp/keystone_juju_ca_cert.crt"
         unit = model.get_first_unit_name('keystone')
         model.scp_from_unit(
             unit,
-            '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
-            tmp_file)
+            KEYSTONE_REMOTE_CACERT,
+            KEYSTONE_LOCAL_CACERT)
 
-        if os.path.exists(tmp_file):
-            os.chmod(tmp_file, 0o644)
-            auth_settings['OS_CACERT'] = tmp_file
+        if os.path.exists(KEYSTONE_LOCAL_CACERT):
+            os.chmod(KEYSTONE_LOCAL_CACERT, 0o644)
+            auth_settings['OS_CACERT'] = KEYSTONE_LOCAL_CACERT
 
     return auth_settings
 
