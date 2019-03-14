@@ -27,6 +27,7 @@ import zaza.charm_lifecycle.utils as lifecycle_utils
 import zaza.charm_tests.test_utils as test_utils
 import zaza.charm_tests.vault.utils as vault_utils
 import zaza.utilities.cert
+import zaza.utilities.openstack
 import zaza.model
 
 
@@ -112,7 +113,7 @@ class VaultTest(BaseVaultTest):
         del test_config['target_deploy_status']['vault']
         zaza.model.block_until_file_has_contents(
             'keystone',
-            '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
+            zaza.utilities.openstack.KEYSTONE_REMOTE_CACERT,
             cacert.decode().strip())
         zaza.model.wait_for_application_states(
             states=test_config.get('target_deploy_status', {}))
