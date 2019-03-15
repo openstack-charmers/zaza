@@ -52,17 +52,15 @@ class CharmOperationTest(BaseKeystoneTest):
         This test should run early. It validates that if a VIP is set it is in
         the catalog entry for keystone.
         """
-        vip = (zaza.model.get_application_config('keystone')
-               .get('vip').get('value'))
-        if not vip:
+        if not self.vip:
             # If the vip is not set skip this test.
             return
         endpoint_filter = {'service_type': 'identity',
                            'interface': 'public',
                            'region_name': 'RegionOne'}
         ep = self.admin_keystone_client.session.get_endpoint(**endpoint_filter)
-        assert vip in ep, (
-            "VIP: {} not found in catalog entry: {}".format(vip, ep))
+        assert self.vip in ep, (
+            "VIP: {} not found in catalog entry: {}".format(self.vip, ep))
 
     def test_pause_resume(self):
         """Run pause and resume tests.
@@ -193,7 +191,8 @@ class AuthenticationAuthorizationTest(BaseKeystoneTest):
             return
         with self.config_change(
                 {'preferred-api-version': self.default_api_version},
-                {'preferred-api-version': '3'}):
+                {'preferred-api-version': '3'},
+                application_name="keystone"):
             for ip in self.keystone_ips:
                 try:
                     logging.info('keystone IP {}'.format(ip))
@@ -225,7 +224,8 @@ class AuthenticationAuthorizationTest(BaseKeystoneTest):
             return
         with self.config_change(
                 {'preferred-api-version': self.default_api_version},
-                {'preferred-api-version': '3'}):
+                {'preferred-api-version': '3'},
+                application_name="keystone"):
             for ip in self.keystone_ips:
                 openrc = {
                     'API_VERSION': 3,
@@ -235,6 +235,10 @@ class AuthenticationAuthorizationTest(BaseKeystoneTest):
                     'OS_USER_DOMAIN_NAME': DEMO_DOMAIN,
                     'OS_DOMAIN_NAME': DEMO_DOMAIN,
                 }
+                if self.tls_rid:
+                    openrc['OS_CACERT'] = openstack_utils.KEYSTONE_LOCAL_CACERT
+                    openrc['OS_AUTH_URL'] = (
+                        openrc['OS_AUTH_URL'].replace('http', 'https'))
                 logging.info('keystone IP {}'.format(ip))
                 keystone_session = openstack_utils.get_keystone_session(
                     openrc, scope='DOMAIN')
@@ -261,6 +265,10 @@ class AuthenticationAuthorizationTest(BaseKeystoneTest):
         of `token-provider`.
         """
         def _validate_token_data(openrc):
+            if self.tls_rid:
+                openrc['OS_CACERT'] = openstack_utils.KEYSTONE_LOCAL_CACERT
+                openrc['OS_AUTH_URL'] = (
+                    openrc['OS_AUTH_URL'].replace('http', 'https'))
             keystone_session = openstack_utils.get_keystone_session(
                 openrc)
             keystone_client = openstack_utils.get_keystone_session_client(
@@ -320,7 +328,8 @@ class AuthenticationAuthorizationTest(BaseKeystoneTest):
             }
             with self.config_change(
                     {'preferred-api-version': self.default_api_version},
-                    {'preferred-api-version': '3'}):
+                    {'preferred-api-version': '3'},
+                    application_name="keystone"):
                 for ip in self.keystone_ips:
                     openrc.update(
                         {'OS_AUTH_URL': 'http://{}:5000/v3'.format(ip)})
@@ -341,13 +350,13 @@ class SecurityTests(BaseKeystoneTest):
         # this initial work to get validation in. There will be bugs targeted
         # to each one and resolved independently where possible.
         expected_failures = [
-            'check-max-request-body-size',
             'disable-admin-token',
             'uses-sha256-for-hashing-tokens',
             'validate-file-ownership',
             'validate-file-permissions',
         ]
         expected_passes = [
+            'check-max-request-body-size',
             'uses-fernet-token-after-default',
             'insecure-debug-is-false',
         ]

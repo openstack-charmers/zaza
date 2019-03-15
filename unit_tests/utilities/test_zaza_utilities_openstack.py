@@ -191,6 +191,13 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.patch_object(openstack_utils, 'get_keystone_ip')
         self.patch_object(openstack_utils, "get_current_os_versions")
         self.patch_object(openstack_utils.juju_utils, 'leader_get')
+        if tls_relation:
+            self.patch_object(openstack_utils.model, "scp_from_unit")
+            self.patch_object(openstack_utils.model, "get_first_unit_name")
+            self.get_first_unit_name.return_value = "keystone/4"
+            self.patch_object(openstack_utils.os, "chmod")
+            self.patch_object(openstack_utils.os, "path")
+            self.path.return_value = True
 
         self.get_keystone_ip.return_value = '127.0.0.1'
         self.get_relation_id.return_value = None
@@ -236,6 +243,8 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
                 'OS_PROJECT_DOMAIN_NAME': 'admin_domain',
                 'API_VERSION': 3,
             }
+        if tls_relation:
+            expect['OS_CACERT'] = openstack_utils.KEYSTONE_LOCAL_CACERT
         self.assertEqual(openstack_utils.get_overcloud_auth(),
                          expect)
 
@@ -935,3 +944,34 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.assertEqual(
             openstack_utils.get_hypervisor_for_guest(novaclient, 'vmname'),
             'newhypervisor')
+
+    def test_get_keystone_session(self):
+        self.patch_object(openstack_utils, "session")
+        self.patch_object(openstack_utils, "v2")
+        _auth = mock.MagicMock()
+        self.v2.Password.return_value = _auth
+        _openrc = {
+            "OS_AUTH_URL": "https://keystone:5000",
+            "OS_USERNAME": "myuser",
+            "OS_PASSWORD": "pass",
+            "OS_TENANT_NAME": "tenant",
+        }
+        openstack_utils.get_keystone_session(_openrc)
+        self.session.Session.assert_called_once_with(auth=_auth, verify=None)
+
+    def test_get_keystone_session_tls(self):
+        self.patch_object(openstack_utils, "session")
+        self.patch_object(openstack_utils, "v2")
+        _auth = mock.MagicMock()
+        self.v2.Password.return_value = _auth
+        _cacert = "/tmp/cacert"
+        _openrc = {
+            "OS_AUTH_URL": "https://keystone:5000",
+            "OS_USERNAME": "myuser",
+            "OS_PASSWORD": "pass",
+            "OS_TENANT_NAME": "tenant",
+            "OS_CACERT": _cacert,
+        }
+        openstack_utils.get_keystone_session(_openrc)
+        self.session.Session.assert_called_once_with(
+            auth=_auth, verify=_cacert)

@@ -131,6 +131,12 @@ WORKLOAD_STATUS_EXCEPTIONS = {
     'postgresql': {
         'workload-status-message': 'Live'}}
 
+# For vault TLS certificates
+KEYSTONE_CACERT = "keystone_juju_ca_cert.crt"
+KEYSTONE_REMOTE_CACERT = (
+    "/usr/local/share/ca-certificates/{}".format(KEYSTONE_CACERT))
+KEYSTONE_LOCAL_CACERT = ("/tmp/{}".format(KEYSTONE_CACERT))
+
 
 # Openstack Client helpers
 def get_ks_creds(cloud_creds, scope='PROJECT'):
@@ -289,7 +295,7 @@ def get_keystone_scope():
     return scope
 
 
-def get_keystone_session(opentackrc_creds, scope='PROJECT', verify=None):
+def get_keystone_session(openrc_creds, scope='PROJECT', verify=None):
     """Return keystone session.
 
     :param openrc_creds: Openstack RC credentials
@@ -304,8 +310,10 @@ def get_keystone_session(opentackrc_creds, scope='PROJECT', verify=None):
     :returns: Keystone session object
     :rtype: keystoneauth1.session.Session object
     """
-    keystone_creds = get_ks_creds(opentackrc_creds, scope=scope)
-    if opentackrc_creds.get('API_VERSION', 2) == 2:
+    keystone_creds = get_ks_creds(openrc_creds, scope=scope)
+    if not verify and openrc_creds.get('OS_CACERT'):
+        verify = openrc_creds['OS_CACERT']
+    if openrc_creds.get('API_VERSION', 2) == 2:
         auth = v2.Password(**keystone_creds)
     else:
         auth = v3.Password(**keystone_creds)
@@ -353,7 +361,7 @@ def get_keystone_session_client(session, client_api_version=3):
         return keystoneclient_v3.Client(session=session)
 
 
-def get_keystone_client(opentackrc_creds, verify=None):
+def get_keystone_client(openrc_creds, verify=None):
     """Return authenticated keystoneclient and set auth_ref for service_catalog.
 
     :param openrc_creds: Openstack RC credentials
@@ -363,10 +371,10 @@ def get_keystone_client(opentackrc_creds, verify=None):
     :returns: Authenticated keystoneclient
     :rtype: keystoneclient.v3.Client object
     """
-    session = get_keystone_session(opentackrc_creds, verify=verify)
+    session = get_keystone_session(openrc_creds, verify=verify)
     client = get_keystone_session_client(session)
-    keystone_creds = get_ks_creds(opentackrc_creds)
-    if opentackrc_creds.get('API_VERSION', 2) == 2:
+    keystone_creds = get_ks_creds(openrc_creds)
+    if openrc_creds.get('API_VERSION', 2) == 2:
         auth = v2.Password(**keystone_creds)
     else:
         auth = v3.Password(**keystone_creds)
@@ -1425,6 +1433,17 @@ def get_overcloud_auth(address=None):
             'OS_PROJECT_DOMAIN_NAME': 'admin_domain',
             'API_VERSION': 3,
         }
+    if tls_rid:
+        unit = model.get_first_unit_name('keystone')
+        model.scp_from_unit(
+            unit,
+            KEYSTONE_REMOTE_CACERT,
+            KEYSTONE_LOCAL_CACERT)
+
+        if os.path.exists(KEYSTONE_LOCAL_CACERT):
+            os.chmod(KEYSTONE_LOCAL_CACERT, 0o644)
+            auth_settings['OS_CACERT'] = KEYSTONE_LOCAL_CACERT
+
     return auth_settings
 
 
