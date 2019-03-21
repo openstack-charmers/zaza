@@ -129,6 +129,33 @@ def _svc_control(unit_name, action, services, model_name):
         model_name=model_name)
 
 
+def _svc_set_systemd_restart_mode(unit_name, service_name, mode, model_name):
+    """Update the restart mode of the given systemd service.
+
+    :param unit_name: Juju name of unit (app/n)
+    :type unit_name: str
+    :param service_name: Name of systemd service to update
+    :type service_name: str
+    :param mode: Restart mode to switch to eg 'no', 'on-success', 'on-failure',
+                 'on-abort' or 'always'
+    :type mode: str
+    :param model_name: Name of model unit_name resides in.
+    :type model_name: str
+    """
+    # Restart options include: no, on-success, on-failure, on-abort or always
+    logging.info('Setting systemd restart mode for {} to {}'.format(
+        service_name,
+        mode))
+    cmds = [
+        ("sed -i -e 's/^Restart=.*/Restart={}/g' "
+         "/lib/systemd/system/{}.service'").format(mode, service_name),
+        'systemctl daemon-reload']
+    logging.info('Running {} on {}'.format(cmds, unit_name))
+    zaza.model.run_on_unit(
+        unit_name, command=';'.join(cmds),
+        model_name=model_name)
+
+
 def simulate_compute_host_failure(unit_name, model_name):
     """Simulate compute node failure from a masakari and nova POV.
 
@@ -142,11 +169,21 @@ def simulate_compute_host_failure(unit_name, model_name):
     :type model_name: str
     """
     logging.info('Simulating failure of compute node {}'.format(unit_name))
+    _svc_set_systemd_restart_mode(
+        unit_name,
+        'pacemaker_remote',
+        'no',
+        model_name)
     _svc_control(
         unit_name,
         'stop',
-        ['corosync', 'pacemaker', 'nova-compute'],
+        ['corosync', 'nova-compute'],
         model_name)
+    logging.info('Sending pacemaker_remoted a SIGTERM')
+    zaza.model.run_on_unit(
+        unit_name,
+        'pkill -9 -f /usr/sbin/pacemaker_remoted',
+        model_name=model_name)
 
 
 def simulate_compute_host_recovery(unit_name, model_name):
@@ -162,10 +199,15 @@ def simulate_compute_host_recovery(unit_name, model_name):
     :type model_name: str
     """
     logging.info('Simulating recovery of compute node {}'.format(unit_name))
+    _svc_set_systemd_restart_mode(
+        unit_name,
+        'pacemaker_remote',
+        'on-failure',
+        model_name)
     _svc_control(
         unit_name,
         'start',
-        ['corosync', 'pacemaker', 'nova-compute'],
+        ['corosync', 'pacemaker_remote', 'nova-compute'],
         model_name)
 
 

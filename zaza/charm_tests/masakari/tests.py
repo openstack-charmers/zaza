@@ -26,6 +26,7 @@ import zaza.charm_tests.test_utils as test_utils
 import zaza.utilities.openstack as openstack_utils
 import zaza.utilities.juju as juju_utils
 import zaza.configure.guest
+import zaza.configure.hacluster
 import zaza.configure.masakari
 
 
@@ -111,6 +112,8 @@ class MasakariTest(test_utils.OpenStackBaseTest):
     def test_instance_failover(self):
         """Test masakari managed guest migration."""
         # Launch guest
+        self.assertTrue(zaza.configure.hacluster.check_all_nodes_online(
+            'masakari'))
         vm_name = 'zaza-test-instance-failover'
         self.ensure_guest(vm_name)
 
