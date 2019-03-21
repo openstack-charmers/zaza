@@ -16,11 +16,9 @@
 
 """Encapsulate pacemaker-remote testing."""
 
-import logging
 import unittest
-import xml.etree.ElementTree as ET
 
-import zaza.model
+import zaza.configure.hacluster
 
 
 class PacemakerRemoteTest(unittest.TestCase):
@@ -28,13 +26,4 @@ class PacemakerRemoteTest(unittest.TestCase):
 
     def test_check_nodes_online(self):
         """Test that all nodes are online."""
-        status_cmd = 'crm status --as-xml'
-        status_xml = zaza.model.run_on_leader('api', status_cmd)['Stdout']
-        root = ET.fromstring(status_xml)
-        for child in root:
-            if child.tag == 'nodes':
-                for node in child:
-                    logging.info(
-                        'Node {name} of type {type} is '
-                        '{online}'.format(**node.attrib))
-                    self.assertEqual(node.attrib['online'], "true")
+        self.assertTrue(zaza.configure.hacluster.check_all_nodes_online('api'))
