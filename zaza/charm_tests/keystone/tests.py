@@ -351,14 +351,14 @@ class SecurityTests(BaseKeystoneTest):
         # to each one and resolved independently where possible.
         expected_failures = [
             'disable-admin-token',
-            'validate-file-ownership',
-            'validate-file-permissions',
         ]
         expected_passes = [
             'check-max-request-body-size',
             'uses-sha256-for-hashing-tokens',
             'uses-fernet-token-after-default',
             'insecure-debug-is-false',
+            'validate-file-ownership',
+            'validate-file-permissions',
         ]
 
         logging.info('Running `security-checklist` action'
