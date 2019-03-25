@@ -14,12 +14,17 @@
 
 """Ceph Testing."""
 
+import unittest
 import logging
 from os import (
     listdir,
     path
 )
 import tempfile
+
+import tenacity
+
+from swiftclient.exceptions import ClientException
 
 import zaza.charm_tests.test_utils as test_utils
 import zaza.model as zaza_model
@@ -512,6 +517,28 @@ class CephRGWTest(test_utils.OpenStackBaseTest):
         """Run class setup for running ceph low level tests."""
         super(CephRGWTest, cls).setUpClass()
 
+    @property
+    def expected_apps(self):
+        """Determine application names for ceph-radosgw apps."""
+        _apps = [
+            'ceph-radosgw'
+        ]
+        try:
+            zaza_model.get_application('slave-ceph-radosgw')
+            _apps.append('slave-ceph-radosgw')
+        except KeyError:
+            pass
+        return _apps
+
+    @property
+    def multisite(self):
+        """Determine whether deployment is multi-site."""
+        try:
+            zaza_model.get_application('slave-ceph-radosgw')
+            return True
+        except KeyError:
+            return False
+
     def test_processes(self):
         """Verify Ceph processes.
 
@@ -525,9 +552,10 @@ class CephRGWTest(test_utils.OpenStackBaseTest):
         }
 
         # Units with process names and PID quantities expected
-        expected_processes = {
-            'ceph-radosgw/0': ceph_radosgw_processes,
-        }
+        expected_processes = {}
+        for app in self.expected_apps:
+            for unit in zaza_model.get_units(app):
+                expected_processes[unit.entity_id] = ceph_radosgw_processes
 
         actual_pids = zaza_utils.get_unit_process_ids(expected_processes)
         ret = zaza_utils.validate_unit_process_ids(expected_processes,
@@ -541,28 +569,128 @@ class CephRGWTest(test_utils.OpenStackBaseTest):
         """
         logging.info('Checking radosgw services...')
         services = ['radosgw', 'haproxy']
-        for unit in zaza_model.get_units('ceph-radosgw'):
-            zaza_model.block_until_service_status(
-                unit_name=unit.entity_id,
-                services=services,
-                target_status='running'
-            )
+        for app in self.expected_apps:
+            for unit in zaza_model.get_units(app):
+                zaza_model.block_until_service_status(
+                    unit_name=unit.entity_id,
+                    services=services,
+                    target_status='running'
+                )
 
     def test_object_storage(self):
         """Verify object storage API.
 
         Verify that the object storage API works as expected.
         """
+        if self.multisite:
+            raise unittest.SkipTest('Skipping REST API test, '
+                                    'multisite configuration')
         logging.info('Checking Swift REST API')
         keystone_session = zaza_openstack.get_overcloud_keystone_session()
+        region_name = 'RegionOne'
         swift_client = zaza_openstack.get_swift_session_client(
-            keystone_session)
+            keystone_session,
+            region_name
+        )
         _container = 'demo-container'
+        _test_data = 'Test data from Zaza'
         swift_client.put_container(_container)
         swift_client.put_object(_container,
                                 'testfile',
-                                contents='Test data from Zaza',
+                                contents=_test_data,
                                 content_type='text/plain')
         _, content = swift_client.get_object(_container, 'testfile')
-        self.assertEqual(content.decode('UTF-8'),
-                         'Test data from Zaza')
+        self.assertEqual(content.decode('UTF-8'), _test_data)
+
+    def test_object_storage_multisite(self):
+        """Verify object storage replication.
+
+        Verify that the object storage replication works as expected.
+        """
+        if not self.multisite:
+            raise unittest.SkipTest('Skipping multisite replication test')
+
+        logging.info('Checking multisite replication')
+        keystone_session = zaza_openstack.get_overcloud_keystone_session()
+        source_client = zaza_openstack.get_swift_session_client(
+            keystone_session,
+            region_name='east-1'
+        )
+        _container = 'demo-container'
+        _test_data = 'Test data from Zaza'
+        source_client.put_container(_container)
+        source_client.put_object(_container,
+                                 'testfile',
+                                 contents=_test_data,
+                                 content_type='text/plain')
+        _, source_content = source_client.get_object(_container, 'testfile')
+        self.assertEqual(source_content.decode('UTF-8'), _test_data)
+
+        target_client = zaza_openstack.get_swift_session_client(
+            keystone_session,
+            region_name='east-1'
+        )
+
+        @tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
+                        reraise=True, stop=tenacity.stop_after_attempt(8))
+        def _target_get_object():
+            return target_client.get_object(_container, 'testfile')
+        _, target_content = _target_get_object()
+
+        self.assertEqual(target_content.decode('UTF-8'),
+                         source_content.decode('UTF-8'))
+        target_client.delete_object(_container, 'testfile')
+
+        try:
+            source_client.head_object(_container, 'testfile')
+        except ClientException as e:
+            self.assertEqual(e.http_status, 404)
+        else:
+            self.fail('object not deleted on source radosgw')
+
+    def test_multisite_failover(self):
+        """Verify object storage failover/failback.
+
+        Verify that the slave radosgw can be promoted to master status
+        """
+        if not self.multisite:
+            raise unittest.SkipTest('Skipping multisite failover test')
+
+        logging.info('Checking multisite failover/failback')
+        keystone_session = zaza_openstack.get_overcloud_keystone_session()
+        source_client = zaza_openstack.get_swift_session_client(
+            keystone_session,
+            region_name='east-1'
+        )
+        target_client = zaza_openstack.get_swift_session_client(
+            keystone_session,
+            region_name='west-1'
+        )
+        zaza_model.run_action_on_leader(
+            'slave-ceph-radosgw',
+            'promote',
+            action_params={},
+        )
+        _container = 'demo-container-for-failover'
+        _test_data = 'Test data from Zaza on Slave'
+        target_client.put_container(_container)
+        target_client.put_object(_container,
+                                 'testfile',
+                                 contents=_test_data,
+                                 content_type='text/plain')
+        _, target_content = target_client.get_object(_container, 'testfile')
+
+        zaza_model.run_action_on_leader(
+            'ceph-radosgw',
+            'promote',
+            action_params={},
+        )
+
+        @tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
+                        reraise=True, stop=tenacity.stop_after_attempt(8))
+        def _source_get_object():
+            return source_client.get_object(_container, 'testfile')
+        _, source_content = _source_get_object()
+
+        self.assertEqual(target_content.decode('UTF-8'),
+                         source_content.decode('UTF-8'))
