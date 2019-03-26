@@ -211,15 +211,19 @@ def get_neutron_session_client(session):
     return neutronclient.Client(session=session)
 
 
-def get_swift_session_client(session):
+def get_swift_session_client(session,
+                             region_name='RegionOne'):
     """Return swiftclient authenticated by keystone session.
 
     :param session: Keystone session object
     :type session: keystoneauth1.session.Session object
+    :param region_name: Optional region name to use
+    :type region_name: str
     :returns: Authenticated swiftclient
     :rtype: swiftclient.Client object
     """
-    return swiftclient.Connection(session=session)
+    return swiftclient.Connection(session=session,
+                                  os_options={'region_name': region_name})
 
 
 def get_octavia_session_client(session, service_type='load-balancer',
