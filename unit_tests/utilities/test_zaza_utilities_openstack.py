@@ -352,39 +352,59 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.urlretrieve.assert_called_once_with(
             'http://cirros/c.img', '/tmp/c1.img')
 
-    def test_resource_reaches_status(self):
+    def test__resource_reaches_status(self):
         resource_mock = mock.MagicMock()
         resource_mock.get.return_value = mock.MagicMock(status='available')
-        openstack_utils.resource_reaches_status(resource_mock, 'e01df65a')
+        openstack_utils._resource_reaches_status(resource_mock, 'e01df65a')
 
-    def test_resource_reaches_status_fail(self):
-        openstack_utils.resource_reaches_status.retry.wait = \
-            tenacity.wait_none()
+    def test__resource_reaches_status_fail(self):
         resource_mock = mock.MagicMock()
         resource_mock.get.return_value = mock.MagicMock(status='unavailable')
         with self.assertRaises(AssertionError):
-            openstack_utils.resource_reaches_status(
+            openstack_utils._resource_reaches_status(
                 resource_mock,
                 'e01df65a')
 
-    def test_resource_reaches_status_bespoke(self):
+    def test__resource_reaches_status_bespoke(self):
         resource_mock = mock.MagicMock()
         resource_mock.get.return_value = mock.MagicMock(status='readyish')
-        openstack_utils.resource_reaches_status(
+        openstack_utils._resource_reaches_status(
             resource_mock,
             'e01df65a',
             'readyish')
 
-    def test_resource_reaches_status_bespoke_fail(self):
-        openstack_utils.resource_reaches_status.retry.wait = \
-            tenacity.wait_none()
+    def test__resource_reaches_status_bespoke_fail(self):
         resource_mock = mock.MagicMock()
         resource_mock.get.return_value = mock.MagicMock(status='available')
         with self.assertRaises(AssertionError):
-            openstack_utils.resource_reaches_status(
+            openstack_utils._resource_reaches_status(
                 resource_mock,
                 'e01df65a',
                 'readyish')
+
+    def test_resource_reaches_status(self):
+        self.patch_object(openstack_utils, "_resource_reaches_status")
+        self._resource_reaches_status.return_value = True
+        openstack_utils._resource_reaches_status('resource', 'e01df65a')
+        self._resource_reaches_status.assert_called_once_with(
+            'resource',
+            'e01df65a')
+
+    def test_resource_reaches_status_custom_retry(self):
+        self.patch_object(openstack_utils, "_resource_reaches_status")
+        self._resource_reaches_status.return_value = True
+        openstack_utils._resource_reaches_status(
+            'resource',
+            'e01df65a',
+            wait_exponential_multiplier=2,
+            wait_iteration_max_time=20,
+            stop_after_attempt=2)
+        self._resource_reaches_status.assert_called_once_with(
+            'resource',
+            'e01df65a',
+            stop_after_attempt=2,
+            wait_exponential_multiplier=2,
+            wait_iteration_max_time=20)
 
     def test_resource_removed(self):
         resource_mock = mock.MagicMock()
@@ -392,7 +412,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         openstack_utils.resource_removed(resource_mock, 'e01df65a')
 
     def test_resource_removed_fail(self):
-        openstack_utils.resource_reaches_status.retry.wait = \
+        openstack_utils.resource_removed.retry.wait = \
             tenacity.wait_none()
         resource_mock = mock.MagicMock()
         resource_mock.list.return_value = [mock.MagicMock(id='e01df65a')]
