@@ -109,7 +109,8 @@ def launch_instance(instance_key, use_boot_volume=False, vm_name=None,
     openstack_utils.resource_reaches_status(
         nova_client.servers,
         instance.id,
-        expected_status='ACTIVE')
+        expected_status='ACTIVE',
+        stop_after_attempt=16)
 
     logging.info('Checking cloud init is complete')
     openstack_utils.cloud_init_complete(
