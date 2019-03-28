@@ -101,3 +101,18 @@ class TestCephUtils(ut_utils.BaseTestCase):
         }
         actual = ceph_utils.get_ceph_pools('ceph-mon/0')
         self.assertEqual(expected, actual)
+
+    def test_get_rbd_hash(self):
+        self.patch_object(ceph_utils.zaza_model, 'run_on_unit')
+        self.run_on_unit.return_value = {'Stdout': 'output\n', 'Code': '0'}
+        self.assertEqual(ceph_utils.get_rbd_hash('aunit', 'apool',
+                                                 'aimage',
+                                                 model_name='amodel'),
+                         'output')
+        cmd = 'sudo rbd -p apool export --no-progress aimage - | sha512sum'
+        self.run_on_unit.assert_called_once_with('aunit', cmd,
+                                                 model_name='amodel')
+        self.run_on_unit.return_value = {'Stdout': 'output', 'Code': '1'}
+        with self.assertRaises(model.CommandRunFailed):
+            ceph_utils.get_rbd_hash('aunit', 'apool', 'aimage',
+                                    model_name='amodel')

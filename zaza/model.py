@@ -543,6 +543,29 @@ async def async_run_action_on_leader(application_name, action_name,
 run_action_on_leader = sync_wrapper(async_run_action_on_leader)
 
 
+async def async_remove_application(application_name, model_name=None,
+                                   forcefully_remove_machines=False):
+    """Remove application from model.
+
+    :param application_name: Name of application
+    :type application_name: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param forcefully_remove_machines: Forcefully remove the machines the
+                                      application is runing on.
+    :type forcefully_remove_machines: bool
+    """
+    async with run_in_model(model_name) as model:
+        application = model.applications[application_name]
+        if forcefully_remove_machines:
+            for unit in model.applications[application_name].units:
+                await unit.machine.destroy(force=True)
+        else:
+            await application.remove()
+
+remove_application = sync_wrapper(async_remove_application)
+
+
 class UnitError(Exception):
     """Exception raised for units in error state."""
 

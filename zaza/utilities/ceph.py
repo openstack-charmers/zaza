@@ -56,20 +56,23 @@ def get_expected_pools(radosgw=False):
     return pools
 
 
-def get_ceph_pools(unit_name):
+def get_ceph_pools(unit_name, model_name=None):
     """Get ceph pools.
 
     Return a dict of ceph pools from a single ceph unit, with
     pool name as keys, pool id as vals.
+
     :param unit_name: Name of the unit to get the pools on
     :type unit_name: string
+    :param model_name: Name of model to operate in
+    :type model_name: str
     :returns: Dict of ceph pools
     :rtype: dict
     :raise: zaza_model.CommandRunFailed
     """
     pools = {}
     cmd = 'sudo ceph osd lspools'
-    result = zaza_model.run_on_unit(unit_name, cmd)
+    result = zaza_model.run_on_unit(unit_name, cmd, model_name=model_name)
     output = result.get('Stdout').strip()
     code = int(result.get('Code'))
     if code != 0:
@@ -92,3 +95,26 @@ def get_ceph_pools(unit_name):
 
     logging.debug('Pools on {}: {}'.format(unit_name, pools))
     return pools
+
+
+def get_rbd_hash(unit_name, pool, image, model_name=None):
+    """Get SHA512 hash of RBD image.
+
+    :param unit_name: Name of unit to execute ``rbd`` command on
+    :type unit_name: str
+    :param pool: Name of pool to export image from
+    :type pool: str
+    :param image: Name of image to export and compute checksum on
+    :type image: str
+    :param model_name: Name of Juju model to operate on
+    :type model_name: str
+    :returns: SHA512 hash of RBD image
+    :rtype: str
+    :raises: zaza.model.CommandRunFailed
+    """
+    cmd = ('sudo rbd -p {} export --no-progress {} - | sha512sum'
+           .format(pool, image))
+    result = zaza_model.run_on_unit(unit_name, cmd, model_name=model_name)
+    if result.get('Code') != '0':
+        raise zaza_model.CommandRunFailed(cmd, result)
+    return result.get('Stdout').rstrip()
