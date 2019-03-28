@@ -97,7 +97,9 @@ class CephRBDMirrorBase(test_utils.OpenStackBaseTest):
                         break
                     if check_entries_behind_master:
                         m = rep.match(image['description'])
-                        if m and m.group(1) != '0':
+                        # NOTE(fnordahl): Tactical fix for upstream Ceph
+                        # Luminous bug https://tracker.ceph.com/issues/23516
+                        if m and int(m.group(1)) > 42:
                             logging.info('entries_behind_master={}'
                                          .format(m.group(1)))
                             break
