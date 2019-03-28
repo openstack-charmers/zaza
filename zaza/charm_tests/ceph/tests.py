@@ -632,7 +632,7 @@ class CephRGWTest(test_utils.OpenStackBaseTest):
         )
 
         @tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
-                        reraise=True, stop=tenacity.stop_after_attempt(8))
+                        reraise=True, stop=tenacity.stop_after_attempt(12))
         def _target_get_object():
             return target_client.get_object(_container, 'testfile')
         _, target_content = _target_get_object()
@@ -687,7 +687,7 @@ class CephRGWTest(test_utils.OpenStackBaseTest):
         )
 
         @tenacity.retry(wait=tenacity.wait_exponential(multiplier=1, max=60),
-                        reraise=True, stop=tenacity.stop_after_attempt(8))
+                        reraise=True, stop=tenacity.stop_after_attempt(12))
         def _source_get_object():
             return source_client.get_object(_container, 'testfile')
         _, source_content = _source_get_object()
