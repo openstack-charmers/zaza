@@ -18,9 +18,10 @@ script:
        sudo snap install juju --classic;
        sudo sh -c 'echo PATH=/snap/bin:$PATH >> /etc/environment';
        sudo lxd waitready;
+       sudo journalctl --no-pager -xe;
        sudo lxd init --auto;
        sudo usermod -a -G lxd travis;
-       sudo su travis -c 'juju bootstrap --no-gui localhost';
+       sudo su travis -c 'juju bootstrap --debug --no-gui localhost';
     fi
   - tox -c tox.ini -e $ENV
   - if [ $ENV = 'func-travis' ]; then
