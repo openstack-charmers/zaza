@@ -52,7 +52,7 @@ class CephRBDMirrorBase(test_utils.OpenStackBaseTest):
     def get_pools(self):
         """Retrieve list of pools from both sites.
 
-        :returns: Tuple with two dicts representing the pools on each side.
+        :returns: Tuple with list of pools on each side.
         :rtype: tuple
         """
         site_a_pools = zaza.utilities.ceph.get_ceph_pools(
@@ -64,7 +64,7 @@ class CephRBDMirrorBase(test_utils.OpenStackBaseTest):
                 'ceph-mon' + self.site_b_app_suffix,
                 model_name=self.site_b_model),
             model_name=self.site_b_model)
-        return site_a_pools, site_b_pools
+        return sorted(site_a_pools.keys()), sorted(site_b_pools.keys())
 
     def wait_for_mirror_state(self, state, application_name=None,
                               model_name=None,
