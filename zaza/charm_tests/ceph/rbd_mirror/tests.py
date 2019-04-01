@@ -293,6 +293,14 @@ class CephRBDMirrorControlledFailoverTest(CephRBDMirrorBase):
         self.wait_for_mirror_state(
             'up+stopped',
             model_name=self.site_a_model)
+        result = zaza.model.run_action_on_leader(
+            'ceph-rbd-mirror' + self.site_b_app_suffix,
+            'resync-pools',
+            model_name=self.site_b_model,
+            action_params={
+                'i-really-mean-it': True,
+            })
+        logging.info(result.results)
         self.wait_for_mirror_state(
             'up+replaying',
             application_name=self.application_name + self.site_b_app_suffix,
