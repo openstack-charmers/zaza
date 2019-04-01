@@ -311,7 +311,7 @@ class CephRBDMirrorControlledFailoverTest(CephRBDMirrorBase):
             'up+replaying',
             application_name=self.application_name + self.site_b_app_suffix,
             model_name=self.site_b_model,
-            require_images_in['cinder-ceph', 'glance'])
+            require_images_in=['cinder-ceph', 'glance'])
 
 
 class CephRBDMirrorDisasterFailoverTest(CephRBDMirrorBase):
