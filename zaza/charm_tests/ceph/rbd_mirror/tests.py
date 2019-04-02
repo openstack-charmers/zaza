@@ -68,7 +68,8 @@ class CephRBDMirrorBase(test_utils.OpenStackBaseTest):
 
     def wait_for_mirror_state(self, state, application_name=None,
                               model_name=None,
-                              check_entries_behind_master=False):
+                              check_entries_behind_master=False,
+                              require_images_in=[]):
         """Wait until all images reach requested state.
 
         This function runs the ``status`` action and examines the data it
@@ -85,14 +86,23 @@ class CephRBDMirrorBase(test_utils.OpenStackBaseTest):
                                             when used with state
                                             ``up+replying``.
         :type check_entries_behind_master: bool
+        :param require_images_in: List of pools to require images in
+        :type require_images_in: list of str
         :returns: True on success, never returns on failure
         """
         rep = re.compile(r'.*entries_behind_master=(\d+)')
         while True:
-            pool_status = self.run_status_action(
-                application_name=application_name, model_name=model_name)
+            try:
+                # encapsulate in try except to work around LP: #1820976
+                pool_status = self.run_status_action(
+                    application_name=application_name, model_name=model_name)
+            except KeyError:
+                continue
             for pool, status in pool_status.items():
-                for image in status.get('images', []):
+                images = status.get('images', [])
+                if not len(images) and pool in require_images_in:
+                    break
+                for image in images:
                     if image['state'] and image['state'] != state:
                         break
                     if check_entries_behind_master:
@@ -293,10 +303,19 @@ class CephRBDMirrorControlledFailoverTest(CephRBDMirrorBase):
         self.wait_for_mirror_state(
             'up+stopped',
             model_name=self.site_a_model)
+        result = zaza.model.run_action_on_leader(
+            'ceph-rbd-mirror' + self.site_b_app_suffix,
+            'resync-pools',
+            model_name=self.site_b_model,
+            action_params={
+                'i-really-mean-it': True,
+            })
+        logging.info(result.results)
         self.wait_for_mirror_state(
             'up+replaying',
             application_name=self.application_name + self.site_b_app_suffix,
-            model_name=self.site_b_model)
+            model_name=self.site_b_model,
+            require_images_in=['cinder-ceph', 'glance'])
 
 
 class CephRBDMirrorDisasterFailoverTest(CephRBDMirrorBase):
