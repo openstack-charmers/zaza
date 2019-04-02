@@ -92,8 +92,12 @@ class CephRBDMirrorBase(test_utils.OpenStackBaseTest):
         """
         rep = re.compile(r'.*entries_behind_master=(\d+)')
         while True:
-            pool_status = self.run_status_action(
-                application_name=application_name, model_name=model_name)
+            try:
+                # encapsulate in try except to work around LP: #1820976
+                pool_status = self.run_status_action(
+                    application_name=application_name, model_name=model_name)
+            except KeyError:
+                continue
             for pool, status in pool_status.items():
                 images = status.get('images', [])
                 if not len(images) and pool in require_images_in:
