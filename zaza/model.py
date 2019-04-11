@@ -87,8 +87,8 @@ async def deployed():
     # Create a Model instance. We need to connect our Model to a Juju api
     # server before we can use it.
     model = Model()
-    # Connect to the currently active Juju model
-    await model.connect_current()
+    model_name = get_juju_model()
+    await model.connect_model(model_name)
     try:
         # list currently deploeyd services
         return list(model.applications.keys())
