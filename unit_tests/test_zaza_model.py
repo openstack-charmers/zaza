@@ -527,6 +527,14 @@ class TestModel(ut_utils.BaseTestCase):
         model.wait_for_application_states('modelname', timeout=1)
         self.assertFalse(self.system_ready)
 
+    def test_wait_for_application_states_errored_unit(self):
+        self._application_states_setup({
+            'workload-status': 'error',
+            'workload-status-message': 'Unit is ready'})
+        with self.assertRaises(model.UnitError):
+            model.wait_for_application_states('modelname', timeout=1)
+            self.assertFalse(self.system_ready)
+
     def test_wait_for_application_states_not_ready_wsmsg(self):
         self._application_states_setup({
             'workload-status': 'active',
@@ -664,6 +672,25 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model_mock.block_until.side_effect = _block_until
         # Confirm exception is raised:
         with self.assertRaises(asyncio.futures.TimeoutError):
+            model.block_until_all_units_idle('modelname')
+
+    def test_async_block_until_all_units_idle_errored_unit(self):
+
+        async def _block_until(f, timeout=None):
+            if not f():
+                raise asyncio.futures.TimeoutError
+
+        def _all_units_idle():
+            return True
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.Model_mock.all_units_idle.side_effect = _all_units_idle
+        self.patch_object(model, 'units_with_wl_status_state')
+        unit = mock.MagicMock()
+        unit.entity_id = 'aerroredunit/0'
+        self.units_with_wl_status_state.return_value = [unit]
+        self.Model_mock.block_until.side_effect = _block_until
+        with self.assertRaises(model.UnitError):
             model.block_until_all_units_idle('modelname')
 
     def block_until_service_status_base(self, rou_return):

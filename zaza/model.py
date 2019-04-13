@@ -758,10 +758,15 @@ async def async_wait_for_application_states(model_name=None, states=None,
         logging.info("Waiting for all units to be idle")
         try:
             await model.block_until(
-                lambda: model.all_units_idle(), timeout=timeout)
+                lambda: units_with_wl_status_state(
+                    model, 'error') or model.all_units_idle(),
+                timeout=timeout)
         except concurrent.futures._base.TimeoutError:
             raise ModelTimeout("Zaza has timed out waiting on the model to "
                                "reach idle state.")
+        errored_units = units_with_wl_status_state(model, 'error')
+        if errored_units:
+            raise UnitError(errored_units)
         try:
             for application, app_data in model.applications.items():
                 check_info = states.get(application, {})
@@ -814,7 +819,12 @@ async def async_block_until_all_units_idle(model_name=None, timeout=2700):
     """
     async with run_in_model(model_name) as model:
         await model.block_until(
-            lambda: model.all_units_idle(), timeout=timeout)
+            lambda: units_with_wl_status_state(
+                model, 'error') or model.all_units_idle(),
+            timeout=timeout)
+        errored_units = units_with_wl_status_state(model, 'error')
+        if errored_units:
+            raise UnitError(errored_units)
 
 block_until_all_units_idle = sync_wrapper(async_block_until_all_units_idle)
 
