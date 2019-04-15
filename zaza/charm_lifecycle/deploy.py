@@ -118,7 +118,8 @@ def get_jinja2_env():
     """
     template_dir = get_overlay_template_dir()
     return jinja2.Environment(
-        loader=jinja2.FileSystemLoader(template_dir)
+        loader=jinja2.FileSystemLoader(template_dir),
+        undefined=jinja2.StrictUndefined
     )
 
 
@@ -158,10 +159,14 @@ def render_template(template, target_file):
     :param target_file: File name for rendered template
     :type target_file: str
     """
-    with open(target_file, "w") as fh:
-        fh.write(
-            template.render(get_template_overlay_context()))
-
+    try:
+        with open(target_file, "w") as fh:
+            fh.write(
+                template.render(get_template_overlay_context()))
+    except jinja2.exceptions.UndefinedError as e:
+        logging.error("Template error. You may be missing"
+                      " a mandatory environment variable : {}".format(e))
+        sys.exit(1)
     logging.info("Rendered template '{}' to file '{}'".format(template,
                                                               target_file))
 
