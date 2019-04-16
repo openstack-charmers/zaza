@@ -1228,6 +1228,48 @@ def set_model_constraints(constraints, model_name=None):
     subprocess.check_call(cmd)
 
 
+async def async_upgrade_charm(application_name, channel=None,
+                              force_series=False, force_units=False,
+                              path=None, resources=None, revision=None,
+                              switch=None, model_name=None):
+    """
+    Upgrade the given charm.
+
+    :param application_name: Name of application on this side of relation
+    :type application_name: str
+    :param channel: Channel to use when getting the charm from the charm store,
+                    e.g. 'development'
+    :type channel: str
+    :param force_series: Upgrade even if series of deployed application is not
+                         supported by the new charm
+    :type force_series: bool
+    :param force_units: Upgrade all units immediately, even if in error state
+    :type force_units: bool
+    :param path: Uprade to a charm located at path
+    :type path: str
+    :param resources: Dictionary of resource name/filepath pairs
+    :type resources: dict
+    :param revision: Explicit upgrade revision
+    :type revision: int
+    :param switch: Crossgrade charm url
+    :type switch: str
+    :param model_name: Name of model to operate on
+    :type model_name: str
+    """
+    async with run_in_model(model_name) as model:
+        app = model.applications[application_name]
+        await app.upgrade_charm(
+            channel=channel,
+            force_series=force_series,
+            force_units=force_units,
+            path=path,
+            resources=resources,
+            revision=revision,
+            switch=switch)
+
+upgrade_charm = sync_wrapper(async_upgrade_charm)
+
+
 class UnitNotFound(Exception):
     """Unit was not found in model."""
 

@@ -1041,6 +1041,32 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.wait_for_agent_status(timeout=0.1)
 
+    def test_upgrade_charm(self):
+        async def _upgrade_charm(channel=None, force_series=False,
+                                 force_units=False, path=None,
+                                 resources=None, revision=None,
+                                 switch=None, model_name=None):
+            return
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = self.unit1
+        self.Model.return_value = self.Model_mock
+        app_mock = mock.MagicMock()
+        app_mock.upgrade_charm.side_effect = _upgrade_charm
+        self.mymodel.applications['myapp'] = app_mock
+        model.upgrade_charm(
+            'myapp',
+            switch='cs:~me/new-charm-45')
+        app_mock.upgrade_charm.assert_called_once_with(
+            channel=None,
+            force_series=False,
+            force_units=False,
+            path=None,
+            resources=None,
+            revision=None,
+            switch='cs:~me/new-charm-45')
+
     def test_prepare_series_upgrade(self):
         self.patch_object(model, 'subprocess')
         self.patch_object(model, 'get_juju_model',
