@@ -128,6 +128,23 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             template_mock,
             '/tmp/special-dir/my_overlay.yaml')
 
+    def test_template_missing_required_variables(self):
+        self.patch_object(lc_deploy, 'get_template_overlay_context')
+        self.get_template_overlay_context.return_value = {}
+        self.patch_object(lc_deploy.sys, 'exit')
+        self.patch_object(lc_deploy.logging, 'error')
+        jinja2_env = lc_deploy.get_jinja2_env()
+        template = jinja2_env.from_string('{{required_variable}}')
+        m = mock.mock_open()
+        with mock.patch('zaza.charm_lifecycle.deploy.open', m, create=True):
+            lc_deploy.render_template(template, '/tmp/mybundle.yaml')
+        m.assert_called_once_with('/tmp/mybundle.yaml', 'w')
+        self.error.assert_called_once_with(
+            "Template error. You may be missing"
+            " a mandatory environment variable : "
+            "'required_variable' is undefined")
+        self.exit.assert_called_once_with(1)
+
     def test_render_overlay_no_template(self):
         self.patch_object(lc_deploy, 'get_template')
         self.get_template.return_value = None
