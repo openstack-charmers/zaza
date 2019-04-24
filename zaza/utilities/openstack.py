@@ -324,6 +324,48 @@ def get_keystone_session(openrc_creds, scope='PROJECT', verify=None):
     return session.Session(auth=auth, verify=verify)
 
 
+def get_keystone_session_from_relation(client_app,
+                                       identity_app='keystone',
+                                       relation_name='identity-service',
+                                       scope='PROJECT',
+                                       verify=None):
+    """Extract credentials information from a relation & return a session.
+
+    :param client_app: Name of application receiving credentials.
+    :type client_app: string
+    :param identity_app: Name of application providing credentials.
+    :type identity_app: string
+    :param relation_name: Name of relation between applications.
+    :type relation_name: string
+    :param scope: Authentication scope: PROJECT or DOMAIN
+    :type scope: string
+    :param verify: Control TLS certificate verification behaviour
+    :type verify: any (True  - use system certs,
+                       False - do not verify,
+                       None  - defer to requests library to find certs,
+                       str   - path to a CA cert bundle)
+    :returns: Keystone session object
+    :rtype: keystoneauth1.session.Session object
+    """
+    relation = juju_utils.get_relation_from_unit(
+        client_app,
+        identity_app,
+        relation_name)
+
+    api_version = int(relation.get('api_version', 2))
+    creds = get_overcloud_auth()
+    creds['OS_USERNAME'] = relation['service_username']
+    creds['OS_PASSWORD'] = relation['service_password']
+    creds['OS_PROJECT_NAME'] = relation['service_tenant']
+    creds['OS_TENANT_NAME'] = relation['service_tenant']
+    if api_version == 3:
+        creds['OS_DOMAIN_NAME'] = relation['service_domain']
+        creds['OS_USER_DOMAIN_NAME'] = relation['service_domain']
+        creds['OS_PROJECT_DOMAIN_NAME'] = relation['service_domain']
+
+    return get_keystone_session(creds, scope=scope, verify=verify)
+
+
 def get_overcloud_keystone_session(verify=None):
     """Return Over cloud keystone session.
 
