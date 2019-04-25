@@ -14,7 +14,7 @@
 
 import mock
 import unit_tests.utils as ut_utils
-from zaza.utilities import juju as juju_utils
+from zaza.openstack.utilities import juju as juju_utils
 
 
 class TestJujuUtils(ut_utils.BaseTestCase):
@@ -257,7 +257,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
 
     def test_get_machine_series(self):
         self.patch(
-            'zaza.utilities.juju.get_machine_status',
+            'zaza.openstack.utilities.juju.get_machine_status',
             new_callable=mock.MagicMock(),
             name='_get_machine_status'
         )
