@@ -1,7 +1,7 @@
 import unit_tests.utils as ut_utils
 import zaza.model as model
-import zaza.utilities.ceph as ceph_utils
-import zaza.utilities.openstack as openstack_utils
+import zaza.openstack.utilities.ceph as ceph_utils
+import zaza.openstack.utilities.openstack as openstack_utils
 
 
 class TestCephUtils(ut_utils.BaseTestCase):

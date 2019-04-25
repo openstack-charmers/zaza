@@ -14,8 +14,8 @@
 
 import mock
 import unit_tests.utils as ut_utils
-from zaza.utilities import generic as generic_utils
-import zaza.utilities.exceptions as zaza_exceptions
+from zaza.openstack.utilities import generic as generic_utils
+import zaza.openstack.utilities.exceptions as zaza_exceptions
 
 FAKE_STATUS = {
     'can-upgrade-to': '',
@@ -43,7 +43,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         super(TestGenericUtils, self).setUp()
         # Patch all subprocess calls
         self.patch(
-            'zaza.utilities.generic.subprocess',
+            'zaza.openstack.utilities.generic.subprocess',
             new_callable=mock.MagicMock(),
             name='subprocess'
         )
@@ -372,7 +372,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
 
     def test_get_process_id_list(self):
         self.patch(
-            "zaza.utilities.generic.model.run_on_unit",
+            "zaza.openstack.utilities.generic.model.run_on_unit",
             new_callable=mock.MagicMock(),
             name="_run"
         )
@@ -410,7 +410,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
 
     def test_get_unit_process_ids(self):
         self.patch(
-            "zaza.utilities.generic.get_process_id_list",
+            "zaza.openstack.utilities.generic.get_process_id_list",
             new_callable=mock.MagicMock(),
             name="_get_pids"
         )

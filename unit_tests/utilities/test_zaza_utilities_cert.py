@@ -15,7 +15,7 @@
 import mock
 
 import unit_tests.utils as ut_utils
-import zaza.utilities.cert as cert
+import zaza.openstack.utilities.cert as cert
 
 TEST_SSH_PRIVATE_KEY = """
 -----BEGIN RSA PRIVATE KEY-----

@@ -14,7 +14,7 @@
 
 import mock
 import unit_tests.utils as ut_utils
-from zaza.utilities import cli as cli_utils
+from zaza.openstack.utilities import cli as cli_utils
 
 
 class TestCLIUtils(ut_utils.BaseTestCase):

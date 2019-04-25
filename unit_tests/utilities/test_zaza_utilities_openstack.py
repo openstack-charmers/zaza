@@ -19,8 +19,8 @@ import mock
 import tenacity
 
 import unit_tests.utils as ut_utils
-from zaza.utilities import openstack as openstack_utils
-from zaza.utilities import exceptions
+from zaza.openstack.utilities import openstack as openstack_utils
+from zaza.openstack.utilities import exceptions
 
 
 class TestOpenStackUtils(ut_utils.BaseTestCase):
@@ -444,7 +444,9 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         image_mock = mock.MagicMock(id='9d1125af')
         glance_mock.images.create.return_value = image_mock
         m = mock.mock_open()
-        with mock.patch('zaza.utilities.openstack.open', m, create=False) as f:
+        with mock.patch(
+            'zaza.openstack.utilities.openstack.open', m, create=False
+        ) as f:
             openstack_utils.upload_image_to_glance(
                 glance_mock,
                 '/tmp/im1.img',
@@ -540,7 +542,9 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
 
     def test_write_private_key(self):
         m = mock.mock_open()
-        with mock.patch('zaza.utilities.openstack.open', m, create=False):
+        with mock.patch(
+            'zaza.openstack.utilities.openstack.open', m, create=False
+        ):
             openstack_utils.write_private_key('mykeys', 'keycontents')
         m.assert_called_once_with('tests/id_rsa_mykeys', 'w')
         handle = m()
@@ -550,7 +554,9 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         self.patch_object(openstack_utils.os.path, "isfile",
                           return_value=True)
         m = mock.mock_open(read_data='myprivkey')
-        with mock.patch('zaza.utilities.openstack.open', m, create=True):
+        with mock.patch(
+            'zaza.openstack.utilities.openstack.open', m, create=True
+        ):
             self.assertEqual(
                 openstack_utils.get_private_key('mykeys'),
                 'myprivkey')
@@ -725,17 +731,17 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
 
     def test_get_current_openstack_release_pair(self):
         self.patch(
-            'zaza.utilities.openstack.get_current_os_versions',
+            'zaza.openstack.utilities.openstack.get_current_os_versions',
             new_callable=mock.MagicMock(),
             name='_get_os_version'
         )
         self.patch(
-            'zaza.utilities.juju.get_machines_for_application',
+            'zaza.openstack.utilities.juju.get_machines_for_application',
             new_callable=mock.MagicMock(),
             name='_get_machines'
         )
         self.patch(
-            'zaza.utilities.juju.get_machine_series',
+            'zaza.openstack.utilities.juju.get_machine_series',
             new_callable=mock.MagicMock(),
             name='_get_machine_series'
         )
@@ -771,7 +777,7 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
 
     def test_get_openstack_release(self):
         self.patch(
-            'zaza.utilities.openstack.get_current_os_release_pair',
+            'zaza.openstack.utilities.openstack.get_current_os_release_pair',
             new_callable=mock.MagicMock(),
             name='_get_os_rel_pair'
         )
