@@ -141,6 +141,22 @@ def is_initialized(client):
     return initialized
 
 
+def ensure_secret_backend(client):
+    """Ensure that vault has a KV backend mounted at secret.
+
+    :param client: Client to use to talk to vault
+    :type client: CharmVaultClient
+    """
+    try:
+        client.hvac_client.enable_secret_backend(
+            backend_type='kv',
+            description='Charm created KV backend',
+            mount_point='secret',
+            options={'version': 1})
+    except hvac.exceptions.InvalidRequest:
+        pass
+
+
 def get_credentails():
     """Retrieve vault token and keys from unit.
 
