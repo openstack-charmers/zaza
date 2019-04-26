@@ -44,6 +44,7 @@ class BaseVaultTest(unittest.TestCase):
         cls.vault_creds = vault_utils.get_credentails()
         vault_utils.unseal_all(cls.clients, cls.vault_creds['keys'][0])
         vault_utils.auth_all(cls.clients, cls.vault_creds['root_token'])
+        vault_utils.ensure_secret_backend(cls.clients[0])
 
 
 class UnsealVault(BaseVaultTest):
