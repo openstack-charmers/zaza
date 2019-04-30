@@ -1341,3 +1341,21 @@ def set_series(application, to_series):
     cmd = ["juju", "set-series", "-m", juju_model,
            application, to_series]
     subprocess.check_call(cmd)
+
+
+def attach_resource(application, resource_name, resource_path):
+    """Attach resource to charm.
+
+    :param application: Application to get leader settings from.
+    :type application: str
+    :param resource_name: The name of the resource as defined in metadata.yaml
+    :type resource_name: str
+    :param resource_path: The path to the resource on disk
+    :type resource_path: str
+    :returns: None
+    :rtype: None
+    """
+    juju_model = get_juju_model()
+    cmd = ["juju", "attach-resource", "-m", juju_model,
+           application, "{}={}".format(resource_name, resource_path)]
+    subprocess.check_call(cmd)

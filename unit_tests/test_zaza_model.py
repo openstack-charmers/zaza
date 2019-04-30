@@ -1099,6 +1099,18 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             ["juju", "set-series", "-m", self.model_name,
              _application, _to_series])
 
+    def test_attach_resource(self):
+        self.patch_object(model, 'get_juju_model',
+                          return_value=self.model_name)
+        self.patch_object(model, 'subprocess')
+        _application = "application"
+        _resource_name = "myresource"
+        _resource_path = "/path/to/{}.tar.gz".format(_resource_name)
+        model.attach_resource(_application, _resource_name, _resource_path)
+        self.subprocess.check_call.assert_called_once_with(
+            ["juju", "attach-resource", "-m", self.model_name,
+             _application, "{}={}".format(_resource_name, _resource_path)])
+
 
 class AsyncModelTests(aiounittest.AsyncTestCase):
 
