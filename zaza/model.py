@@ -1357,5 +1357,5 @@ def attach_resource(application, resource_name, resource_path):
     """
     juju_model = get_juju_model()
     cmd = ["juju", "attach-resource", "-m", juju_model,
-            application, "{}={}".format(resource_name, resource_path)]
+           application, "{}={}".format(resource_name, resource_path)]
     subprocess.check_call(cmd)
