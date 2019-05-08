@@ -195,13 +195,16 @@ class TestModel(ut_utils.BaseTestCase):
 
     def test_get_juju_model_noenv(self):
         self.patch_object(model.os, 'environ')
-        self.patch_object(model, 'get_current_model')
-        self.get_current_model.return_value = 'modelsmodel'
+        self.patch_object(model, 'async_get_current_model')
+
+        async def _async_get_current_model():
+            return 'modelsmodel'
+        self.async_get_current_model.side_effect = _async_get_current_model
 
         # No envirnment variable
         self.environ.__getitem__.side_effect = KeyError
         self.assertEqual(model.get_juju_model(), 'modelsmodel')
-        self.get_current_model.assert_called_once()
+        self.async_get_current_model.assert_called_once()
 
     def test_run_in_model(self):
         self.patch_object(model, 'Model')

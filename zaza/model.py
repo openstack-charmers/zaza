@@ -54,7 +54,7 @@ def set_juju_model(model_name):
     CURRENT_MODEL = model_name
 
 
-def get_juju_model():
+async def async_get_juju_model():
     """Retrieve current model.
 
     First check the environment for JUJU_MODEL. If this is not set, get the
@@ -78,8 +78,10 @@ def get_juju_model():
             CURRENT_MODEL = os.environ["MODEL_NAME"]
         except KeyError:
             # If unset connect get the current active model
-            CURRENT_MODEL = get_current_model()
+            CURRENT_MODEL = await async_get_current_model()
     return CURRENT_MODEL
+
+get_juju_model = sync_wrapper(async_get_juju_model)
 
 
 async def deployed():
@@ -149,7 +151,7 @@ async def run_in_model(model_name):
     """
     model = Model()
     if not model_name:
-        model_name = get_juju_model()
+        model_name = await async_get_juju_model()
     await model.connect_model(model_name)
     await yield_(model)
     await model.disconnect()
