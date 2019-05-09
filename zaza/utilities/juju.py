@@ -22,7 +22,7 @@ from zaza import (
     model,
     controller,
 )
-from zaza.openstack.utilities import generic as generic_utils
+from zaza.utilities import generic as generic_utils
 
 
 def get_application_status(application=None, unit=None):

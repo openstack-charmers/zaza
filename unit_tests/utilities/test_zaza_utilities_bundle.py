@@ -15,7 +15,7 @@
 # import mock
 
 import unit_tests.utils as ut_utils
-import zaza.openstack.utilities.bundle as bundle
+import zaza.utilities.bundle as bundle
 
 import yaml
 

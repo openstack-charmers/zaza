@@ -14,7 +14,7 @@
 
 import mock
 import unit_tests.utils as ut_utils
-import zaza.openstack.utilities.file_assertions as file_assertions
+import zaza.utilities.file_assertions as file_assertions
 
 
 class TestFileAssertionUtils(ut_utils.BaseTestCase):
@@ -22,7 +22,7 @@ class TestFileAssertionUtils(ut_utils.BaseTestCase):
         super(TestFileAssertionUtils, self).setUp()
         # Patch all run_on_unit calls
         self.patch(
-            'zaza.openstack.utilities.file_assertions.model.run_on_unit',
+            'zaza.utilities.file_assertions.model.run_on_unit',
             new_callable=mock.MagicMock(),
             name='run_on_unit'
         )

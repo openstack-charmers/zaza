@@ -14,8 +14,8 @@
 
 import mock
 import unit_tests.utils as ut_utils
-from zaza.openstack.utilities import generic as generic_utils
-import zaza.openstack.utilities.exceptions as zaza_exceptions
+from zaza.utilities import generic as generic_utils
+import zaza.utilities.exceptions as zaza_exceptions
 
 FAKE_STATUS = {
     'can-upgrade-to': '',
@@ -43,7 +43,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         super(TestGenericUtils, self).setUp()
         # Patch all subprocess calls
         self.patch(
-            'zaza.openstack.utilities.generic.subprocess',
+            'zaza.utilities.generic.subprocess',
             new_callable=mock.MagicMock(),
             name='subprocess'
         )
@@ -372,7 +372,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
 
     def test_get_process_id_list(self):
         self.patch(
-            "zaza.openstack.utilities.generic.model.run_on_unit",
+            "zaza.utilities.generic.model.run_on_unit",
             new_callable=mock.MagicMock(),
             name="_run"
         )
@@ -410,7 +410,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
 
     def test_get_unit_process_ids(self):
         self.patch(
-            "zaza.openstack.utilities.generic.get_process_id_list",
+            "zaza.utilities.generic.get_process_id_list",
             new_callable=mock.MagicMock(),
             name="_get_pids"
         )
@@ -534,14 +534,3 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         }
         ret = generic_utils.validate_unit_process_ids(expected, actual)
         self.assertTrue(ret)
-
-    def test_get_ubuntu_release(self):
-        # Normal case
-        expected = 0
-        actual = generic_utils.get_ubuntu_release('oneiric')
-        self.assertEqual(expected, actual)
-
-        # Ubuntu release doesn't exist
-        bad_name = 'bad_name'
-        with self.assertRaises(zaza_exceptions.UbuntuReleaseNotFound):
-            generic_utils.get_ubuntu_release(bad_name)

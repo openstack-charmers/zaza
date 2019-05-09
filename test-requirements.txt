@@ -1,0 +1,1 @@
+git+https://github.com/openstack-charmers/zaza-openstack-tests.git#egg=zaza.openstack
