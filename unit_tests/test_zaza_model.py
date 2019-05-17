@@ -605,6 +605,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertEqual(model.get_current_model(), self.model_name)
 
     def test_block_until_file_has_contents(self):
+        self.patch_object(model.uuid, 'uuid1', return_value='test_uuid')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -616,15 +617,16 @@ class TestModel(ut_utils.BaseTestCase):
         self._open.return_value = _fileobj
         model.block_until_file_has_contents(
             'app',
-            '/tmp/src/myfile.txt',
+            '/tmp/test_uuid/myfile.txt',
             'somestring',
             timeout=0.1)
         self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+            '/tmp/test_uuid/myfile.txt', mock.ANY)
         self.unit2.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+            '/tmp/test_uuid/myfile.txt', mock.ANY)
 
     def test_block_until_file_has_contents_missing(self):
+        self.patch_object(model.uuid, 'uuid1', return_value='test_uuid')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -637,11 +639,11 @@ class TestModel(ut_utils.BaseTestCase):
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.block_until_file_has_contents(
                 'app',
-                '/tmp/src/myfile.txt',
+                '/tmp/test_uuid/myfile.txt',
                 'somestring',
                 timeout=0.1)
         self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+            '/tmp/test_uuid/myfile.txt', mock.ANY)
 
     def test_async_block_until_all_units_idle(self):
 
@@ -813,6 +815,7 @@ class TestModel(ut_utils.BaseTestCase):
             timeout=0.1)
 
     def test_block_until_oslo_config_entries_match(self):
+        self.patch_object(model.uuid, 'uuid1', return_value='test_uuid')
         file_contents = """
 [DEFAULT]
 verbose = False
@@ -839,11 +842,12 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             file_contents,
             expected_contents)
         self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+            '/tmp/test_uuid/myfile.txt', mock.ANY)
         self.unit2.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+            '/tmp/test_uuid/myfile.txt', mock.ANY)
 
     def test_block_until_oslo_config_entries_match_fail(self):
+        self.patch_object(model.uuid, 'uuid1', return_value='test_uuid')
         file_contents = """
 [DEFAULT]
 verbose = False
@@ -871,9 +875,10 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
                 file_contents,
                 expected_contents)
         self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+            '/tmp/test_uuid/myfile.txt', mock.ANY)
 
     def test_block_until_oslo_config_entries_match_missing_entry(self):
+        self.patch_object(model.uuid, 'uuid1', return_value='test_uuid')
         file_contents = """
 [DEFAULT]
 verbose = False
@@ -900,9 +905,10 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
                 file_contents,
                 expected_contents)
         self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+            '/tmp/test_uuid/myfile.txt', mock.ANY)
 
     def test_block_until_oslo_config_entries_match_missing_section(self):
+        self.patch_object(model.uuid, 'uuid1', return_value='test_uuid')
         file_contents = """
 [DEFAULT]
 verbose = False
@@ -924,7 +930,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
                 file_contents,
                 expected_contents)
         self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+            '/tmp/test_uuid/myfile.txt', mock.ANY)
 
     def block_until_services_restarted_base(self, gu_return=None,
                                             gu_raise_exception=False):

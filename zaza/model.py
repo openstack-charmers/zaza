@@ -25,6 +25,7 @@ import logging
 import os
 import subprocess
 import tempfile
+import uuid
 import yaml
 from oslo_config import cfg
 import concurrent
@@ -965,7 +966,15 @@ async def async_block_until_file_ready(application_name, remote_file,
         for unit in units:
             with tempfile.TemporaryDirectory() as tmpdir:
                 try:
-                    await unit.scp_from(remote_file, tmpdir)
+                    transfer_dir = '/tmp/{}'.format(
+                        str(uuid.uuid1()).split('-')[0])
+                    remote_file_copy = '{}/{}'.format(transfer_dir, file_name)
+                    rename_cmd = 'mkdir {}; cp {} {}'.format(
+                        transfer_dir,
+                        remote_file,
+                        remote_file_copy)
+                    await unit.run(rename_cmd, timeout=timeout)
+                    await unit.scp_from(remote_file_copy, tmpdir)
                     with open(os.path.join(tmpdir, file_name), 'r') as lf:
                         contents = lf.read()
                     if not check_function(contents):
