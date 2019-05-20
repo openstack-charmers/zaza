@@ -960,21 +960,19 @@ async def async_block_until_file_ready(application_name, remote_file,
     :type timeout: float
     """
     async def _check_file():
-        file_name = os.path.basename(remote_file)
         units = model.applications[application_name].units
         for unit in units:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                try:
-                    await unit.scp_from(remote_file, tmpdir)
-                    with open(os.path.join(tmpdir, file_name), 'r') as lf:
-                        contents = lf.read()
-                    if not check_function(contents):
-                        return False
-                # libjuju throws a generic error for scp failure. So we cannot
-                # differentiate between a connectivity issue and a target file
-                # not existing error. For now just assume the latter.
-                except JujuError as e:
+            try:
+                output = await unit.run('cat {}'.format(remote_file))
+                contents = output.data.get('results')['Stdout']
+                if not check_function(contents):
                     return False
+            # libjuju throws a generic error for connection failure. So we
+            # cannot differentiate between a connectivity issue and a
+            # target file not existing error. For now just assume the
+            # latter.
+            except JujuError as e:
+                return False
         else:
             return True
 
