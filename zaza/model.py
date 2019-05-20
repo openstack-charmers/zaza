@@ -1123,9 +1123,10 @@ async def async_block_until_services_restarted(application_name, mtime,
             for service in services:
                 try:
                     svc_mtime = await async_get_unit_service_start_time(
-                        model_name,
                         unit.entity_id,
-                        service)
+                        service,
+                        timeout=timeout,
+                        model_name=model_name)
                 except ServiceNotRunning:
                     return False
                 if svc_mtime < mtime:

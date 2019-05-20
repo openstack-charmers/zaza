@@ -935,7 +935,8 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.patch_object(model, 'async_block_until')
         self.async_block_until.side_effect = _block_until
 
-        async def _async_get_unit_service_start_time(model_name, unit, svc):
+        async def _async_get_unit_service_start_time(unit, svc, timeout=None,
+                                                     model_name=None):
             if gu_raise_exception:
                 raise model.ServiceNotRunning('sv1')
             else:
