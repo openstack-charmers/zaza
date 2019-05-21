@@ -165,38 +165,9 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             mock.call('./tests/bundles/maveric-filebeat.yaml', 'newmodel')]
         self.deploy.assert_has_calls(deploy_calls)
 
-    def test_main_loglevel(self):
-        self.patch_object(lc_func_test_runner, 'parse_args')
-        self.patch_object(lc_func_test_runner, 'logging')
-        self.patch_object(lc_func_test_runner, 'func_test_runner')
-        self.patch_object(lc_func_test_runner, 'asyncio')
-        _args = mock.Mock()
-        _args.loglevel = 'DeBuG'
-        _args.dev = False
-        _args.smoke = False
-        self.parse_args.return_value = _args
-        self.logging.DEBUG = 10
-        lc_func_test_runner.main()
-        self.logging.basicConfig.assert_called_with(level=10)
-
-    def test_main_loglevel_invalid(self):
-        self.patch_object(lc_func_test_runner, 'parse_args')
-        self.patch_object(lc_func_test_runner, 'logging')
-        self.patch_object(lc_func_test_runner, 'func_test_runner')
-        self.patch_object(lc_func_test_runner, 'asyncio')
-        _args = mock.Mock()
-        _args.loglevel = 'invalid'
-        self.parse_args.return_value = _args
-        with self.assertRaises(ValueError) as context:
-            lc_func_test_runner.main()
-        self.assertEqual(
-            'Invalid log level: "invalid"',
-            str(context.exception))
-        self.assertFalse(self.logging.basicConfig.called)
-
     def test_main_smoke_dev_ambiguous(self):
         self.patch_object(lc_func_test_runner, 'parse_args')
-        self.patch_object(lc_func_test_runner, 'logging')
+        self.patch_object(lc_func_test_runner, 'cli_utils')
         self.patch_object(lc_func_test_runner, 'func_test_runner')
         self.patch_object(lc_func_test_runner, 'asyncio')
         _args = mock.Mock()
@@ -204,7 +175,6 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         _args.dev = True
         _args.smoke = True
         self.parse_args.return_value = _args
-        self.logging.DEBUG = 10
         with self.assertRaises(ValueError) as context:
             lc_func_test_runner.main()
         self.assertEqual(
@@ -213,7 +183,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
 
     def test_main_bundle_dev_ambiguous(self):
         self.patch_object(lc_func_test_runner, 'parse_args')
-        self.patch_object(lc_func_test_runner, 'logging')
+        self.patch_object(lc_func_test_runner, 'cli_utils')
         self.patch_object(lc_func_test_runner, 'func_test_runner')
         self.patch_object(lc_func_test_runner, 'asyncio')
         _args = mock.Mock()
@@ -222,7 +192,6 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         _args.smoke = False
         _args.bundle = 'foo.yaml'
         self.parse_args.return_value = _args
-        self.logging.DEBUG = 10
         with self.assertRaises(ValueError) as context:
             lc_func_test_runner.main()
         self.assertEqual(
@@ -232,7 +201,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
 
     def test_main_bundle_smoke_ambiguous(self):
         self.patch_object(lc_func_test_runner, 'parse_args')
-        self.patch_object(lc_func_test_runner, 'logging')
+        self.patch_object(lc_func_test_runner, 'cli_utils')
         self.patch_object(lc_func_test_runner, 'func_test_runner')
         self.patch_object(lc_func_test_runner, 'asyncio')
         _args = mock.Mock()
@@ -241,7 +210,6 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         _args.smoke = True
         _args.bundle = 'foo.yaml'
         self.parse_args.return_value = _args
-        self.logging.DEBUG = 10
         with self.assertRaises(ValueError) as context:
             lc_func_test_runner.main()
         self.assertEqual(

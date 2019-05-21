@@ -21,6 +21,7 @@ import sys
 
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
+import zaza.utilities.cli as cli_utils
 
 
 def run_test_list(tests):
@@ -71,10 +72,7 @@ def main():
     read the tests from the charms tests.yaml config file
     """
     args = parse_args(sys.argv[1:])
-    level = getattr(logging, args.loglevel.upper(), None)
-    if not isinstance(level, int):
-        raise ValueError('Invalid log level: "{}"'.format(args.loglevel))
-    logging.basicConfig(level=level)
+    cli_utils.setup_logging(log_level=args.loglevel.upper())
     tests = args.tests or utils.get_charm_config()['tests']
     test(args.model_name, tests)
     asyncio.get_event_loop().close()

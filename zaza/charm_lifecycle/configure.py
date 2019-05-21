@@ -15,11 +15,11 @@
 """Run configuration phase."""
 import asyncio
 import argparse
-import logging
 import sys
 
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
+import zaza.utilities.cli as cli_utils
 
 
 def run_configure_list(functions):
@@ -73,10 +73,7 @@ def main():
     config file
     """
     args = parse_args(sys.argv[1:])
-    level = getattr(logging, args.loglevel.upper(), None)
-    if not isinstance(level, int):
-        raise ValueError('Invalid log level: "{}"'.format(args.loglevel))
-    logging.basicConfig(level=level)
+    cli_utils.setup_logging(log_level=args.loglevel.upper())
     funcs = args.configfuncs or utils.get_charm_config()['configure']
     configure(args.model_name, funcs)
     asyncio.get_event_loop().close()
