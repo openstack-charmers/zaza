@@ -50,6 +50,7 @@ def setup_logging():
         datefmt="%Y-%m-%d %H:%M:%S")
     rootLogger = logging.getLogger()
     rootLogger.setLevel('INFO')
-    consoleHandler = logging.StreamHandler()
-    consoleHandler.setFormatter(logFormatter)
-    rootLogger.addHandler(consoleHandler)
+    if not rootLogger.hasHandlers():
+        consoleHandler = logging.StreamHandler()
+        consoleHandler.setFormatter(logFormatter)
+        rootLogger.addHandler(consoleHandler)

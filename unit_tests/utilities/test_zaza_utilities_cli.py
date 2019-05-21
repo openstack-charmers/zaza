@@ -49,6 +49,7 @@ class TestCLIUtils(ut_utils.BaseTestCase):
         self.patch_object(cli_utils, "logging")
         _logformatter = mock.MagicMock()
         _logger = mock.MagicMock()
+        _logger.hasHandlers.return_value = False
         _consolehandler = mock.MagicMock()
         self.logging.Formatter.return_value = _logformatter
         self.logging.getLogger.return_value = _logger
@@ -61,3 +62,15 @@ class TestCLIUtils(ut_utils.BaseTestCase):
         _logger.setLevel.assert_called_with("INFO")
         _consolehandler.setFormatter.assert_called_with(_logformatter)
         _logger.addHandler.assert_called_with(_consolehandler)
+
+    def test_setup_logging_existing_handler(self):
+        self.patch_object(cli_utils, "logging")
+        _logformatter = mock.MagicMock()
+        _logger = mock.MagicMock()
+        _logger.hasHandlers.return_value = True
+        _consolehandler = mock.MagicMock()
+        self.logging.Formatter.return_value = _logformatter
+        self.logging.getLogger.return_value = _logger
+        self.logging.StreamHandler.return_value = _consolehandler
+        cli_utils.setup_logging()
+        self.assertFalse(_logger.addHandler.called)
