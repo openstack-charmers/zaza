@@ -39,17 +39,20 @@ def parse_arg(options, arg, multiargs=False):
         return getattr(options, arg)
 
 
-def setup_logging():
+def setup_logging(log_level='INFO'):
     """Do setup for logging.
 
     :returns: Nothing: This fucntion is executed for its sideffect
     :rtype: None
     """
+    level = getattr(logging, log_level.upper(), None)
+    if not isinstance(level, int):
+        raise ValueError('Invalid log level: "{}"'.format(log_level))
     logFormatter = logging.Formatter(
         fmt="%(asctime)s [%(levelname)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S")
     rootLogger = logging.getLogger()
-    rootLogger.setLevel('INFO')
+    rootLogger.setLevel(level)
     if not rootLogger.hasHandlers():
         consoleHandler = logging.StreamHandler()
         consoleHandler.setFormatter(logFormatter)

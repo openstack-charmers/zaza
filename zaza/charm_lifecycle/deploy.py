@@ -23,6 +23,7 @@ import tempfile
 
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
+import zaza.utilities.cli as cli_utils
 
 DEFAULT_OVERLAY_TEMPLATE_DIR = 'tests/bundles/overlays'
 VALID_ENVIRONMENT_KEY_PREFIXES = [
@@ -297,8 +298,5 @@ def parse_args(args):
 def main():
     """Deploy bundle."""
     args = parse_args(sys.argv[1:])
-    level = getattr(logging, args.loglevel.upper(), None)
-    if not isinstance(level, int):
-        raise ValueError('Invalid log level: "{}"'.format(args.loglevel))
-    logging.basicConfig(level=level)
+    cli_utils.setup_logging(log_level=args.loglevel.upper())
     deploy(args.bundle, args.model, wait=args.wait)

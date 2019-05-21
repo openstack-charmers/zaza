@@ -15,7 +15,6 @@
 """Run full test lifecycle."""
 import argparse
 import asyncio
-import logging
 import os
 import sys
 
@@ -25,6 +24,7 @@ import zaza.charm_lifecycle.utils as utils
 import zaza.charm_lifecycle.prepare as prepare
 import zaza.charm_lifecycle.deploy as deploy
 import zaza.charm_lifecycle.test as test
+import zaza.utilities.cli as cli_utils
 
 
 def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
@@ -106,10 +106,7 @@ def main():
     """Execute full test run."""
     args = parse_args(sys.argv[1:])
 
-    level = getattr(logging, args.loglevel.upper(), None)
-    if not isinstance(level, int):
-        raise ValueError('Invalid log level: "{}"'.format(args.loglevel))
-    logging.basicConfig(level=level)
+    cli_utils.setup_logging(log_level=args.loglevel.upper())
 
     if args.dev and args.smoke:
         raise ValueError('Ambiguous arguments: --smoke and '

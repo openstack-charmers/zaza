@@ -45,32 +45,41 @@ class TestCLIUtils(ut_utils.BaseTestCase):
                 cli_utils.parse_arg(_options, "property", multiargs=True),
                 _multi_value.split())
 
-    def test_setup_logging(self):
+    def setup_logging_mocks(self, has_handlers=False):
         self.patch_object(cli_utils, "logging")
         _logformatter = mock.MagicMock()
         _logger = mock.MagicMock()
-        _logger.hasHandlers.return_value = False
+        _logger.hasHandlers.return_value = has_handlers
         _consolehandler = mock.MagicMock()
+        setattr(self.logging, 'INFO', 20)
+        setattr(self.logging, 'DEBUG', 10)
         self.logging.Formatter.return_value = _logformatter
         self.logging.getLogger.return_value = _logger
         self.logging.StreamHandler.return_value = _consolehandler
+        return _logger, _consolehandler, _logformatter
+
+    def test_setup_logging(self):
+        _logger, _consolehandler, _logformatter = self.setup_logging_mocks()
         cli_utils.setup_logging()
         self.logging.Formatter.assert_called_with(
             datefmt='%Y-%m-%d %H:%M:%S',
             fmt='%(asctime)s [%(levelname)s] %(message)s')
         self.logging.getLogger.assert_called_with()
-        _logger.setLevel.assert_called_with("INFO")
+        _logger.setLevel.assert_called_with(20)
         _consolehandler.setFormatter.assert_called_with(_logformatter)
         _logger.addHandler.assert_called_with(_consolehandler)
 
     def test_setup_logging_existing_handler(self):
-        self.patch_object(cli_utils, "logging")
-        _logformatter = mock.MagicMock()
-        _logger = mock.MagicMock()
-        _logger.hasHandlers.return_value = True
-        _consolehandler = mock.MagicMock()
-        self.logging.Formatter.return_value = _logformatter
-        self.logging.getLogger.return_value = _logger
-        self.logging.StreamHandler.return_value = _consolehandler
+        _logger, _, _ = self.setup_logging_mocks(has_handlers=True)
         cli_utils.setup_logging()
         self.assertFalse(_logger.addHandler.called)
+
+    def test_setup_logging_invalid_loglevel(self):
+        _, _, _ = self.setup_logging_mocks()
+        with self.assertRaises(ValueError):
+            cli_utils.setup_logging('invalid')
+
+    def test_setup_logging_mixed_case_loglevel(self):
+        _logger, _, _ = self.setup_logging_mocks()
+        cli_utils.setup_logging('DeBug')
+        _logger.setLevel.assert_called_with(10)
