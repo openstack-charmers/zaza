@@ -24,6 +24,24 @@ import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
 
 
+class Stream2Logger():
+    """Act as a stream for the unit test runner."""
+
+    def write(self, messages):
+        r"""Write out the messages.
+
+        :param messages: Message(s) to write out.
+        :type str: 'msg1\nmsg2'
+        """
+        for message in messages.split('\n'):
+            if message:
+                logging.info("{}".format(message))
+
+    def flush(self):
+        """Flush not need as logger flushes messages."""
+        pass
+
+
 def run_test_list(tests):
     """Run the tests as defined in the list of test classes in series.
 
@@ -35,7 +53,9 @@ def run_test_list(tests):
         logging.info('## Running Test {} ##'.format(_testcase))
         testcase = utils.get_class(_testcase)
         suite = unittest.TestLoader().loadTestsFromTestCase(testcase)
-        test_result = unittest.TextTestRunner(verbosity=2).run(suite)
+        test_result = unittest.TextTestRunner(
+            stream=Stream2Logger(),
+            verbosity=2).run(suite)
         assert test_result.wasSuccessful(), "Test run failed"
 
 
