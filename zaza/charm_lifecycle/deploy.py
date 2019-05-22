@@ -17,7 +17,6 @@ import argparse
 import jinja2
 import logging
 import os
-import subprocess
 import sys
 import tempfile
 
@@ -248,7 +247,7 @@ def deploy_bundle(bundle, model):
             logging.info("Deploying overlay '{}' on to '{}' model"
                          .format(overlay, model))
             cmd.extend(['--overlay', overlay])
-        subprocess.check_call(cmd)
+        utils.check_output_logging(cmd)
 
 
 def deploy(bundle, model, wait=True):

@@ -14,6 +14,8 @@
 
 """Utilities to support running lifecycle phases."""
 import importlib
+import logging
+import subprocess
 import uuid
 import sys
 import yaml
@@ -63,3 +65,22 @@ def generate_model_name():
     :rtype: str
     """
     return 'zaza-{}'.format(str(uuid.uuid4())[-12:])
+
+
+def check_output_logging(cmd):
+    """Run command and log output.
+
+    :param cmd: Shell command to run
+    :type cmd: List
+    """
+    popen = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True)
+    for line in iter(popen.stdout.readline, ""):
+        logging.info(line.strip())
+    popen.stdout.close()
+    return_code = popen.wait()
+    if return_code:
+        raise subprocess.CalledProcessError(return_code, cmd)
