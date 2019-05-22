@@ -1,5 +1,5 @@
 OpenStack Utilities
 -------------------
 
-.. automodule:: zaza.utilities.openstack
+.. automodule:: zaza.openstack.utilities.openstack
    :members:

@@ -534,14 +534,3 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         }
         ret = generic_utils.validate_unit_process_ids(expected, actual)
         self.assertTrue(ret)
-
-    def test_get_ubuntu_release(self):
-        # Normal case
-        expected = 0
-        actual = generic_utils.get_ubuntu_release('oneiric')
-        self.assertEqual(expected, actual)
-
-        # Ubuntu release doesn't exist
-        bad_name = 'bad_name'
-        with self.assertRaises(zaza_exceptions.UbuntuReleaseNotFound):
-            generic_utils.get_ubuntu_release(bad_name)
