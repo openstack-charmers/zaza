@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
 import mock
+import subprocess
 
 import zaza.charm_lifecycle.utils as lc_utils
 import unit_tests.utils as ut_utils
@@ -50,3 +52,29 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
                                     'test_zaza_charm_lifecycle_utils.'
                                     'TestCharmLifecycleUtils')()),
             type(self))
+
+    def test_check_output_logging(self):
+        self.patch_object(lc_utils.logging, 'info')
+        self.patch_object(lc_utils.subprocess, 'Popen')
+        popen_mock = mock.MagicMock()
+        popen_mock.stdout = io.StringIO("logline1\nlogline2\nlogline3\n")
+        poll_output = [0, 0, None, None, None]
+        popen_mock.poll.side_effect = poll_output.pop
+        self.Popen.return_value = popen_mock
+        lc_utils.check_output_logging(['cmd', 'arg1', 'arg2'])
+        log_calls = [
+            mock.call('logline1'),
+            mock.call('logline2'),
+            mock.call('logline3')]
+        self.info.assert_has_calls(log_calls)
+
+    def test_check_output_logging_process_error(self):
+        self.patch_object(lc_utils.logging, 'info')
+        self.patch_object(lc_utils.subprocess, 'Popen')
+        popen_mock = mock.MagicMock()
+        popen_mock.stdout = io.StringIO("logline1\n")
+        poll_output = [1, 1, None]
+        popen_mock.poll.side_effect = poll_output.pop
+        self.Popen.return_value = popen_mock
+        with self.assertRaises(subprocess.CalledProcessError):
+            lc_utils.check_output_logging(['cmd', 'arg1', 'arg2'])

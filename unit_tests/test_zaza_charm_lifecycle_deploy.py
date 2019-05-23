@@ -208,10 +208,10 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.patch_object(lc_deploy.utils, 'get_charm_config')
         self.get_charm_config.return_value = {}
         self.patch_object(lc_deploy, 'render_overlays')
-        self.patch_object(lc_deploy.subprocess, 'check_call')
+        self.patch_object(lc_deploy.utils, 'check_output_logging')
         self.render_overlays.return_value = []
         lc_deploy.deploy_bundle('bun.yaml', 'newmodel')
-        self.check_call.assert_called_once_with(
+        self.check_output_logging.assert_called_once_with(
             ['juju', 'deploy', '-m', 'newmodel', 'bun.yaml'])
 
     def test_deploy(self):
