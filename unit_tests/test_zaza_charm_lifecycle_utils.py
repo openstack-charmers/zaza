@@ -58,7 +58,8 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         self.patch_object(lc_utils.subprocess, 'Popen')
         popen_mock = mock.MagicMock()
         popen_mock.stdout = io.StringIO("logline1\nlogline2\nlogline3\n")
-        popen_mock.wait.return_value = 0
+        poll_output = [0, 0, None, None, None]
+        popen_mock.poll.side_effect = poll_output.pop
         self.Popen.return_value = popen_mock
         lc_utils.check_output_logging(['cmd', 'arg1', 'arg2'])
         log_calls = [
@@ -68,11 +69,12 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         self.info.assert_has_calls(log_calls)
 
     def test_check_output_logging_process_error(self):
+        self.patch_object(lc_utils.logging, 'info')
+        self.patch_object(lc_utils.subprocess, 'Popen')
+        popen_mock = mock.MagicMock()
+        popen_mock.stdout = io.StringIO("logline1\n")
+        poll_output = [1, 1, None]
+        popen_mock.poll.side_effect = poll_output.pop
+        self.Popen.return_value = popen_mock
         with self.assertRaises(subprocess.CalledProcessError):
-            self.patch_object(lc_utils.logging, 'info')
-            self.patch_object(lc_utils.subprocess, 'Popen')
-            popen_mock = mock.MagicMock()
-            popen_mock.stdout = io.StringIO("logline1\n")
-            popen_mock.wait.return_value = 1
-            self.Popen.return_value = popen_mock
             lc_utils.check_output_logging(['cmd', 'arg1', 'arg2'])

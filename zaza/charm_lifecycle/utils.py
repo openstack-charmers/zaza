@@ -79,8 +79,12 @@ def check_output_logging(cmd):
         stderr=subprocess.STDOUT,
         universal_newlines=True)
     for line in iter(popen.stdout.readline, ""):
+        # popen.poll checks if child process has terminated. If it has it
+        # returns the returncode. If it has not it returns None.
+        if popen.poll() is not None:
+            break
         logging.info(line.strip())
     popen.stdout.close()
-    return_code = popen.wait()
+    return_code = popen.poll()
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
