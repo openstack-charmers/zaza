@@ -72,6 +72,7 @@ def check_output_logging(cmd):
 
     :param cmd: Shell command to run
     :type cmd: List
+    :raises: subprocess.CalledProcessError
     """
     popen = subprocess.Popen(
         cmd,
