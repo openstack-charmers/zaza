@@ -37,7 +37,8 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
             run_report.get_events(),
             {
                 'Deploy Bundle': {
-                    'Finish': 12, 'Start': 10}})
+                    run_report.EventStates.FINISH: 12,
+                    run_report.EventStates.START: 10}})
 
     def test_register_metadata(self):
         run_report.register_metadata(
@@ -77,13 +78,13 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
         self.assertEqual(
             run_report.get_event_report(),
             {
-                'Events': {
+                run_report.ReportKeys.EVENTS: {
                     'Deploy Bundle': {
-                        'Elapsed Time': 2,
-                        'Finish': 12,
-                        'PCT Of Run Time': 100,
-                        'Start': 10}},
-                'Metadata': {
+                        run_report.ReportKeys.ELAPSED_TIME: 2,
+                        run_report.EventStates.FINISH: 12,
+                        run_report.ReportKeys.PCT_OF_RUNTIME: 100,
+                        run_report.EventStates.START: 10}},
+                run_report.ReportKeys.METADATA: {
                     'cloud_name': 'cloud1',
                     'model_name': 'model2',
                     'target_bundle': 'precise-essex'}})
@@ -131,4 +132,6 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
         run_report.reset_run_data()
         self.assertEqual(
             run_report.get_run_data(),
-            {'Events': {}, 'Metadata': {}})
+            {
+                run_report.ReportKeys.METADATA: {},
+                run_report.ReportKeys.EVENTS: {}})

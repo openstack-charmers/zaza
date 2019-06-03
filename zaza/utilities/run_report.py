@@ -28,6 +28,16 @@ import yaml
 run_data = None
 
 
+class EnumToStrDumper(yaml.SafeDumper):
+    """Convert Enums to str when dumping."""
+
+    def represent_data(self, data):
+        """If the value is an Enum dump the value."""
+        if isinstance(data, enum.Enum):
+            return self.represent_data(data.value)
+        return super().represent_data(data)
+
+
 class ReportKeys(enum.Enum):
     """Keys in the Run report."""
 
@@ -48,8 +58,8 @@ def _init_run_data(reset=False):
     global run_data
     if not run_data or reset:
         run_data = {
-            ReportKeys.EVENTS.value: {},
-            ReportKeys.METADATA.value: {}}
+            ReportKeys.EVENTS: {},
+            ReportKeys.METADATA: {}}
 
 
 def register_event(event_name, event_state, timestamp=None):
@@ -66,11 +76,11 @@ def register_event(event_name, event_state, timestamp=None):
     global run_data
     _init_run_data()
     timestamp = timestamp or time.time()
-    events = run_data[ReportKeys.EVENTS.value]
+    events = run_data[ReportKeys.EVENTS]
     if event_name in events:
-        events[event_name][event_state.value] = timestamp
+        events[event_name][event_state] = timestamp
     else:
-        events[event_name] = {event_state.value: timestamp}
+        events[event_name] = {event_state: timestamp}
 
 
 def register_metadata(cloud_name=None, model_name=None, target_bundle=None):
@@ -86,11 +96,11 @@ def register_metadata(cloud_name=None, model_name=None, target_bundle=None):
     global run_data
     _init_run_data()
     if cloud_name:
-        run_data[ReportKeys.METADATA.value]['cloud_name'] = cloud_name
+        run_data[ReportKeys.METADATA]['cloud_name'] = cloud_name
     if model_name:
-        run_data[ReportKeys.METADATA.value]['model_name'] = model_name
+        run_data[ReportKeys.METADATA]['model_name'] = model_name
     if target_bundle:
-        run_data[ReportKeys.METADATA.value]['target_bundle'] = target_bundle
+        run_data[ReportKeys.METADATA]['target_bundle'] = target_bundle
 
 
 def get_events_start_stop_time(events):
@@ -123,12 +133,12 @@ def get_event_report():
     report = copy.deepcopy(run_data)
     start_time, finish_time = get_events_start_stop_time(get_events())
     full_run_time = finish_time - start_time
-    for name, info in report[ReportKeys.EVENTS.value].items():
+    for name, info in report[ReportKeys.EVENTS].items():
         try:
-            event_time = (info[EventStates.FINISH.value] -
-                          info[EventStates.START.value])
-            info[ReportKeys.ELAPSED_TIME.value] = event_time
-            info[ReportKeys.PCT_OF_RUNTIME.value] = math.ceil(
+            event_time = (info[EventStates.FINISH] -
+                          info[EventStates.START])
+            info[ReportKeys.ELAPSED_TIME] = event_time
+            info[ReportKeys.PCT_OF_RUNTIME] = math.ceil(
                 (event_time / full_run_time) * 100)
         except KeyError:
             pass
@@ -142,7 +152,10 @@ def write_event_report(output_file=None):
     :type events: str
     """
     report = get_event_report()
-    report_txt = yaml.dump(report, default_flow_style=False)
+    report_txt = yaml.dump(
+        report,
+        Dumper=EnumToStrDumper,
+        default_flow_style=False)
     if output_file:
         with open(output_file, 'w') as out:
             out.write(report_txt)
@@ -171,7 +184,7 @@ def get_events():
     :returns: Dictionary of events.
     :rtype: dict
     """
-    return get_run_data()[ReportKeys.EVENTS.value]
+    return get_run_data()[ReportKeys.EVENTS]
 
 
 def get_metadata():
@@ -180,4 +193,4 @@ def get_metadata():
     :returns: Dictionary of metadata.
     :rtype: dict
     """
-    return get_run_data()[ReportKeys.METADATA.value]
+    return get_run_data()[ReportKeys.METADATA]
