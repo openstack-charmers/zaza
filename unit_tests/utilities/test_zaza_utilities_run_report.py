@@ -22,18 +22,19 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
 
     def setUp(self):
         super(TestUtilitiesRunReport, self).setUp()
+        run_report.reset_run_data()
 
     def test_register_event(self):
         run_report.register_event(
             'Deploy Bundle',
-            run_report.start,
+            run_report.EventStates.START,
             timestamp=10)
         run_report.register_event(
             'Deploy Bundle',
-            run_report.finish,
+            run_report.EventStates.FINISH,
             timestamp=12)
         self.assertEqual(
-            run_report.get_run_data()[run_report.events],
+            run_report.get_events(),
             {
                 'Deploy Bundle': {
                     'Finish': 12, 'Start': 10}})
@@ -44,7 +45,7 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
             model_name='model2',
             target_bundle='precise-essex')
         self.assertEqual(
-            run_report.get_run_data()[run_report.metadata],
+            run_report.get_metadata(),
             {
                 'cloud_name': 'cloud1',
                 'model_name': 'model2',
@@ -67,11 +68,11 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
             target_bundle='precise-essex')
         run_report.register_event(
             'Deploy Bundle',
-            run_report.start,
+            run_report.EventStates.START,
             timestamp=10)
         run_report.register_event(
             'Deploy Bundle',
-            run_report.finish,
+            run_report.EventStates.FINISH,
             timestamp=12)
         self.assertEqual(
             run_report.get_event_report(),
@@ -116,7 +117,7 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
     def test_get_run_data(self):
         run_report.register_event(
             'Deploy Bundle',
-            run_report.start,
+            run_report.EventStates.START,
             timestamp=10)
         self.assertEqual(
             run_report.get_run_data(),
@@ -125,7 +126,7 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
     def test_reset_run_data(self):
         run_report.register_event(
             'Deploy Bundle',
-            run_report.start,
+            run_report.EventStates.START,
             timestamp=10)
         run_report.reset_run_data()
         self.assertEqual(
