@@ -22,7 +22,7 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
 
     def setUp(self):
         super(TestUtilitiesRunReport, self).setUp()
-        run_report.reset_run_data()
+        run_report.clear_run_data()
 
     def test_register_event(self):
         run_report.register_event(
@@ -34,7 +34,7 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
             run_report.EventStates.FINISH,
             timestamp=12)
         self.assertEqual(
-            run_report.get_events(),
+            run_report.get_copy_of_events(),
             {
                 'Deploy Bundle': {
                     run_report.EventStates.FINISH: 12,
@@ -46,7 +46,7 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
             model_name='model2',
             target_bundle='precise-essex')
         self.assertEqual(
-            run_report.get_metadata(),
+            run_report.get_copy_of_metadata(),
             {
                 'cloud_name': 'cloud1',
                 'model_name': 'model2',
@@ -54,10 +54,15 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
 
     def test_get_events_start_stop_time(self):
         events = {
-            'event1': {'start': 12, 'finish': 18},
-            'event2': {'start': 10, 'finish': 15},
-            'event3': {'start': 15, 'finish': 28},
-        }
+            'event1': {
+                run_report.EventStates.START: 12,
+                run_report.EventStates.FINISH: 18},
+            'event2': {
+                run_report.EventStates.START: 10,
+                run_report.EventStates.FINISH: 15},
+            'event3': {
+                run_report.EventStates.START: 15,
+                run_report.EventStates.FINISH: 28}}
         self.assertEqual(
             run_report.get_events_start_stop_time(events),
             (10, 28))
@@ -75,6 +80,7 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
             'Deploy Bundle',
             run_report.EventStates.FINISH,
             timestamp=12)
+        self.maxDiff = None
         self.assertEqual(
             run_report.get_event_report(),
             {
@@ -89,31 +95,58 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
                     'model_name': 'model2',
                     'target_bundle': 'precise-essex'}})
 
-    def test_write_event_report(self):
-        self.patch_object(run_report.logging, 'info')
+    def test_get_yaml_event_report(self):
         self.patch_object(
             run_report,
             'get_event_report',
             return_value={'myreport': 'thereport'})
-        run_report.write_event_report()
-        self.info.assert_called_once_with(
+        self.assertEqual(
+            run_report.get_yaml_event_report(),
             'myreport: thereport\n')
 
-    def test_write_event_report_output_file(self):
-        self.patch_object(run_report.logging, 'info')
+    def test_output_event_report(self):
         self.patch_object(
             run_report,
-            'get_event_report',
-            return_value={'myreport': 'thereport'})
+            'get_yaml_event_report',
+            return_value='myreport: thereport')
+        self.patch_object(run_report, 'write_event_report')
+        self.patch_object(run_report, 'log_event_report')
+        run_report.output_event_report()
+        self.assertFalse(self.write_event_report.called)
+        self.log_event_report.assert_called_once_with(
+            'myreport: thereport')
+
+    def test_output_event_report_output_file(self):
+        self.patch_object(
+            run_report,
+            'get_yaml_event_report',
+            return_value='myreport: thereport')
+        self.patch_object(run_report, 'write_event_report')
+        self.patch_object(run_report, 'log_event_report')
+        run_report.output_event_report(output_file='/tmp/a.yaml')
+        self.write_event_report.assert_called_once_with(
+            'myreport: thereport',
+            '/tmp/a.yaml')
+        self.log_event_report.assert_called_once_with(
+            'myreport: thereport')
+
+    def test_write_event_report(self):
         open_mock = mock.mock_open()
         with mock.patch('zaza.utilities.run_report.open', open_mock,
                         create=False):
-            run_report.write_event_report(output_file='/tmp/summary.yaml')
-        self.info.assert_called_once_with(
-            'myreport: thereport\n')
-        open_mock.assert_called_once_with('/tmp/summary.yaml', 'w')
+            run_report.write_event_report(
+                'myreport: thereport',
+                '/tmp/a.yaml')
+        open_mock.assert_called_once_with('/tmp/a.yaml', 'w')
         handle = open_mock()
-        handle.write.assert_called_once_with('myreport: thereport\n')
+        handle.write.assert_called_once_with('myreport: thereport')
+
+    def test_log_event_report(self):
+        self.patch_object(run_report.logging, 'info')
+        run_report.log_event_report(
+            'myreport: thereport')
+        self.info.assert_called_once_with(
+            'myreport: thereport')
 
     def test_get_run_data(self):
         run_report.register_event(
@@ -122,14 +155,14 @@ class TestUtilitiesRunReport(ut_utils.BaseTestCase):
             timestamp=10)
         self.assertEqual(
             run_report.get_run_data(),
-            run_report.run_data)
+            run_report._run_data)
 
-    def test_reset_run_data(self):
+    def test_clear_run_data(self):
         run_report.register_event(
             'Deploy Bundle',
             run_report.EventStates.START,
             timestamp=10)
-        run_report.reset_run_data()
+        run_report.clear_run_data()
         self.assertEqual(
             run_report.get_run_data(),
             {

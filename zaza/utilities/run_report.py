@@ -25,7 +25,54 @@ import time
 import math
 import yaml
 
-run_data = None
+_run_data = None
+
+
+def get_run_data():
+    """Return the dict of events data.
+
+    :returns: Dictionary of events data.
+    :rtype: dict
+    """
+    global _run_data
+    if _run_data is None:
+        _run_data = init_run_data()
+    return _run_data
+
+
+def clear_run_data():
+    """Clear the existing event data."""
+    global _run_data
+    _run_data = None
+
+
+def init_run_data():
+    """Initialise the report data structure.
+
+    :returns: Dictionary of events data.
+    :rtype: dict
+    """
+    return {
+        ReportKeys.EVENTS: {},
+        ReportKeys.METADATA: {}}
+
+
+def get_copy_of_events():
+    """Return a copy of the dictionary of events for this run.
+
+    :returns: Dictionary of events.
+    :rtype: dict
+    """
+    return copy.deepcopy(get_run_data())[ReportKeys.EVENTS]
+
+
+def get_copy_of_metadata():
+    """Return a copy of the metadata recorded for this run.
+
+    :returns: Dictionary of metadata.
+    :rtype: dict
+    """
+    return copy.deepcopy(get_run_data())[ReportKeys.METADATA]
 
 
 class EnumToStrDumper(yaml.SafeDumper):
@@ -54,14 +101,6 @@ class EventStates(enum.Enum):
     FINISH = 'Finish'
 
 
-def _init_run_data(reset=False):
-    global run_data
-    if not run_data or reset:
-        run_data = {
-            ReportKeys.EVENTS: {},
-            ReportKeys.METADATA: {}}
-
-
 def register_event(event_name, event_state, timestamp=None):
     """Register that event_name is at event_state.
 
@@ -73,8 +112,7 @@ def register_event(event_name, event_state, timestamp=None):
                       reached.
     :type timestamp: float
     """
-    global run_data
-    _init_run_data()
+    run_data = get_run_data()
     timestamp = timestamp or time.time()
     events = run_data[ReportKeys.EVENTS]
     if event_name in events:
@@ -93,8 +131,7 @@ def register_metadata(cloud_name=None, model_name=None, target_bundle=None):
     :param target_bundle: Name of bundle
     :type target_bundle: str
     """
-    global run_data
-    _init_run_data()
+    run_data = get_run_data()
     if cloud_name:
         run_data[ReportKeys.METADATA]['cloud_name'] = cloud_name
     if model_name:
@@ -111,86 +148,78 @@ def get_events_start_stop_time(events):
     :returns: Tuple of start time and endtime in seconds since epoch.
     :rtype: (float, float)
     """
-    start_time = -1
-    finish_time = -1
-    for event_name, event_info in events.items():
-        for event_state, timestamp in event_info.items():
-            if start_time == -1 or start_time > timestamp:
-                start_time = timestamp
-            if finish_time == -1 or finish_time < timestamp:
-                finish_time = timestamp
-    return start_time, finish_time
+    timestamps = events.values()
+    start_times = [x.get(EventStates.START) for x in timestamps]
+    finish_times = [x.get(EventStates.FINISH) for x in timestamps]
+    if start_times and finish_times:
+        return min(start_times), max(finish_times)
+    else:
+        return None, None
 
 
 def get_event_report():
     """Produce report based on current run.
 
     :returns: Dictionary of run data with summary info.
-    :rtype: dict
+    :rtype: Dict[str, Dict[str, float]]
     """
-    global run_data
-    _init_run_data()
+    run_data = get_run_data()
     report = copy.deepcopy(run_data)
-    start_time, finish_time = get_events_start_stop_time(get_events())
-    full_run_time = finish_time - start_time
-    for name, info in report[ReportKeys.EVENTS].items():
-        try:
-            event_time = (info[EventStates.FINISH] -
-                          info[EventStates.START])
-            info[ReportKeys.ELAPSED_TIME] = event_time
-            info[ReportKeys.PCT_OF_RUNTIME] = math.ceil(
-                (event_time / full_run_time) * 100)
-        except KeyError:
-            pass
+    start_time, finish_time = get_events_start_stop_time(get_copy_of_events())
+    if start_time and finish_time:
+        full_run_time = finish_time - start_time
+        for name, info in report[ReportKeys.EVENTS].items():
+            try:
+                event_time = (info[EventStates.FINISH] -
+                              info[EventStates.START])
+                info[ReportKeys.ELAPSED_TIME] = event_time
+                info[ReportKeys.PCT_OF_RUNTIME] = math.ceil(
+                    (event_time / full_run_time) * 100)
+            except KeyError:
+                pass
     return report
 
 
-def write_event_report(output_file=None):
+def get_yaml_event_report():
+    """Get the report and convert it to yaml.
+
+    :returns: The ereport in yaml format
+    :rtype: str
+    """
+    return yaml.dump(
+        get_event_report(),
+        Dumper=EnumToStrDumper,
+        default_flow_style=False)
+
+
+def output_event_report(output_file=None):
     """Log the event report and optionally write to a file.
 
     :param outputfile: File name to write summary to.
     :type events: str
     """
-    report = get_event_report()
-    report_txt = yaml.dump(
-        report,
-        Dumper=EnumToStrDumper,
-        default_flow_style=False)
+    report_yaml = get_yaml_event_report()
     if output_file:
-        with open(output_file, 'w') as out:
-            out.write(report_txt)
-    logging.info(report_txt)
+        write_event_report(report_yaml, output_file)
+    log_event_report(report_yaml)
 
 
-def get_run_data():
-    """Return the raw dictionary of events.
+def write_event_report(report, output_file):
+    """Write the given event report to a file.
 
-    :returns: Dictionary of run data without summary info.
-    :rtype: dict
+    :param report: Report to write out.
+    :type report: str
+    :param output_file: File to write report to.
+    :type output_file: str
     """
-    global run_data
-    _init_run_data()
-    return run_data
+    with open(output_file, 'w') as out:
+        out.write(report)
 
 
-def reset_run_data():
-    """Reset the run data, removing all entries."""
-    _init_run_data(reset=True)
+def log_event_report(report):
+    """Log the given event report.
 
-
-def get_events():
-    """Return the dictionary of events recorded for this run.
-
-    :returns: Dictionary of events.
-    :rtype: dict
+    :param report: Report to log
+    :type report: str
     """
-    return get_run_data()[ReportKeys.EVENTS]
-
-
-def get_metadata():
-    """Return the dictionary of metadata recorded for this run.
-
-    :returns: Dictionary of metadata.
-    :rtype: dict
-    """
-    return get_run_data()[ReportKeys.METADATA]
+    logging.info(report)
