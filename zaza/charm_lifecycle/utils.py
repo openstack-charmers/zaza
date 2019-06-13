@@ -14,6 +14,8 @@
 
 """Utilities to support running lifecycle phases."""
 import importlib
+import logging
+import subprocess
 import uuid
 import sys
 import yaml
@@ -63,3 +65,27 @@ def generate_model_name():
     :rtype: str
     """
     return 'zaza-{}'.format(str(uuid.uuid4())[-12:])
+
+
+def check_output_logging(cmd):
+    """Run command and log output.
+
+    :param cmd: Shell command to run
+    :type cmd: List
+    :raises: subprocess.CalledProcessError
+    """
+    popen = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True)
+    for line in iter(popen.stdout.readline, ""):
+        # popen.poll checks if child process has terminated. If it has it
+        # returns the returncode. If it has not it returns None.
+        if popen.poll() is not None:
+            break
+        logging.info(line.strip())
+    popen.stdout.close()
+    return_code = popen.poll()
+    if return_code:
+        raise subprocess.CalledProcessError(return_code, cmd)

@@ -17,12 +17,12 @@ import argparse
 import jinja2
 import logging
 import os
-import subprocess
 import sys
 import tempfile
 
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
+import zaza.utilities.cli as cli_utils
 
 DEFAULT_OVERLAY_TEMPLATE_DIR = 'tests/bundles/overlays'
 VALID_ENVIRONMENT_KEY_PREFIXES = [
@@ -118,7 +118,8 @@ def get_jinja2_env():
     """
     template_dir = get_overlay_template_dir()
     return jinja2.Environment(
-        loader=jinja2.FileSystemLoader(template_dir)
+        loader=jinja2.FileSystemLoader(template_dir),
+        undefined=jinja2.StrictUndefined
     )
 
 
@@ -158,10 +159,14 @@ def render_template(template, target_file):
     :param target_file: File name for rendered template
     :type target_file: str
     """
-    with open(target_file, "w") as fh:
-        fh.write(
-            template.render(get_template_overlay_context()))
-
+    try:
+        with open(target_file, "w") as fh:
+            fh.write(
+                template.render(get_template_overlay_context()))
+    except jinja2.exceptions.UndefinedError as e:
+        logging.error("Template error. You may be missing"
+                      " a mandatory environment variable : {}".format(e))
+        sys.exit(1)
     logging.info("Rendered template '{}' to file '{}'".format(template,
                                                               target_file))
 
@@ -242,7 +247,7 @@ def deploy_bundle(bundle, model):
             logging.info("Deploying overlay '{}' on to '{}' model"
                          .format(overlay, model))
             cmd.extend(['--overlay', overlay])
-        subprocess.check_call(cmd)
+        utils.check_output_logging(cmd)
 
 
 def deploy(bundle, model, wait=True):
@@ -292,8 +297,5 @@ def parse_args(args):
 def main():
     """Deploy bundle."""
     args = parse_args(sys.argv[1:])
-    level = getattr(logging, args.loglevel.upper(), None)
-    if not isinstance(level, int):
-        raise ValueError('Invalid log level: "{}"'.format(args.loglevel))
-    logging.basicConfig(level=level)
+    cli_utils.setup_logging(log_level=args.loglevel.upper())
     deploy(args.bundle, args.model, wait=args.wait)

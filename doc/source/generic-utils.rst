@@ -1,5 +1,5 @@
 Generic Utilities
 -----------------
 
-.. automodule:: zaza.utilities.generic
+.. automodule:: zaza.openstack.utilities.generic
    :members:

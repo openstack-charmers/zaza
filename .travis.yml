@@ -1,4 +1,5 @@
 sudo: true
+dist: xenial
 language: python
 python:
   - "3.6"
@@ -12,15 +13,14 @@ comment: |
   sudo back to ourself to activate lxd group membership executable search path
 script:
   - if [ $ENV = 'func-travis' ]; then
-       sudo apt-get -qq update;
-       sudo apt-get -y install snapd;
+       sudo apt remove -y --purge lxd lxd-client;
        sudo snap install lxd;
        sudo snap install juju --classic;
        sudo sh -c 'echo PATH=/snap/bin:$PATH >> /etc/environment';
        sudo lxd waitready;
        sudo lxd init --auto;
        sudo usermod -a -G lxd travis;
-       sudo su travis -c 'juju bootstrap --no-gui localhost';
+       sudo su travis -c 'juju bootstrap --debug --no-gui localhost';
     fi
   - tox -c tox.ini -e $ENV
   - if [ $ENV = 'func-travis' ]; then
