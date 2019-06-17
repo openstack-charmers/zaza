@@ -140,9 +140,9 @@ def register_event_wrapper(event_name):
     def decorator(f):
         @functools.wraps(f)
         def wrapper(*args, **kwds):
-            register_event(event_name, event_state=EventStates.START)
+            register_event_start(event_name)
             result = f(*args, **kwds)
-            register_event(event_name, event_state=EventStates.FINISH)
+            register_event_finish(event_name)
             return result
         return wrapper
     return decorator
