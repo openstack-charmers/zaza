@@ -18,11 +18,12 @@ This module contains a number of functions for logging events so that they
 can be summarised, with timings, at the end of the run.
 """
 
-import enum
 import copy
+import enum
+import functools
 import logging
-import time
 import math
+import time
 import yaml
 
 _run_data = None
@@ -119,6 +120,32 @@ def register_event(event_name, event_state, timestamp=None):
         events[event_name][event_state] = timestamp
     else:
         events[event_name] = {event_state: timestamp}
+
+
+register_event_start = functools.partial(
+    register_event,
+    event_state=EventStates.START)
+
+register_event_finish = functools.partial(
+    register_event,
+    event_state=EventStates.FINISH)
+
+
+def register_event_wrapper(event_name):
+    """Decorate a function to register functions start and finish time.
+
+    :param event_name: Name of event
+    :type event_name: str
+    """
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapper(*args, **kwds):
+            register_event(event_name, event_state=EventStates.START)
+            result = f(*args, **kwds)
+            register_event(event_name, event_state=EventStates.FINISH)
+            return result
+        return wrapper
+    return decorator
 
 
 def register_metadata(cloud_name=None, model_name=None, target_bundle=None):
