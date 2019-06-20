@@ -494,8 +494,22 @@ async def async_get_status(model_name=None):
 get_status = sync_wrapper(async_get_status)
 
 
+class ActionFailed(Exception):
+    """Exception raised when action fails."""
+
+    def __init__(self, action):
+        """Set information about action failure in message and raise."""
+        message = ('Run of action "{}" with parameters "{}" on "{}" failed '
+                   'with "{}" (id={} status={} enqueued={} started={} '
+                   'completed={})'
+                   .format(action.name, action.parameters, action.receiver,
+                           action.message, action.id, action.status,
+                           action.enqueued, action.started, action.completed))
+        super(ActionFailed, self).__init__(message)
+
+
 async def async_run_action(unit_name, action_name, model_name=None,
-                           action_params={}):
+                           action_params={}, raise_on_failure=False):
     """Run action on given unit.
 
     :param unit_name: Name of unit to run action on
@@ -506,20 +520,26 @@ async def async_run_action(unit_name, action_name, model_name=None,
     :type model_name: str
     :param action_params: Dictionary of config options for action
     :type action_params: dict
+    :param raise_on_failure: Raise ActionFailed exception on failure
+    :type raise_on_failure: bool
     :returns: Action object
     :rtype: juju.action.Action
+    :raises: ActionFailed
     """
     async with run_in_model(model_name) as model:
         unit = get_unit_from_name(unit_name, model)
         action_obj = await unit.run_action(action_name, **action_params)
         await action_obj.wait()
+        if raise_on_failure and action_obj.status != 'completed':
+            raise ActionFailed(action_obj)
         return action_obj
 
 run_action = sync_wrapper(async_run_action)
 
 
 async def async_run_action_on_leader(application_name, action_name,
-                                     model_name=None, action_params=None):
+                                     model_name=None, action_params=None,
+                                     raise_on_failure=False):
     """Run action on lead unit of the given application.
 
     :param model_name: Name of model to query.
@@ -530,8 +550,11 @@ async def async_run_action_on_leader(application_name, action_name,
     :type action_name: str
     :param action_params: Dictionary of config options for action
     :type action_params: dict
+    :param raise_on_failure: Raise ActionFailed exception on failure
+    :type raise_on_failure: bool
     :returns: Action object
     :rtype: juju.action.Action
+    :raises: ActionFailed
     """
     async with run_in_model(model_name) as model:
         for unit in model.applications[application_name].units:
@@ -540,6 +563,8 @@ async def async_run_action_on_leader(application_name, action_name,
                 action_obj = await unit.run_action(action_name,
                                                    **action_params)
                 await action_obj.wait()
+                if raise_on_failure and action_obj.status != 'completed':
+                    raise ActionFailed(action_obj)
                 return action_obj
 
 run_action_on_leader = sync_wrapper(async_run_action_on_leader)
