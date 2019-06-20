@@ -20,6 +20,7 @@ import sys
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
+import zaza.utilities.run_report as run_report
 
 
 def run_configure_list(functions):
@@ -32,7 +33,9 @@ def run_configure_list(functions):
     :type tests: ['zaza.charms_tests.svc.setup', ...]
     """
     for func in functions:
+        run_report.register_event_start('Configure {}'.format(func))
         utils.get_class(func)()
+        run_report.register_event_finish('Configure {}'.format(func))
 
 
 def configure(model_name, functions):
@@ -76,4 +79,5 @@ def main():
     cli_utils.setup_logging(log_level=args.loglevel.upper())
     funcs = args.configfuncs or utils.get_charm_config()['configure']
     configure(args.model_name, funcs)
+    run_report.output_event_report()
     asyncio.get_event_loop().close()

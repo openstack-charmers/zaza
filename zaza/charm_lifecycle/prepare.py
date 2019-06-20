@@ -24,6 +24,7 @@ import zaza.model
 
 import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
+import zaza.utilities.run_report as run_report
 
 MODEL_DEFAULTS = {
     # Model defaults from charm-test-infra
@@ -85,6 +86,7 @@ def get_model_constraints():
     return parse_option_list_string(os.environ.get('MODEL_CONSTRAINTS', ''))
 
 
+@run_report.register_event_wrapper('Prepare Environment')
 def prepare(model_name):
     """Run all steps to prepare the environment before a functional test run.
 
@@ -120,3 +122,4 @@ def main():
     cli_utils.setup_logging(log_level=args.loglevel.upper())
     logging.info('model_name: {}'.format(args.model_name))
     prepare(args.model_name)
+    run_report.output_event_report()
