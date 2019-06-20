@@ -23,6 +23,7 @@ import tempfile
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
+import zaza.utilities.run_report as run_report
 
 DEFAULT_OVERLAY_TEMPLATE_DIR = 'tests/bundles/overlays'
 VALID_ENVIRONMENT_KEY_PREFIXES = [
@@ -260,14 +261,18 @@ def deploy(bundle, model, wait=True):
     :param wait: Whether to wait until deployment completes
     :type model: bool
     """
+    run_report.register_event_start('Deploy Bundle')
     deploy_bundle(bundle, model)
+    run_report.register_event_finish('Deploy Bundle')
     if wait:
+        run_report.register_event_start('Wait for Deployment')
         test_config = utils.get_charm_config()
         logging.info("Waiting for environment to settle")
         zaza.model.set_juju_model(model)
         zaza.model.wait_for_application_states(
             model,
             test_config.get('target_deploy_status', {}))
+        run_report.register_event_finish('Wait for Deployment')
 
 
 def parse_args(args):
@@ -299,3 +304,4 @@ def main():
     args = parse_args(sys.argv[1:])
     cli_utils.setup_logging(log_level=args.loglevel.upper())
     deploy(args.bundle, args.model, wait=args.wait)
+    run_report.output_event_report()

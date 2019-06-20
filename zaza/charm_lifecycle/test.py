@@ -22,6 +22,7 @@ import sys
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
+import zaza.utilities.run_report as run_report
 
 
 class Stream2Logger():
@@ -50,12 +51,14 @@ def run_test_list(tests):
     :raises: AssertionError if test run fails
     """
     for _testcase in tests:
+        run_report.register_event_start('Test {}'.format(_testcase))
         logging.info('## Running Test {} ##'.format(_testcase))
         testcase = utils.get_class(_testcase)
         suite = unittest.TestLoader().loadTestsFromTestCase(testcase)
         test_result = unittest.TextTestRunner(
             stream=Stream2Logger(),
             verbosity=2).run(suite)
+        run_report.register_event_finish('Test {}'.format(_testcase))
         assert test_result.wasSuccessful(), "Test run failed"
 
 
@@ -95,4 +98,5 @@ def main():
     cli_utils.setup_logging(log_level=args.loglevel.upper())
     tests = args.tests or utils.get_charm_config()['tests']
     test(args.model_name, tests)
+    run_report.output_event_report()
     asyncio.get_event_loop().close()
