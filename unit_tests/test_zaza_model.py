@@ -364,6 +364,28 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit1.run_action.assert_called_once_with(
             'backup',
             backup_dir='/dev/null')
+        self.run_action.status = 'failed'
+        self.run_action.message = 'aMessage'
+        self.run_action.id = 'aId'
+        self.run_action.enqueued = 'aEnqueued'
+        self.run_action.started = 'aStarted'
+        self.run_action.completed = 'aCompleted'
+        self.run_action.name = 'backup2'
+        self.run_action.parameters = {'backup_dir': '/non-existent'}
+        self.run_action.receiver = 'app/2'
+        with self.assertRaises(model.ActionFailed) as e:
+            model.run_action(
+                self.run_action.receiver,
+                self.run_action.name,
+                action_params=self.run_action.parameters,
+                raise_on_failure=True)
+        self.assertEqual(
+            str(e.exception),
+            'Run of action "backup2" with parameters '
+            '"{\'backup_dir\': \'/non-existent\'}" on '
+            '"app/2" failed with "aMessage" '
+            '(id=aId status=failed enqueued=aEnqueued '
+            'started=aStarted completed=aCompleted)')
 
     def test_get_actions(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -387,6 +409,28 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.run_action.assert_called_once_with(
             'backup',
             backup_dir='/dev/null')
+        self.run_action.status = 'failed'
+        self.run_action.message = 'aMessage'
+        self.run_action.id = 'aId'
+        self.run_action.enqueued = 'aEnqueued'
+        self.run_action.started = 'aStarted'
+        self.run_action.completed = 'aCompleted'
+        self.run_action.name = 'backup2'
+        self.run_action.parameters = {'backup_dir': '/non-existent'}
+        self.run_action.receiver = 'app/2'
+        with self.assertRaises(model.ActionFailed) as e:
+            model.run_action(
+                self.run_action.receiver,
+                self.run_action.name,
+                action_params=self.run_action.parameters,
+                raise_on_failure=True)
+        self.assertEqual(
+            str(e.exception),
+            'Run of action "backup2" with parameters '
+            '"{\'backup_dir\': \'/non-existent\'}" on '
+            '"app/2" failed with "aMessage" '
+            '(id=aId status=failed enqueued=aEnqueued '
+            'started=aStarted completed=aCompleted)')
 
     def _application_states_setup(self, setup, units_idle=True):
         self.system_ready = True
