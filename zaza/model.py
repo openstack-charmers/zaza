@@ -857,7 +857,8 @@ block_until_all_units_idle = sync_wrapper(async_block_until_all_units_idle)
 
 
 async def async_block_until_service_status(unit_name, services, target_status,
-                                           model_name=None, timeout=2700):
+                                           model_name=None, timeout=2700,
+                                           pgrep_full=False):
     """Block until all services on the unit are in the desired state.
 
     Block until all services on the unit are in the desired state (stopped
@@ -882,9 +883,13 @@ async def async_block_until_service_status(unit_name, services, target_status,
     """
     async def _check_service():
         for service in services:
+            if pgrep_full:
+                command = 'pgrep -f "{}"'.format(service)
+            else:
+                command = "pidof -x {}".format(service)
             out = await async_run_on_unit(
                 unit_name,
-                "pidof -x {}".format(service),
+                command,
                 model_name=model_name,
                 timeout=timeout)
             response_size = len(out['Stdout'].strip())
