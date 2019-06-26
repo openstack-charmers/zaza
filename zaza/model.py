@@ -315,7 +315,8 @@ get_unit_time = sync_wrapper(async_get_unit_time)
 
 
 async def async_get_unit_service_start_time(unit_name, service,
-                                            model_name=None, timeout=None):
+                                            model_name=None, timeout=None,
+                                            pgrep_full=False):
     """Return the time that the given service was started on a unit.
 
     Return the time (in seconds since Epoch) that the given service was
@@ -330,11 +331,18 @@ async def async_get_unit_service_start_time(unit_name, service,
     :type service: str
     :param timeout: Time to wait for status to be achieved
     :type timeout: int
+    :param pgrep_full: Should pgrep be used rather than pidof to identify
+                       a service.
+    :type  pgrep_full: bool
     :returns: time in seconds since Epoch on unit
     :rtype: int
     :raises: ServiceNotRunning
     """
-    cmd = "stat -c %Y /proc/$(pidof -x {} | cut -f1 -d ' ')".format(service)
+    if pgrep_full:
+        pid_cmd = 'pgrep -f "{}"'.format(service)
+    else:
+        pid_cmd = "pidof -x {}".format(service)
+    cmd = "stat -c %Y /proc/$({} | cut -f1 -d ' ')".format(pid_cmd)
     out = await async_run_on_unit(
         unit_name=unit_name,
         command=cmd,
@@ -878,6 +886,9 @@ async def async_block_until_service_status(unit_name, services, target_status,
     :type target_status: str
     :param model_name: Name of model to query.
     :type model_name: str
+    :param pgrep_full: Should pgrep be used rather than pidof to identify
+                       a service.
+    :type  pgrep_full: bool
     :param timeout: Time to wait for status to be achieved
     :type timeout: int
     """
@@ -1125,7 +1136,7 @@ block_until_oslo_config_entries_match = sync_wrapper(
 
 async def async_block_until_services_restarted(application_name, mtime,
                                                services, model_name=None,
-                                               timeout=2700):
+                                               timeout=2700, pgrep_full=False):
     """Block until the given services have a start time later then mtime.
 
     For example to check that the glance-api service has been restarted::
@@ -1146,6 +1157,9 @@ async def async_block_until_services_restarted(application_name, mtime,
     :type services: []
     :param timeout: Time to wait for services to be restarted
     :type timeout: float
+    :param pgrep_full: Should pgrep be used rather than pidof to identify
+                       a service.
+    :type  pgrep_full: bool
     """
     async def _check_service():
         units = model.applications[application_name].units
@@ -1156,7 +1170,8 @@ async def async_block_until_services_restarted(application_name, mtime,
                         unit.entity_id,
                         service,
                         timeout=timeout,
-                        model_name=model_name)
+                        model_name=model_name,
+                        pgrep_full=pgrep_full)
                 except ServiceNotRunning:
                     return False
                 if svc_mtime < mtime:

@@ -408,6 +408,45 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             self._run.assert_called_once_with(unit_name="ceph-osd/0",
                                               command=cmd)
 
+    def test_get_process_id_list_with_pgrep(self):
+        self.patch(
+            "zaza.utilities.generic.model.run_on_unit",
+            new_callable=mock.MagicMock(),
+            name="_run"
+        )
+
+        # Return code is OK and STDOUT contains output
+        returns_ok = {
+            "Code": 0,
+            "Stdout": "1 2",
+            "Stderr": ""
+        }
+        self._run.return_value = returns_ok
+        p_id_list = generic_utils.get_process_id_list(
+            "ceph-osd/0",
+            "ceph-osd",
+            False,
+            pgrep_full=True
+        )
+        expected = ["1", "2"]
+        cmd = 'pgrep -f "ceph-osd" || exit 0 && exit 1'
+        self.assertEqual(p_id_list, expected)
+        self._run.assert_called_once_with(unit_name="ceph-osd/0",
+                                          command=cmd)
+
+        # Return code is not OK
+        returns_nok = {
+            "Code": 1,
+            "Stdout": "",
+            "Stderr": "Something went wrong"
+        }
+        self._run.return_value = returns_nok
+        with self.assertRaises(zaza_exceptions.ProcessIdsFailed):
+            generic_utils.get_process_id_list("ceph-osd/0", "ceph")
+            cmd = 'pidof -x "ceph"'
+            self._run.assert_called_once_with(unit_name="ceph-osd/0",
+                                              command=cmd)
+
     def test_get_unit_process_ids(self):
         self.patch(
             "zaza.utilities.generic.get_process_id_list",

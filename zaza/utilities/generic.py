@@ -522,7 +522,7 @@ def set_dpkg_non_interactive_on_unit(
 
 
 def get_process_id_list(unit_name, process_name,
-                        expect_success=True):
+                        expect_success=True, pgrep_full=False):
     """Get a list of process ID(s).
 
     Get a list of process ID(s) from a single sentry juju unit
@@ -532,10 +532,16 @@ def get_process_id_list(unit_name, process_name,
     :param process_name: Process name
     :param expect_success: If False, expect the PID to be missing,
         raise if it is present.
+    :param pgrep_full: Should pgrep be used rather than pidof to identify
+                       a service.
+    :type  pgrep_full: bool
     :returns: List of process IDs
     :raises: zaza_exceptions.ProcessIdsFailed
     """
-    cmd = 'pidof -x "{}"'.format(process_name)
+    if pgrep_full:
+        cmd = 'pgrep -f "{}"'.format(process_name)
+    else:
+        cmd = 'pidof -x "{}"'.format(process_name)
     if not expect_success:
         cmd += " || exit 0 && exit 1"
     results = model.run_on_unit(unit_name=unit_name, command=cmd)
