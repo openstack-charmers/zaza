@@ -767,6 +767,21 @@ class TestModel(ut_utils.BaseTestCase):
             ['test_svc'],
             'running')
 
+    def test_block_until_service_status_check_running_with_pgrep(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.block_until_service_status_base({'Stdout': '152 409 54'})
+        model.block_until_service_status(
+            'app/2',
+            ['test_svc'],
+            'running',
+            pgrep_full=True)
+        self.async_run_on_unit.assert_called_once_with(
+            'app/2',
+            'pgrep -f "test_svc"',
+            model_name=None,
+            timeout=2700
+        )
+
     def test_block_until_service_status_check_running_fail(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.block_until_service_status_base({'Stdout': ''})
@@ -826,6 +841,29 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertEqual(
             model.get_unit_service_start_time('app/2', 'mysvc1'), 1524409654)
         cmd = "stat -c %Y /proc/$(pidof -x mysvc1 | cut -f1 -d ' ')"
+        self.async_run_on_unit.assert_called_once_with(
+            unit_name='app/2',
+            command=cmd,
+            model_name=None,
+            timeout=None
+        )
+
+    def test_get_unit_service_start_time_with_pgrep(self):
+        async def _run_on_unit(
+            unit_name,
+            command,
+            model_name=None,
+            timeout=None
+        ):
+            return {'Stdout': '1524409654'}
+        self.patch_object(model, 'async_run_on_unit')
+        self.async_run_on_unit.side_effect = _run_on_unit
+        self.assertEqual(
+            model.get_unit_service_start_time('app/2',
+                                              'mysvc1',
+                                              pgrep_full=True),
+            1524409654)
+        cmd = "stat -c %Y /proc/$(pgrep -f \"mysvc1\" | cut -f1 -d ' ')"
         self.async_run_on_unit.assert_called_once_with(
             unit_name='app/2',
             command=cmd,
@@ -984,7 +1022,8 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.async_block_until.side_effect = _block_until
 
         async def _async_get_unit_service_start_time(unit, svc, timeout=None,
-                                                     model_name=None):
+                                                     model_name=None,
+                                                     pgrep_full=False):
             if gu_raise_exception:
                 raise model.ServiceNotRunning('sv1')
             else:
@@ -1002,6 +1041,36 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             'app',
             8,
             ['svc1', 'svc2'])
+
+    def test_block_until_services_restarted_with_pgrep(self):
+        self.block_until_services_restarted_base(gu_return=10)
+        model.block_until_services_restarted(
+            'app',
+            8,
+            ['svc1', 'svc2'],
+            pgrep_full=True)
+        self.async_get_unit_service_start_time.assert_has_calls([
+            mock.call('app/2',
+                      'svc1',
+                      model_name=None,
+                      pgrep_full=True,
+                      timeout=2700),
+            mock.call('app/2',
+                      'svc2',
+                      model_name=None,
+                      pgrep_full=True,
+                      timeout=2700),
+            mock.call('app/4',
+                      'svc1',
+                      model_name=None,
+                      pgrep_full=True,
+                      timeout=2700),
+            mock.call('app/4',
+                      'svc2',
+                      model_name=None,
+                      pgrep_full=True,
+                      timeout=2700),
+        ])
 
     def test_block_until_services_restarted_fail(self):
         self.block_until_services_restarted_base(gu_return=10)
