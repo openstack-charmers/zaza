@@ -33,9 +33,9 @@ def _model_alias_str_fmt(data):
     DEFAULT_MODEL_ALIAS. If a dict is passed then this is a noop.
 
     :param data: String or Model Alias to data map
-    :type data: str or {}
+    :type data: Union[str, Dict[str, str]]
     :returns: Model Alias to data map
-    :rtype: {}
+    :rtype: Dict[str, str]
     """
     if isinstance(data, collections.Mapping):
         return data
@@ -57,15 +57,14 @@ def _concat_model_alias_maps(data):
            'alias2': ['e4']}
 
     :param data: List comprised of str elements or dict elements.
-    :type data: []
+    :type data: List[Union[str, Dict[str, List[str]]]]
     :returns: Model Alias to data map
-    :rtype: {}
+    :rtype: Dict[str, List[str]]
     """
     new_data = {DEFAULT_MODEL_ALIAS: []}
     for item in data:
         if isinstance(item, collections.Mapping):
-            for key, value in item.items():
-                new_data[key] = value
+            new_data.update(item)
         else:
             new_data[DEFAULT_MODEL_ALIAS].append(item)
     return new_data
@@ -96,7 +95,7 @@ def get_test_bundles(bundle_key):
     :type bundle_key: str
     :returns: A list of dicts where the dict contain a model alias to bundle
               mapping.
-    :rtype: [{}, ...]
+    :rtype: List[Dict[str, str]]
     """
     return [_model_alias_str_fmt(b)
             for b in get_charm_config()[bundle_key]]
@@ -124,7 +123,7 @@ def get_config_steps():
             'model_alias1': ['conf.class3']}
 
     :returns: A dict mapping config steps to model aliases
-    :rtype: {str: [], ...}
+    :rtype: Dict[str, List[str]]
     """
     return _concat_model_alias_maps(get_charm_config().get('configure', []))
 
@@ -151,7 +150,7 @@ def get_test_steps():
             'model_alias1': ['test.class3']}
 
     :returns: A dict mapping test steps to model aliases
-    :rtype: {str: [], ...}
+    :rtype: Dict[str, List[str]]
     """
     return _concat_model_alias_maps(get_charm_config().get('tests', []))
 
