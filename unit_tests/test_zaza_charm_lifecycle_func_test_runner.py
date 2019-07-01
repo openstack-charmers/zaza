@@ -89,6 +89,85 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.test.assert_has_calls(test_calls)
         self.destroy.assert_has_calls(destroy_calls)
 
+    def test_func_test_runner_cmr(self):
+        self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
+        self.patch_object(lc_func_test_runner.utils, 'generate_model_name')
+        self.patch_object(lc_func_test_runner.prepare, 'prepare')
+        self.patch_object(lc_func_test_runner.deploy, 'deploy')
+        self.patch_object(lc_func_test_runner.configure, 'configure')
+        self.patch_object(lc_func_test_runner.test, 'test')
+        self.patch_object(lc_func_test_runner.destroy, 'destroy')
+        self.generate_model_name.return_value = 'newmodel'
+        model_names = ['m6', 'm5', 'm4', 'm3', 'm2', 'm1']
+        self.generate_model_name.side_effect = model_names.pop
+        self.get_charm_config.return_value = {
+            'charm_name': 'mycharm',
+            'gate_bundles': [
+                'bundle1',
+                'bundle2',
+                {'model_alias_5': 'bundle5', 'model_alias_6': 'bundle6'}],
+            'smoke_bundles': ['bundle2'],
+            'dev_bundles': ['bundle3', 'bundle4'],
+            'configure': [
+                'zaza.charm_tests.mycharm.setup.basic_setup',
+                'zaza.charm_tests.othercharm.setup.setup',
+                {'model_alias_5': [
+                    'zaza.charm_tests.vault.setup.basic_setup1',
+                    'zaza.charm_tests.vault.setup.basic_setup2'],
+                 'model_alias_6': ['zaza.charm_tests.ks.setup.user_setup']}],
+            'tests': [
+                'zaza.charm_tests.mycharm.tests.SmokeTest',
+                'zaza.charm_tests.mycharm.tests.ComplexTest',
+                {'model_alias_5': ['zaza.charm_tests.vault.test.decrpy'],
+                 'model_alias_6': [
+                     'zaza.charm_tests.ks.test.project_create1',
+                     'zaza.charm_tests.ks.test.project_create2']}]}
+        lc_func_test_runner.func_test_runner()
+        prepare_calls = [
+            mock.call('m1'),
+            mock.call('m2'),
+            mock.call('m3'),
+            mock.call('m4')]
+        deploy_calls = [
+            mock.call('./tests/bundles/bundle1.yaml', 'm1'),
+            mock.call('./tests/bundles/bundle2.yaml', 'm2'),
+            mock.call('./tests/bundles/bundle5.yaml', 'm3'),
+            mock.call('./tests/bundles/bundle6.yaml', 'm4')]
+        configure_calls = [
+            mock.call('m1', [
+                'zaza.charm_tests.mycharm.setup.basic_setup',
+                'zaza.charm_tests.othercharm.setup.setup']),
+            mock.call('m2', [
+                'zaza.charm_tests.mycharm.setup.basic_setup',
+                'zaza.charm_tests.othercharm.setup.setup']),
+            mock.call('m3', [
+                'zaza.charm_tests.vault.setup.basic_setup1',
+                'zaza.charm_tests.vault.setup.basic_setup2']),
+            mock.call('m4', [
+                'zaza.charm_tests.ks.setup.user_setup'])]
+        test_calls = [
+            mock.call('m1', [
+                'zaza.charm_tests.mycharm.tests.SmokeTest',
+                'zaza.charm_tests.mycharm.tests.ComplexTest']),
+            mock.call('m2', [
+                'zaza.charm_tests.mycharm.tests.SmokeTest',
+                'zaza.charm_tests.mycharm.tests.ComplexTest']),
+            mock.call('m3', [
+                'zaza.charm_tests.vault.test.decrpy']),
+            mock.call('m4', [
+                'zaza.charm_tests.ks.test.project_create1',
+                'zaza.charm_tests.ks.test.project_create2'])]
+        destroy_calls = [
+            mock.call('m1'),
+            mock.call('m2'),
+            mock.call('m3'),
+            mock.call('m4')]
+        self.prepare.assert_has_calls(prepare_calls)
+        self.deploy.assert_has_calls(deploy_calls)
+        self.configure.assert_has_calls(configure_calls)
+        self.test.assert_has_calls(test_calls)
+        self.destroy.assert_has_calls(destroy_calls)
+
     def test_func_test_runner_smoke(self):
         self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
         self.patch_object(lc_func_test_runner.utils, 'generate_model_name')
