@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Utilities to support running lifecycle phases."""
+import collections
 import importlib
 import logging
 import subprocess
@@ -22,6 +23,136 @@ import yaml
 
 BUNDLE_DIR = "./tests/bundles/"
 DEFAULT_TEST_CONFIG = "./tests/tests.yaml"
+DEFAULT_MODEL_ALIAS = "default_alias"
+
+
+def _model_alias_str_fmt(data):
+    """Convert to model_alias:str format if needed.
+
+    If a string is passed in then the string is mapped to the
+    DEFAULT_MODEL_ALIAS. If a dict is passed then this is a noop.
+
+    :param data: String or Model Alias to data map
+    :type data: Union[str, Dict[str, str]]
+    :returns: Model Alias to data map
+    :rtype: Dict[str, str]
+    """
+    if isinstance(data, collections.Mapping):
+        return data
+    else:
+        return {DEFAULT_MODEL_ALIAS: data}
+
+
+def _concat_model_alias_maps(data):
+    """Iterate over list and construct single dict of model alias maps.
+
+    Any elements in list which are not dicts are added to a list and assigned
+    to DEFAULT_MODEL_ALIAS.
+
+    eg If input is ['e1', 'e2', {'alias1': ['e3'], 'alias2': ['e4']}]
+       this function will return:
+       {
+           DEFAULT_MODEL_ALIAS: ['e1', 'e2'],
+           'alias1': ['e3'],
+           'alias2': ['e4']}
+
+    :param data: List comprised of str elements or dict elements.
+    :type data: List[Union[str, Dict[str, List[str]]]]
+    :returns: Model Alias to data map
+    :rtype: Dict[str, List[str]]
+    """
+    new_data = {DEFAULT_MODEL_ALIAS: []}
+    for item in data:
+        if isinstance(item, collections.Mapping):
+            new_data.update(item)
+        else:
+            new_data[DEFAULT_MODEL_ALIAS].append(item)
+    return new_data
+
+
+def get_test_bundles(bundle_key):
+    """Get test bundles with their model alias.
+
+    Get a list of test bundles with their model alias. If no model alias is
+    supplied then DEFAULT_MODEL_ALIAS is used.
+
+    eg if test.yaml contained:
+
+        gate_bundles:
+          - bundle1
+          - bundle2
+          - model_alias1: bundle_3
+            model_alias2: bundle_4
+
+       then get_test_bundles('gate_bundles') would return:
+
+            [
+                {'default_alias': 'bundle1'},
+                {'default_alias': 'bundle2'},
+                {'model_alias1': 'bundle1', 'model_alias2': 'bundle2'}])
+
+    :param bundle_key: Name of group of bundles eg gate_bundles
+    :type bundle_key: str
+    :returns: A list of dicts where the dict contain a model alias to bundle
+              mapping.
+    :rtype: List[Dict[str, str]]
+    """
+    return [_model_alias_str_fmt(b)
+            for b in get_charm_config()[bundle_key]]
+
+
+def get_config_steps():
+    """Get configuration steps and their associated model aliases.
+
+    Get a map of configuration steps to model aliases. If there are
+    configuration steps which are not mapped to a model alias then these are
+    associated with the the DEFAULT_MODEL_ALIAS.
+
+    eg if test.yaml contained:
+
+        configure:
+        - conf.class1
+        - conf.class2
+        - model_alias1:
+          - conf.class3
+
+       then get_config_steps() would return:
+
+        {
+            'default_alias': ['conf.class1', 'conf.class2'],
+            'model_alias1': ['conf.class3']}
+
+    :returns: A dict mapping config steps to model aliases
+    :rtype: Dict[str, List[str]]
+    """
+    return _concat_model_alias_maps(get_charm_config().get('configure', []))
+
+
+def get_test_steps():
+    """Get test steps and their associated model aliases.
+
+    Get a map of test steps to model aliases. If there are test
+    steps which are not mapped to a model alias then these are associated with
+    the the DEFAULT_MODEL_ALIAS.
+
+    eg if test.yaml contained:
+
+        test:
+        - test.class1
+        - test.class2
+        - model_alias1:
+          - test.class3
+
+       then get_test_steps() would return:
+
+        {
+            'default_alias': ['test.class1', 'test.class2'],
+            'model_alias1': ['test.class3']}
+
+    :returns: A dict mapping test steps to model aliases
+    :rtype: Dict[str, List[str]]
+    """
+    return _concat_model_alias_maps(get_charm_config().get('tests', []))
 
 
 def get_charm_config(yaml_file=None):

@@ -22,6 +22,95 @@ import unit_tests.utils as ut_utils
 
 class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
 
+    def test_model_alias_str_fmt(self):
+        self.assertEqual(
+            lc_utils._model_alias_str_fmt('bundle1'),
+            {'default_alias': 'bundle1'})
+        self.assertEqual(
+            lc_utils._model_alias_str_fmt(
+                {'model_alias1': 'bundle1'}),
+            {'model_alias1': 'bundle1'})
+
+    def test__concat_model_alias_maps(self):
+        # - test1
+        self.assertEqual(
+            lc_utils._concat_model_alias_maps(['test1']),
+            {'default_alias': ['test1']})
+        # - test1
+        # - test2
+        self.assertEqual(
+            lc_utils._concat_model_alias_maps(['test1', 'test2']),
+            {'default_alias': ['test1', 'test2']})
+        # - default_alias1:
+        #   - test1
+        self.assertEqual(
+            lc_utils._concat_model_alias_maps([{'default_alias': ['test1']}]),
+            {'default_alias': ['test1']})
+        # - test1
+        # - test2
+        # - model_alias1:
+        #   - test3
+        # - model_alias2:
+        #   - test4
+        self.assertEqual(
+            lc_utils._concat_model_alias_maps(
+                [
+                    'test1',
+                    'test2',
+                    {
+                        'model_alias1': ['test3']},
+                    {
+                        'model_alias2': ['test4']}]),
+            {
+                'default_alias': ['test1', 'test2'],
+                'model_alias1': ['test3'],
+                'model_alias2': ['test4']})
+
+    def test_get_test_bundles(self):
+        self.patch_object(lc_utils, "get_charm_config")
+        self.get_charm_config.return_value = {
+            'gate_bundles': ['bundle1']}
+        self.assertEqual(lc_utils.get_test_bundles(
+            'gate_bundles'),
+            [{'default_alias': 'bundle1'}])
+        self.get_charm_config.return_value = {
+            'gate_bundles': [
+                'bundle1',
+                'bundle2',
+                {
+                    'model_alias1': 'bundle_3',
+                    'model_alias2': 'bundle_4'}]}
+        self.assertEqual(lc_utils.get_test_bundles(
+            'gate_bundles'),
+            [
+                {'default_alias': 'bundle1'},
+                {'default_alias': 'bundle2'},
+                {'model_alias1': 'bundle_3', 'model_alias2': 'bundle_4'}])
+
+    def test_get_config_steps(self):
+        self.patch_object(lc_utils, "get_charm_config")
+        self.get_charm_config.return_value = {
+            'configure': [
+                'conf.class1',
+                'conf.class2',
+                {'model_alias1': ['conf.class3']}]}
+        self.assertEqual(
+            lc_utils.get_config_steps(),
+            {'default_alias': ['conf.class1', 'conf.class2'],
+             'model_alias1': ['conf.class3']})
+
+    def test_get_test_steps(self):
+        self.patch_object(lc_utils, "get_charm_config")
+        self.get_charm_config.return_value = {
+            'tests': [
+                'test.class1',
+                'test.class2',
+                {'model_alias1': ['test.class3']}]}
+        self.assertEqual(
+            lc_utils.get_test_steps(),
+            {'default_alias': ['test.class1', 'test.class2'],
+             'model_alias1': ['test.class3']})
+
     def test_generate_model_name(self):
         self.patch_object(lc_utils.uuid, "uuid4")
         self.uuid4.return_value = "longer-than-12characters"
