@@ -217,6 +217,18 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model_mock.connect_model.assert_called_once_with('modelname')
         self.Model_mock.disconnect.assert_called_once_with()
 
+    def test_run_in_model_exception(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+
+        async def _wrapper():
+            async with model.run_in_model('modelname'):
+                raise Exception
+        with self.assertRaises(Exception):
+            loop.run(_wrapper())
+        self.Model_mock.connect_model.assert_called_once_with('modelname')
+        self.Model_mock.disconnect.assert_called_once_with()
+
     def test_scp_to_unit(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')

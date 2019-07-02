@@ -153,8 +153,10 @@ async def run_in_model(model_name):
     if not model_name:
         model_name = await async_get_juju_model()
     await model.connect_model(model_name)
-    await yield_(model)
-    await model.disconnect()
+    try:
+        await yield_(model)
+    finally:
+        await model.disconnect()
 
 
 async def async_scp_to_unit(unit_name, source, destination, model_name=None,
