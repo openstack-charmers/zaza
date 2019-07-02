@@ -19,6 +19,7 @@ import logging
 import os
 import sys
 import tempfile
+import yaml
 
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
@@ -42,6 +43,7 @@ applications:
     charm: {{ charm_location }}
 """
 LOCAL_OVERLAY_TEMPLATE_NAME = 'local-charm-overlay.yaml'
+LOCAL_OVERLAY_ENABLED_KEY = 'local_overlay_enabled'
 
 
 def is_valid_env_key(key):
@@ -212,6 +214,23 @@ def render_local_overlay(target_dir):
         return rendered_template_file
 
 
+def is_local_overlay_enabled(bundle):
+    """Check the bundle to see if a local overlay should be applied.
+
+    Read the bundle and look for LOCAL_OVERLAY_ENABLED_KEY and return
+    its value if present otherwise return True. This allows a bundle
+    to disable adding the local overlay which points the bundle at
+    the local charm.
+
+    :param bundle: Name of bundle being deployed
+    :type bundle: str
+    :returns: Whether to enable local overlay
+    :rtype: bool
+    """
+    with open(bundle, 'r') as stream:
+        return yaml.safe_load(stream).get(LOCAL_OVERLAY_ENABLED_KEY, True)
+
+
 def render_overlays(bundle, target_dir):
     """Render the overlays for the given bundle in the directory provided.
 
@@ -223,9 +242,10 @@ def render_overlays(bundle, target_dir):
     :rtype: [str, str,...]
     """
     overlays = []
-    local_overlay = render_local_overlay(target_dir)
-    if local_overlay:
-        overlays.append(local_overlay)
+    if is_local_overlay_enabled(bundle):
+        local_overlay = render_local_overlay(target_dir)
+        if local_overlay:
+            overlays.append(local_overlay)
     rendered_bundle_overlay = render_overlay(bundle, target_dir)
     if rendered_bundle_overlay:
         overlays.append(rendered_bundle_overlay)
