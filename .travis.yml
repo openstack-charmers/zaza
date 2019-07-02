@@ -11,9 +11,10 @@ matrix:
       sudo: true
 install: pip install tox-travis
 env:
-  - ENV=pep8
-  - ENV=py3
-  - ENV=func-travis
+  matrix:
+    - ENV=pep8
+    - ENV=pyi3
+    - ENV=func-travis
 comment: |
   install dependencies in script phase saving time on simpler test environments
   sudo back to ourself to activate lxd group membership executable search path
