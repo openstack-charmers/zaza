@@ -1,27 +1,22 @@
 language: python
+virtualenv:
+  system_site_packages: false
+sudo: true
 matrix:
   include:
-    - name: "Python 3.6 on Ubuntu 16.04"
-      python: 3.6
-      dist: xenial
-      sudo: true
-      env:
-        - ENV=pep8
-        - ENV=py3
-        - ENV=func-travis
-    - name: "Python 3.7 on Ubuntu 18.04"
-      python: 3.7
-      dist: bionic
-      sudo: true
-      env:
-        - ENV=pep8
-        - ENV=py3
-        - ENV=func-travis
-install: pip install tox-travis
-comment: |
-  install dependencies in script phase saving time on simpler test environments
-  sudo back to ourself to activate lxd group membership executable search path
-script:
+    - dist: xenial
+      env: ENV=pep8
+    - dist: xenial
+      env: ENV=py3
+    - dist: xenial
+      env: func-travis
+    - dist: bionic
+      env: ENV=pep8
+    - dist: bionic
+      env: ENV=py3
+    - dist: bionic
+      env: ENV=func-travis
+before_install:
   - if [ $ENV = 'func-travis' ]; then
        sudo apt remove -y --purge lxd lxd-client;
        sudo snap install lxd;
@@ -32,7 +27,10 @@ script:
        sudo usermod -a -G lxd travis;
        sudo su travis -c 'juju bootstrap --debug --no-gui localhost';
     fi
-  - tox -c tox.ini -e $ENV
+install:
+  - pip install tox-travis
+script:
+  - tox -e $ENV
   - if [ $ENV = 'func-travis' ]; then
-    sudo su travis -c 'juju status -m $(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/)';
+       sudo su travis -c 'juju status -m $(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/)';
     fi
