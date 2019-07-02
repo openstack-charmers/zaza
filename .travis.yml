@@ -5,18 +5,18 @@ matrix:
       python: 3.6
       dist: xenial
       sudo: true
-    env:
-      - ENV=pep8
-      - ENV=py3
-      - ENV=func-travis
+      env:
+        - ENV=pep8
+        - ENV=py3
+        - ENV=func-travis
     - name: "Python 3.7 on Ubuntu 18.04"
       python: 3.7
       dist: bionic
       sudo: true
-    env:
-      - ENV=pep8
-      - ENV=py3
-      - ENV=func-travis
+      env:
+        - ENV=pep8
+        - ENV=py3
+        - ENV=func-travis
 install: pip install tox-travis
 comment: |
   install dependencies in script phase saving time on simpler test environments
