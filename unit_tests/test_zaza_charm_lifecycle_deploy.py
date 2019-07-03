@@ -183,9 +183,52 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             'atemplate',
             '/target/local-charm-overlay.yaml')
 
+    def yaml_read_patch(self, yaml, yaml_dict):
+        self.patch("builtins.open",
+                   new_callable=mock.mock_open(),
+                   name="_open")
+        self.patch_object(lc_deploy, 'yaml')
+        self.yaml.safe_load.return_value = yaml_dict
+        _fileobj = mock.MagicMock()
+        _fileobj.__enter__.return_value = yaml
+        self._open.return_value = _fileobj
+
+    def test_is_local_overlay_enabled_unset(self):
+        _yaml = "testconfig: someconfig"
+        _yaml_dict = {'test_config': 'someconfig'}
+        _filename = "filename"
+        self.yaml_read_patch(_yaml, _yaml_dict)
+
+        self.assertTrue(lc_deploy.is_local_overlay_enabled(_filename))
+        self._open.assert_called_once_with(_filename, "r")
+        self.yaml.safe_load.assert_called_once_with(_yaml)
+
+    def test_is_local_overlay_enabled_disabled(self):
+        _yaml = "local_overlay_enabled: False"
+        _yaml_dict = {'local_overlay_enabled': False}
+        _filename = "filename"
+        self.yaml_read_patch(_yaml, _yaml_dict)
+
+        self.assertFalse(lc_deploy.is_local_overlay_enabled(_filename))
+        self._open.assert_called_once_with(_filename, "r")
+        self.yaml.safe_load.assert_called_once_with(_yaml)
+
+    def test_is_local_overlay_enabled_enabled(self):
+        _yaml = "local_overlay_enabled: True"
+        _yaml_dict = {'local_overlay_enabled': True}
+        _filename = "filename"
+        self.yaml_read_patch(_yaml, _yaml_dict)
+
+        self.assertTrue(lc_deploy.is_local_overlay_enabled(_filename))
+        self._open.assert_called_once_with(_filename, "r")
+
     def test_render_overlays(self):
         RESP = {
             'mybundles/mybundle.yaml': '/tmp/mybundle.yaml'}
+        self.patch_object(
+            lc_deploy,
+            'is_local_overlay_enabled',
+            return_value=True)
         self.patch_object(lc_deploy, 'render_local_overlay')
         self.render_local_overlay.return_value = '/tmp/local-overlay.yaml'
         self.patch_object(lc_deploy, 'render_overlay')
@@ -196,6 +239,10 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
 
     def test_render_overlays_missing(self):
         RESP = {'mybundles/mybundle.yaml': None}
+        self.patch_object(
+            lc_deploy,
+            'is_local_overlay_enabled',
+            return_value=True)
         self.patch_object(lc_deploy, 'render_overlay')
         self.patch_object(lc_deploy, 'render_local_overlay')
         self.render_local_overlay.return_value = '/tmp/local.yaml'
@@ -203,6 +250,21 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.assertEqual(
             lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
             ['/tmp/local.yaml'])
+
+    def test_render_overlays_no_local(self):
+        RESP = {
+            'mybundles/mybundle.yaml': '/tmp/mybundle.yaml'}
+        self.patch_object(
+            lc_deploy,
+            'is_local_overlay_enabled',
+            return_value=False)
+        self.patch_object(lc_deploy, 'render_local_overlay')
+        self.render_local_overlay.return_value = '/tmp/local-overlay.yaml'
+        self.patch_object(lc_deploy, 'render_overlay')
+        self.render_overlay.side_effect = lambda x, y: RESP[x]
+        self.assertEqual(
+            lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
+            ['/tmp/mybundle.yaml'])
 
     def test_deploy_bundle(self):
         self.patch_object(lc_deploy.utils, 'get_charm_config')
