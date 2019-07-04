@@ -9,7 +9,7 @@ matrix:
     - dist: xenial
       env: ENV=py3
     - dist: xenial
-      env: func-travis
+      env: ENV=func-travis
     - dist: bionic
       env: ENV=pep8
     - dist: bionic
