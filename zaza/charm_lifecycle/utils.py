@@ -181,7 +181,7 @@ def get_class(class_str):
     :rtype: class
     """
     old_syspath = sys.path
-    sys.path.append('.')
+    sys.path.insert(0, '.')
     module_name = '.'.join(class_str.split('.')[:-1])
     class_name = class_str.split('.')[-1]
     module = importlib.import_module(module_name)
