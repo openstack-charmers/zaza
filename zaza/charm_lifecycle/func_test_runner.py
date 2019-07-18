@@ -38,9 +38,8 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
     :type smoke: boolean
     :type dev: boolean
     """
-    test_config = utils.get_charm_config()
     if bundle:
-        bundles = [bundle]
+        bundles = [{utils.DEFAULT_MODEL_ALIAS: bundle}]
     else:
         if smoke:
             bundle_key = 'smoke_bundles'
@@ -48,29 +47,42 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
             bundle_key = 'dev_bundles'
         else:
             bundle_key = 'gate_bundles'
-        bundles = test_config[bundle_key]
+        bundles = utils.get_test_bundles(bundle_key)
     last_test = bundles[-1]
-    for t in bundles:
-        model_name = utils.generate_model_name()
-        # Prepare
-        prepare.prepare(model_name)
-        # Deploy
-        deploy.deploy(
-            os.path.join(utils.BUNDLE_DIR, '{}.yaml'.format(t)),
-            model_name)
-        if 'configure' in test_config:
-            # Configure
-            configure.configure(model_name, test_config['configure'])
+    config_steps = utils.get_config_steps()
+    test_steps = utils.get_test_steps()
+    for bundle in bundles:
+        model_aliases = {}
+        for model_alias in sorted(bundle.keys()):
+            model_name = utils.generate_model_name()
+            # Prepare
+            prepare.prepare(model_name)
+            model_aliases[model_alias] = model_name
+        for model_alias, model_name in model_aliases.items():
+            # TODO Deploys should run in parallel
+            # Deploy
+            deploy.deploy(
+                os.path.join(
+                    utils.BUNDLE_DIR, '{}.yaml'.format(bundle[model_alias])),
+                model_aliases[model_alias])
+        for model_alias, model_name in model_aliases.items():
+            configure.configure(
+                model_name,
+                config_steps.get(model_alias, []))
         # Test
-        test.test(model_name, test_config['tests'])
+        for model_alias, model_name in model_aliases.items():
+            test.test(
+                model_name,
+                test_steps.get(model_alias, []))
         # Destroy
         # Keep the model from the last run if keep_model is true, this is to
         # maintian compat with osci and should change when the zaza collect
         # functions take over from osci for artifact collection.
-        if keep_model and t == last_test:
+        if keep_model and bundle == last_test:
             pass
         else:
-            destroy.destroy(model_name)
+            for model_name in model_aliases.values():
+                destroy.destroy(model_name)
 
 
 def parse_args(args):
