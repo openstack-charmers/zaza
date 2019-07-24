@@ -70,20 +70,17 @@ class TestController(ut_utils.BaseTestCase):
         self.Controller.return_value = self.Controller_mock
 
     def test_add_model(self):
-        self.patch_object(controller, 'go_list_models')
         controller.add_model(self.model1.info.name)
         self.Controller_mock.add_model.assert_called_once_with(
             self.model1.info.name,
             config=None)
 
     def test_add_model_config(self):
-        self.patch_object(controller, 'go_list_models')
         controller.add_model(self.model1.info.name,
                              {'run-faster': 'true'})
         self.Controller_mock.add_model.assert_called_once_with(
             self.model1.info.name,
             config={'run-faster': 'true'})
-        self.go_list_models.assert_called_once()
 
     def test_destroy_model(self):
         controller.destroy_model(self.model1.info.name)

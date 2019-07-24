@@ -17,12 +17,14 @@ import argparse
 import jinja2
 import logging
 import os
-import subprocess
 import sys
 import tempfile
+import yaml
 
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
+import zaza.utilities.cli as cli_utils
+import zaza.utilities.run_report as run_report
 
 DEFAULT_OVERLAY_TEMPLATE_DIR = 'tests/bundles/overlays'
 VALID_ENVIRONMENT_KEY_PREFIXES = [
@@ -41,6 +43,7 @@ applications:
     charm: {{ charm_location }}
 """
 LOCAL_OVERLAY_TEMPLATE_NAME = 'local-charm-overlay.yaml'
+LOCAL_OVERLAY_ENABLED_KEY = 'local_overlay_enabled'
 
 
 def is_valid_env_key(key):
@@ -118,7 +121,8 @@ def get_jinja2_env():
     """
     template_dir = get_overlay_template_dir()
     return jinja2.Environment(
-        loader=jinja2.FileSystemLoader(template_dir)
+        loader=jinja2.FileSystemLoader(template_dir),
+        undefined=jinja2.StrictUndefined
     )
 
 
@@ -158,10 +162,14 @@ def render_template(template, target_file):
     :param target_file: File name for rendered template
     :type target_file: str
     """
-    with open(target_file, "w") as fh:
-        fh.write(
-            template.render(get_template_overlay_context()))
-
+    try:
+        with open(target_file, "w") as fh:
+            fh.write(
+                template.render(get_template_overlay_context()))
+    except jinja2.exceptions.UndefinedError as e:
+        logging.error("Template error. You may be missing"
+                      " a mandatory environment variable : {}".format(e))
+        sys.exit(1)
     logging.info("Rendered template '{}' to file '{}'".format(template,
                                                               target_file))
 
@@ -206,6 +214,23 @@ def render_local_overlay(target_dir):
         return rendered_template_file
 
 
+def is_local_overlay_enabled(bundle):
+    """Check the bundle to see if a local overlay should be applied.
+
+    Read the bundle and look for LOCAL_OVERLAY_ENABLED_KEY and return
+    its value if present otherwise return True. This allows a bundle
+    to disable adding the local overlay which points the bundle at
+    the local charm.
+
+    :param bundle: Name of bundle being deployed
+    :type bundle: str
+    :returns: Whether to enable local overlay
+    :rtype: bool
+    """
+    with open(bundle, 'r') as stream:
+        return yaml.safe_load(stream).get(LOCAL_OVERLAY_ENABLED_KEY, True)
+
+
 def render_overlays(bundle, target_dir):
     """Render the overlays for the given bundle in the directory provided.
 
@@ -217,9 +242,10 @@ def render_overlays(bundle, target_dir):
     :rtype: [str, str,...]
     """
     overlays = []
-    local_overlay = render_local_overlay(target_dir)
-    if local_overlay:
-        overlays.append(local_overlay)
+    if is_local_overlay_enabled(bundle):
+        local_overlay = render_local_overlay(target_dir)
+        if local_overlay:
+            overlays.append(local_overlay)
     rendered_bundle_overlay = render_overlay(bundle, target_dir)
     if rendered_bundle_overlay:
         overlays.append(rendered_bundle_overlay)
@@ -242,7 +268,7 @@ def deploy_bundle(bundle, model):
             logging.info("Deploying overlay '{}' on to '{}' model"
                          .format(overlay, model))
             cmd.extend(['--overlay', overlay])
-        subprocess.check_call(cmd)
+        utils.check_output_logging(cmd)
 
 
 def deploy(bundle, model, wait=True):
@@ -255,14 +281,18 @@ def deploy(bundle, model, wait=True):
     :param wait: Whether to wait until deployment completes
     :type model: bool
     """
+    run_report.register_event_start('Deploy Bundle')
     deploy_bundle(bundle, model)
+    run_report.register_event_finish('Deploy Bundle')
     if wait:
+        run_report.register_event_start('Wait for Deployment')
         test_config = utils.get_charm_config()
         logging.info("Waiting for environment to settle")
         zaza.model.set_juju_model(model)
         zaza.model.wait_for_application_states(
             model,
             test_config.get('target_deploy_status', {}))
+        run_report.register_event_finish('Wait for Deployment')
 
 
 def parse_args(args):
@@ -292,8 +322,6 @@ def parse_args(args):
 def main():
     """Deploy bundle."""
     args = parse_args(sys.argv[1:])
-    level = getattr(logging, args.loglevel.upper(), None)
-    if not isinstance(level, int):
-        raise ValueError('Invalid log level: "{}"'.format(args.loglevel))
-    logging.basicConfig(level=level)
+    cli_utils.setup_logging(log_level=args.loglevel.upper())
     deploy(args.bundle, args.model, wait=args.wait)
+    run_report.output_event_report()

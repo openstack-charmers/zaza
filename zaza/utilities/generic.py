@@ -22,7 +22,6 @@ import yaml
 from zaza import model
 from zaza.utilities import juju as juju_utils
 from zaza.utilities import exceptions as zaza_exceptions
-from zaza.utilities.os_versions import UBUNTU_OPENSTACK_RELEASE
 
 
 def dict_to_yaml(dict_data):
@@ -102,8 +101,8 @@ def get_undercloud_env_vars():
     Note: *Overcloud* settings should be declared by the test caller and should
     not be overridden here.
 
-    Return a dictionary compatible with zaza.configure.network functions'
-    expected key structure.
+    Return a dictionary compatible with zaza.openstack.configure.network
+    functions' expected key structure.
 
     Example exported environment variables:
     export default_gateway="172.17.107.1"
@@ -135,8 +134,8 @@ def get_undercloud_env_vars():
         _vars['start_floating_ip'] = os.environ.get('FIP_RANGE').split(':')[0]
         _vars['end_floating_ip'] = os.environ.get('FIP_RANGE').split(':')[1]
 
-    # Env var naming consistent with zaza.configure.network functions takes
-    # priority. Override backward compatible settings.
+    # Env var naming consistent with zaza.openstack.configure.network
+    # functions takes priority. Override backward compatible settings.
     _keys = ['default_gateway',
              'start_floating_ip',
              'end_floating_ip',
@@ -523,7 +522,7 @@ def set_dpkg_non_interactive_on_unit(
 
 
 def get_process_id_list(unit_name, process_name,
-                        expect_success=True):
+                        expect_success=True, pgrep_full=False):
     """Get a list of process ID(s).
 
     Get a list of process ID(s) from a single sentry juju unit
@@ -533,10 +532,16 @@ def get_process_id_list(unit_name, process_name,
     :param process_name: Process name
     :param expect_success: If False, expect the PID to be missing,
         raise if it is present.
+    :param pgrep_full: Should pgrep be used rather than pidof to identify
+                       a service.
+    :type  pgrep_full: bool
     :returns: List of process IDs
     :raises: zaza_exceptions.ProcessIdsFailed
     """
-    cmd = 'pidof -x "{}"'.format(process_name)
+    if pgrep_full:
+        cmd = 'pgrep -f "{}"'.format(process_name)
+    else:
+        cmd = 'pidof -x "{}"'.format(process_name)
     if not expect_success:
         cmd += " || exit 0 && exit 1"
     results = model.run_on_unit(unit_name=unit_name, command=cmd)
@@ -647,25 +652,3 @@ def validate_unit_process_ids(expected, actual):
                               '{}'.format(e_unit_name, e_proc_name,
                                           e_pids, a_pids))
     return True
-
-
-def get_ubuntu_release(ubuntu_name):
-    """Get index of Ubuntu release.
-
-    Returns the index of the name of the Ubuntu release in
-        UBUNTU_OPENSTACK_RELEASE.
-
-    :param ubuntu_name: Name of the Ubuntu release.
-    :type ubuntu_name: string
-    :returns: Index of the Ubuntu release
-    :rtype: integer
-    :raises: zaza_exceptions.UbuntuReleaseNotFound
-    """
-    ubuntu_releases = list(UBUNTU_OPENSTACK_RELEASE.keys())
-    try:
-        index = ubuntu_releases.index(ubuntu_name)
-    except ValueError:
-        msg = ('Could not find Ubuntu release {} in {}'.
-               format(ubuntu_name, UBUNTU_OPENSTACK_RELEASE))
-        raise zaza_exceptions.UbuntuReleaseNotFound(msg)
-    return index

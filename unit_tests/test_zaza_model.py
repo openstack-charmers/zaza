@@ -195,13 +195,16 @@ class TestModel(ut_utils.BaseTestCase):
 
     def test_get_juju_model_noenv(self):
         self.patch_object(model.os, 'environ')
-        self.patch_object(model, 'get_current_model')
-        self.get_current_model.return_value = 'modelsmodel'
+        self.patch_object(model, 'async_get_current_model')
+
+        async def _async_get_current_model():
+            return 'modelsmodel'
+        self.async_get_current_model.side_effect = _async_get_current_model
 
         # No envirnment variable
         self.environ.__getitem__.side_effect = KeyError
         self.assertEqual(model.get_juju_model(), 'modelsmodel')
-        self.get_current_model.assert_called_once()
+        self.async_get_current_model.assert_called_once()
 
     def test_run_in_model(self):
         self.patch_object(model, 'Model')
@@ -211,6 +214,18 @@ class TestModel(ut_utils.BaseTestCase):
             async with model.run_in_model('modelname') as mymodel:
                 return mymodel
         self.assertEqual(loop.run(_wrapper()), self.Model_mock)
+        self.Model_mock.connect_model.assert_called_once_with('modelname')
+        self.Model_mock.disconnect.assert_called_once_with()
+
+    def test_run_in_model_exception(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+
+        async def _wrapper():
+            async with model.run_in_model('modelname'):
+                raise Exception
+        with self.assertRaises(Exception):
+            loop.run(_wrapper())
         self.Model_mock.connect_model.assert_called_once_with('modelname')
         self.Model_mock.disconnect.assert_called_once_with()
 
@@ -361,6 +376,28 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit1.run_action.assert_called_once_with(
             'backup',
             backup_dir='/dev/null')
+        self.run_action.status = 'failed'
+        self.run_action.message = 'aMessage'
+        self.run_action.id = 'aId'
+        self.run_action.enqueued = 'aEnqueued'
+        self.run_action.started = 'aStarted'
+        self.run_action.completed = 'aCompleted'
+        self.run_action.name = 'backup2'
+        self.run_action.parameters = {'backup_dir': '/non-existent'}
+        self.run_action.receiver = 'app/2'
+        with self.assertRaises(model.ActionFailed) as e:
+            model.run_action(
+                self.run_action.receiver,
+                self.run_action.name,
+                action_params=self.run_action.parameters,
+                raise_on_failure=True)
+        self.assertEqual(
+            str(e.exception),
+            'Run of action "backup2" with parameters '
+            '"{\'backup_dir\': \'/non-existent\'}" on '
+            '"app/2" failed with "aMessage" '
+            '(id=aId status=failed enqueued=aEnqueued '
+            'started=aStarted completed=aCompleted)')
 
     def test_get_actions(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -384,6 +421,28 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.run_action.assert_called_once_with(
             'backup',
             backup_dir='/dev/null')
+        self.run_action.status = 'failed'
+        self.run_action.message = 'aMessage'
+        self.run_action.id = 'aId'
+        self.run_action.enqueued = 'aEnqueued'
+        self.run_action.started = 'aStarted'
+        self.run_action.completed = 'aCompleted'
+        self.run_action.name = 'backup2'
+        self.run_action.parameters = {'backup_dir': '/non-existent'}
+        self.run_action.receiver = 'app/2'
+        with self.assertRaises(model.ActionFailed) as e:
+            model.run_action(
+                self.run_action.receiver,
+                self.run_action.name,
+                action_params=self.run_action.parameters,
+                raise_on_failure=True)
+        self.assertEqual(
+            str(e.exception),
+            'Run of action "backup2" with parameters '
+            '"{\'backup_dir\': \'/non-existent\'}" on '
+            '"app/2" failed with "aMessage" '
+            '(id=aId status=failed enqueued=aEnqueued '
+            'started=aStarted completed=aCompleted)')
 
     def _application_states_setup(self, setup, units_idle=True):
         self.system_ready = True
@@ -527,6 +586,14 @@ class TestModel(ut_utils.BaseTestCase):
         model.wait_for_application_states('modelname', timeout=1)
         self.assertFalse(self.system_ready)
 
+    def test_wait_for_application_states_errored_unit(self):
+        self._application_states_setup({
+            'workload-status': 'error',
+            'workload-status-message': 'Unit is ready'})
+        with self.assertRaises(model.UnitError):
+            model.wait_for_application_states('modelname', timeout=1)
+            self.assertFalse(self.system_ready)
+
     def test_wait_for_application_states_not_ready_wsmsg(self):
         self._application_states_setup({
             'workload-status': 'active',
@@ -597,6 +664,10 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertEqual(model.get_current_model(), self.model_name)
 
     def test_block_until_file_has_contents(self):
+        self.action.data = {
+            'results': {'Code': '0', 'Stderr': '', 'Stdout': 'somestring'}
+        }
+
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -611,10 +682,10 @@ class TestModel(ut_utils.BaseTestCase):
             '/tmp/src/myfile.txt',
             'somestring',
             timeout=0.1)
-        self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
-        self.unit2.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+        self.unit2.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
 
     def test_block_until_file_has_contents_missing(self):
         self.patch_object(model, 'Model')
@@ -632,8 +703,7 @@ class TestModel(ut_utils.BaseTestCase):
                 '/tmp/src/myfile.txt',
                 'somestring',
                 timeout=0.1)
-        self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+        self.unit1.run.assert_called_once_with('cat /tmp/src/myfile.txt')
 
     def test_async_block_until_all_units_idle(self):
 
@@ -666,6 +736,25 @@ class TestModel(ut_utils.BaseTestCase):
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.block_until_all_units_idle('modelname')
 
+    def test_async_block_until_all_units_idle_errored_unit(self):
+
+        async def _block_until(f, timeout=None):
+            if not f():
+                raise asyncio.futures.TimeoutError
+
+        def _all_units_idle():
+            return True
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.Model_mock.all_units_idle.side_effect = _all_units_idle
+        self.patch_object(model, 'units_with_wl_status_state')
+        unit = mock.MagicMock()
+        unit.entity_id = 'aerroredunit/0'
+        self.units_with_wl_status_state.return_value = [unit]
+        self.Model_mock.block_until.side_effect = _block_until
+        with self.assertRaises(model.UnitError):
+            model.block_until_all_units_idle('modelname')
+
     def block_until_service_status_base(self, rou_return):
 
         async def _block_until(f, timeout=None):
@@ -689,6 +778,21 @@ class TestModel(ut_utils.BaseTestCase):
             'app/2',
             ['test_svc'],
             'running')
+
+    def test_block_until_service_status_check_running_with_pgrep(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.block_until_service_status_base({'Stdout': '152 409 54'})
+        model.block_until_service_status(
+            'app/2',
+            ['test_svc'],
+            'running',
+            pgrep_full=True)
+        self.async_run_on_unit.assert_called_once_with(
+            'app/2',
+            'pgrep -f "test_svc"',
+            model_name=None,
+            timeout=2700
+        )
 
     def test_block_until_service_status_check_running_fail(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -756,6 +860,29 @@ class TestModel(ut_utils.BaseTestCase):
             timeout=None
         )
 
+    def test_get_unit_service_start_time_with_pgrep(self):
+        async def _run_on_unit(
+            unit_name,
+            command,
+            model_name=None,
+            timeout=None
+        ):
+            return {'Stdout': '1524409654'}
+        self.patch_object(model, 'async_run_on_unit')
+        self.async_run_on_unit.side_effect = _run_on_unit
+        self.assertEqual(
+            model.get_unit_service_start_time('app/2',
+                                              'mysvc1',
+                                              pgrep_full=True),
+            1524409654)
+        cmd = "stat -c %Y /proc/$(pgrep -f \"mysvc1\" | cut -f1 -d ' ')"
+        self.async_run_on_unit.assert_called_once_with(
+            unit_name='app/2',
+            command=cmd,
+            model_name=None,
+            timeout=None
+        )
+
     def test_get_unit_service_start_time_not_running(self):
         async def _run_on_unit(
             unit_name,
@@ -771,14 +898,12 @@ class TestModel(ut_utils.BaseTestCase):
 
     def block_until_oslo_config_entries_match_base(self, file_contents,
                                                    expected_contents):
-        async def _scp_from(remote_file, tmpdir):
-            with open('{}/myfile.txt'.format(tmpdir), 'w') as f:
-                f.write(file_contents)
+        self.action.data = {
+            'results': {'Code': '0', 'Stderr': '', 'Stdout': file_contents}
+        }
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.Model.return_value = self.Model_mock
-        self.unit1.scp_from.side_effect = _scp_from
-        self.unit2.scp_from.side_effect = _scp_from
         model.block_until_oslo_config_entries_match(
             'app',
             '/tmp/src/myfile.txt',
@@ -811,10 +936,10 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.block_until_oslo_config_entries_match_base(
             file_contents,
             expected_contents)
-        self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
-        self.unit2.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+        self.unit2.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
 
     def test_block_until_oslo_config_entries_match_fail(self):
         file_contents = """
@@ -843,8 +968,8 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             self.block_until_oslo_config_entries_match_base(
                 file_contents,
                 expected_contents)
-        self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
 
     def test_block_until_oslo_config_entries_match_missing_entry(self):
         file_contents = """
@@ -872,8 +997,8 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             self.block_until_oslo_config_entries_match_base(
                 file_contents,
                 expected_contents)
-        self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
 
     def test_block_until_oslo_config_entries_match_missing_section(self):
         file_contents = """
@@ -896,8 +1021,8 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             self.block_until_oslo_config_entries_match_base(
                 file_contents,
                 expected_contents)
-        self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src/myfile.txt', mock.ANY)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
 
     def block_until_services_restarted_base(self, gu_return=None,
                                             gu_raise_exception=False):
@@ -908,7 +1033,9 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.patch_object(model, 'async_block_until')
         self.async_block_until.side_effect = _block_until
 
-        async def _async_get_unit_service_start_time(model_name, unit, svc):
+        async def _async_get_unit_service_start_time(unit, svc, timeout=None,
+                                                     model_name=None,
+                                                     pgrep_full=False):
             if gu_raise_exception:
                 raise model.ServiceNotRunning('sv1')
             else:
@@ -926,6 +1053,36 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             'app',
             8,
             ['svc1', 'svc2'])
+
+    def test_block_until_services_restarted_with_pgrep(self):
+        self.block_until_services_restarted_base(gu_return=10)
+        model.block_until_services_restarted(
+            'app',
+            8,
+            ['svc1', 'svc2'],
+            pgrep_full=True)
+        self.async_get_unit_service_start_time.assert_has_calls([
+            mock.call('app/2',
+                      'svc1',
+                      model_name=None,
+                      pgrep_full=True,
+                      timeout=2700),
+            mock.call('app/2',
+                      'svc2',
+                      model_name=None,
+                      pgrep_full=True,
+                      timeout=2700),
+            mock.call('app/4',
+                      'svc1',
+                      model_name=None,
+                      pgrep_full=True,
+                      timeout=2700),
+            mock.call('app/4',
+                      'svc2',
+                      model_name=None,
+                      pgrep_full=True,
+                      timeout=2700),
+        ])
 
     def test_block_until_services_restarted_fail(self):
         self.block_until_services_restarted_base(gu_return=10)
@@ -1014,6 +1171,32 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.wait_for_agent_status(timeout=0.1)
 
+    def test_upgrade_charm(self):
+        async def _upgrade_charm(channel=None, force_series=False,
+                                 force_units=False, path=None,
+                                 resources=None, revision=None,
+                                 switch=None, model_name=None):
+            return
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = self.unit1
+        self.Model.return_value = self.Model_mock
+        app_mock = mock.MagicMock()
+        app_mock.upgrade_charm.side_effect = _upgrade_charm
+        self.mymodel.applications['myapp'] = app_mock
+        model.upgrade_charm(
+            'myapp',
+            switch='cs:~me/new-charm-45')
+        app_mock.upgrade_charm.assert_called_once_with(
+            channel=None,
+            force_series=False,
+            force_units=False,
+            path=None,
+            resources=None,
+            revision=None,
+            switch='cs:~me/new-charm-45')
+
     def test_prepare_series_upgrade(self):
         self.patch_object(model, 'subprocess')
         self.patch_object(model, 'get_juju_model',
@@ -1045,6 +1228,18 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.subprocess.check_call.assert_called_once_with(
             ["juju", "set-series", "-m", self.model_name,
              _application, _to_series])
+
+    def test_attach_resource(self):
+        self.patch_object(model, 'get_juju_model',
+                          return_value=self.model_name)
+        self.patch_object(model, 'subprocess')
+        _application = "application"
+        _resource_name = "myresource"
+        _resource_path = "/path/to/{}.tar.gz".format(_resource_name)
+        model.attach_resource(_application, _resource_name, _resource_path)
+        self.subprocess.check_call.assert_called_once_with(
+            ["juju", "attach-resource", "-m", self.model_name,
+             _application, "{}={}".format(_resource_name, _resource_path)])
 
 
 class AsyncModelTests(aiounittest.AsyncTestCase):

@@ -54,7 +54,7 @@ def set_juju_model(model_name):
     CURRENT_MODEL = model_name
 
 
-def get_juju_model():
+async def async_get_juju_model():
     """Retrieve current model.
 
     First check the environment for JUJU_MODEL. If this is not set, get the
@@ -78,8 +78,10 @@ def get_juju_model():
             CURRENT_MODEL = os.environ["MODEL_NAME"]
         except KeyError:
             # If unset connect get the current active model
-            CURRENT_MODEL = get_current_model()
+            CURRENT_MODEL = await async_get_current_model()
     return CURRENT_MODEL
+
+get_juju_model = sync_wrapper(async_get_juju_model)
 
 
 async def deployed():
@@ -149,10 +151,12 @@ async def run_in_model(model_name):
     """
     model = Model()
     if not model_name:
-        model_name = get_juju_model()
+        model_name = await async_get_juju_model()
     await model.connect_model(model_name)
-    await yield_(model)
-    await model.disconnect()
+    try:
+        await yield_(model)
+    finally:
+        await model.disconnect()
 
 
 async def async_scp_to_unit(unit_name, source, destination, model_name=None,
@@ -313,7 +317,8 @@ get_unit_time = sync_wrapper(async_get_unit_time)
 
 
 async def async_get_unit_service_start_time(unit_name, service,
-                                            model_name=None, timeout=None):
+                                            model_name=None, timeout=None,
+                                            pgrep_full=False):
     """Return the time that the given service was started on a unit.
 
     Return the time (in seconds since Epoch) that the given service was
@@ -328,11 +333,18 @@ async def async_get_unit_service_start_time(unit_name, service,
     :type service: str
     :param timeout: Time to wait for status to be achieved
     :type timeout: int
+    :param pgrep_full: Should pgrep be used rather than pidof to identify
+                       a service.
+    :type  pgrep_full: bool
     :returns: time in seconds since Epoch on unit
     :rtype: int
     :raises: ServiceNotRunning
     """
-    cmd = "stat -c %Y /proc/$(pidof -x {} | cut -f1 -d ' ')".format(service)
+    if pgrep_full:
+        pid_cmd = 'pgrep -f "{}"'.format(service)
+    else:
+        pid_cmd = "pidof -x {}".format(service)
+    cmd = "stat -c %Y /proc/$({} | cut -f1 -d ' ')".format(pid_cmd)
     out = await async_run_on_unit(
         unit_name=unit_name,
         command=cmd,
@@ -492,8 +504,22 @@ async def async_get_status(model_name=None):
 get_status = sync_wrapper(async_get_status)
 
 
+class ActionFailed(Exception):
+    """Exception raised when action fails."""
+
+    def __init__(self, action):
+        """Set information about action failure in message and raise."""
+        message = ('Run of action "{}" with parameters "{}" on "{}" failed '
+                   'with "{}" (id={} status={} enqueued={} started={} '
+                   'completed={})'
+                   .format(action.name, action.parameters, action.receiver,
+                           action.message, action.id, action.status,
+                           action.enqueued, action.started, action.completed))
+        super(ActionFailed, self).__init__(message)
+
+
 async def async_run_action(unit_name, action_name, model_name=None,
-                           action_params={}):
+                           action_params={}, raise_on_failure=False):
     """Run action on given unit.
 
     :param unit_name: Name of unit to run action on
@@ -504,20 +530,26 @@ async def async_run_action(unit_name, action_name, model_name=None,
     :type model_name: str
     :param action_params: Dictionary of config options for action
     :type action_params: dict
+    :param raise_on_failure: Raise ActionFailed exception on failure
+    :type raise_on_failure: bool
     :returns: Action object
     :rtype: juju.action.Action
+    :raises: ActionFailed
     """
     async with run_in_model(model_name) as model:
         unit = get_unit_from_name(unit_name, model)
         action_obj = await unit.run_action(action_name, **action_params)
         await action_obj.wait()
+        if raise_on_failure and action_obj.status != 'completed':
+            raise ActionFailed(action_obj)
         return action_obj
 
 run_action = sync_wrapper(async_run_action)
 
 
 async def async_run_action_on_leader(application_name, action_name,
-                                     model_name=None, action_params=None):
+                                     model_name=None, action_params=None,
+                                     raise_on_failure=False):
     """Run action on lead unit of the given application.
 
     :param model_name: Name of model to query.
@@ -528,8 +560,11 @@ async def async_run_action_on_leader(application_name, action_name,
     :type action_name: str
     :param action_params: Dictionary of config options for action
     :type action_params: dict
+    :param raise_on_failure: Raise ActionFailed exception on failure
+    :type raise_on_failure: bool
     :returns: Action object
     :rtype: juju.action.Action
+    :raises: ActionFailed
     """
     async with run_in_model(model_name) as model:
         for unit in model.applications[application_name].units:
@@ -538,6 +573,8 @@ async def async_run_action_on_leader(application_name, action_name,
                 action_obj = await unit.run_action(action_name,
                                                    **action_params)
                 await action_obj.wait()
+                if raise_on_failure and action_obj.status != 'completed':
+                    raise ActionFailed(action_obj)
                 return action_obj
 
 run_action_on_leader = sync_wrapper(async_run_action_on_leader)
@@ -758,10 +795,15 @@ async def async_wait_for_application_states(model_name=None, states=None,
         logging.info("Waiting for all units to be idle")
         try:
             await model.block_until(
-                lambda: model.all_units_idle(), timeout=timeout)
+                lambda: units_with_wl_status_state(
+                    model, 'error') or model.all_units_idle(),
+                timeout=timeout)
         except concurrent.futures._base.TimeoutError:
             raise ModelTimeout("Zaza has timed out waiting on the model to "
                                "reach idle state.")
+        errored_units = units_with_wl_status_state(model, 'error')
+        if errored_units:
+            raise UnitError(errored_units)
         try:
             for application, app_data in model.applications.items():
                 check_info = states.get(application, {})
@@ -814,13 +856,19 @@ async def async_block_until_all_units_idle(model_name=None, timeout=2700):
     """
     async with run_in_model(model_name) as model:
         await model.block_until(
-            lambda: model.all_units_idle(), timeout=timeout)
+            lambda: units_with_wl_status_state(
+                model, 'error') or model.all_units_idle(),
+            timeout=timeout)
+        errored_units = units_with_wl_status_state(model, 'error')
+        if errored_units:
+            raise UnitError(errored_units)
 
 block_until_all_units_idle = sync_wrapper(async_block_until_all_units_idle)
 
 
 async def async_block_until_service_status(unit_name, services, target_status,
-                                           model_name=None, timeout=2700):
+                                           model_name=None, timeout=2700,
+                                           pgrep_full=False):
     """Block until all services on the unit are in the desired state.
 
     Block until all services on the unit are in the desired state (stopped
@@ -840,14 +888,21 @@ async def async_block_until_service_status(unit_name, services, target_status,
     :type target_status: str
     :param model_name: Name of model to query.
     :type model_name: str
+    :param pgrep_full: Should pgrep be used rather than pidof to identify
+                       a service.
+    :type  pgrep_full: bool
     :param timeout: Time to wait for status to be achieved
     :type timeout: int
     """
     async def _check_service():
         for service in services:
+            if pgrep_full:
+                command = 'pgrep -f "{}"'.format(service)
+            else:
+                command = "pidof -x {}".format(service)
             out = await async_run_on_unit(
                 unit_name,
-                "pidof -x {}".format(service),
+                command,
                 model_name=model_name,
                 timeout=timeout)
             response_size = len(out['Stdout'].strip())
@@ -950,21 +1005,19 @@ async def async_block_until_file_ready(application_name, remote_file,
     :type timeout: float
     """
     async def _check_file():
-        file_name = os.path.basename(remote_file)
         units = model.applications[application_name].units
         for unit in units:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                try:
-                    await unit.scp_from(remote_file, tmpdir)
-                    with open(os.path.join(tmpdir, file_name), 'r') as lf:
-                        contents = lf.read()
-                    if not check_function(contents):
-                        return False
-                # libjuju throws a generic error for scp failure. So we cannot
-                # differentiate between a connectivity issue and a target file
-                # not existing error. For now just assume the latter.
-                except JujuError as e:
+            try:
+                output = await unit.run('cat {}'.format(remote_file))
+                contents = output.data.get('results')['Stdout']
+                if not check_function(contents):
                     return False
+            # libjuju throws a generic error for connection failure. So we
+            # cannot differentiate between a connectivity issue and a
+            # target file not existing error. For now just assume the
+            # latter.
+            except JujuError as e:
+                return False
         else:
             return True
 
@@ -1085,7 +1138,7 @@ block_until_oslo_config_entries_match = sync_wrapper(
 
 async def async_block_until_services_restarted(application_name, mtime,
                                                services, model_name=None,
-                                               timeout=2700):
+                                               timeout=2700, pgrep_full=False):
     """Block until the given services have a start time later then mtime.
 
     For example to check that the glance-api service has been restarted::
@@ -1106,6 +1159,9 @@ async def async_block_until_services_restarted(application_name, mtime,
     :type services: []
     :param timeout: Time to wait for services to be restarted
     :type timeout: float
+    :param pgrep_full: Should pgrep be used rather than pidof to identify
+                       a service.
+    :type  pgrep_full: bool
     """
     async def _check_service():
         units = model.applications[application_name].units
@@ -1113,9 +1169,11 @@ async def async_block_until_services_restarted(application_name, mtime,
             for service in services:
                 try:
                     svc_mtime = await async_get_unit_service_start_time(
-                        model_name,
                         unit.entity_id,
-                        service)
+                        service,
+                        timeout=timeout,
+                        model_name=model_name,
+                        pgrep_full=pgrep_full)
                 except ServiceNotRunning:
                     return False
                 if svc_mtime < mtime:
@@ -1218,6 +1276,48 @@ def set_model_constraints(constraints, model_name=None):
     subprocess.check_call(cmd)
 
 
+async def async_upgrade_charm(application_name, channel=None,
+                              force_series=False, force_units=False,
+                              path=None, resources=None, revision=None,
+                              switch=None, model_name=None):
+    """
+    Upgrade the given charm.
+
+    :param application_name: Name of application on this side of relation
+    :type application_name: str
+    :param channel: Channel to use when getting the charm from the charm store,
+                    e.g. 'development'
+    :type channel: str
+    :param force_series: Upgrade even if series of deployed application is not
+                         supported by the new charm
+    :type force_series: bool
+    :param force_units: Upgrade all units immediately, even if in error state
+    :type force_units: bool
+    :param path: Uprade to a charm located at path
+    :type path: str
+    :param resources: Dictionary of resource name/filepath pairs
+    :type resources: dict
+    :param revision: Explicit upgrade revision
+    :type revision: int
+    :param switch: Crossgrade charm url
+    :type switch: str
+    :param model_name: Name of model to operate on
+    :type model_name: str
+    """
+    async with run_in_model(model_name) as model:
+        app = model.applications[application_name]
+        await app.upgrade_charm(
+            channel=channel,
+            force_series=force_series,
+            force_units=force_units,
+            path=path,
+            resources=resources,
+            revision=revision,
+            switch=switch)
+
+upgrade_charm = sync_wrapper(async_upgrade_charm)
+
+
 class UnitNotFound(Exception):
     """Unit was not found in model."""
 
@@ -1288,4 +1388,22 @@ def set_series(application, to_series):
     juju_model = get_juju_model()
     cmd = ["juju", "set-series", "-m", juju_model,
            application, to_series]
+    subprocess.check_call(cmd)
+
+
+def attach_resource(application, resource_name, resource_path):
+    """Attach resource to charm.
+
+    :param application: Application to get leader settings from.
+    :type application: str
+    :param resource_name: The name of the resource as defined in metadata.yaml
+    :type resource_name: str
+    :param resource_path: The path to the resource on disk
+    :type resource_path: str
+    :returns: None
+    :rtype: None
+    """
+    juju_model = get_juju_model()
+    cmd = ["juju", "attach-resource", "-m", juju_model,
+           application, "{}={}".format(resource_name, resource_path)]
     subprocess.check_call(cmd)

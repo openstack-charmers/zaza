@@ -128,6 +128,23 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             template_mock,
             '/tmp/special-dir/my_overlay.yaml')
 
+    def test_template_missing_required_variables(self):
+        self.patch_object(lc_deploy, 'get_template_overlay_context')
+        self.get_template_overlay_context.return_value = {}
+        self.patch_object(lc_deploy.sys, 'exit')
+        self.patch_object(lc_deploy.logging, 'error')
+        jinja2_env = lc_deploy.get_jinja2_env()
+        template = jinja2_env.from_string('{{required_variable}}')
+        m = mock.mock_open()
+        with mock.patch('zaza.charm_lifecycle.deploy.open', m, create=True):
+            lc_deploy.render_template(template, '/tmp/mybundle.yaml')
+        m.assert_called_once_with('/tmp/mybundle.yaml', 'w')
+        self.error.assert_called_once_with(
+            "Template error. You may be missing"
+            " a mandatory environment variable : "
+            "'required_variable' is undefined")
+        self.exit.assert_called_once_with(1)
+
     def test_render_overlay_no_template(self):
         self.patch_object(lc_deploy, 'get_template')
         self.get_template.return_value = None
@@ -166,9 +183,52 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             'atemplate',
             '/target/local-charm-overlay.yaml')
 
+    def yaml_read_patch(self, yaml, yaml_dict):
+        self.patch("builtins.open",
+                   new_callable=mock.mock_open(),
+                   name="_open")
+        self.patch_object(lc_deploy, 'yaml')
+        self.yaml.safe_load.return_value = yaml_dict
+        _fileobj = mock.MagicMock()
+        _fileobj.__enter__.return_value = yaml
+        self._open.return_value = _fileobj
+
+    def test_is_local_overlay_enabled_unset(self):
+        _yaml = "testconfig: someconfig"
+        _yaml_dict = {'test_config': 'someconfig'}
+        _filename = "filename"
+        self.yaml_read_patch(_yaml, _yaml_dict)
+
+        self.assertTrue(lc_deploy.is_local_overlay_enabled(_filename))
+        self._open.assert_called_once_with(_filename, "r")
+        self.yaml.safe_load.assert_called_once_with(_yaml)
+
+    def test_is_local_overlay_enabled_disabled(self):
+        _yaml = "local_overlay_enabled: False"
+        _yaml_dict = {'local_overlay_enabled': False}
+        _filename = "filename"
+        self.yaml_read_patch(_yaml, _yaml_dict)
+
+        self.assertFalse(lc_deploy.is_local_overlay_enabled(_filename))
+        self._open.assert_called_once_with(_filename, "r")
+        self.yaml.safe_load.assert_called_once_with(_yaml)
+
+    def test_is_local_overlay_enabled_enabled(self):
+        _yaml = "local_overlay_enabled: True"
+        _yaml_dict = {'local_overlay_enabled': True}
+        _filename = "filename"
+        self.yaml_read_patch(_yaml, _yaml_dict)
+
+        self.assertTrue(lc_deploy.is_local_overlay_enabled(_filename))
+        self._open.assert_called_once_with(_filename, "r")
+
     def test_render_overlays(self):
         RESP = {
             'mybundles/mybundle.yaml': '/tmp/mybundle.yaml'}
+        self.patch_object(
+            lc_deploy,
+            'is_local_overlay_enabled',
+            return_value=True)
         self.patch_object(lc_deploy, 'render_local_overlay')
         self.render_local_overlay.return_value = '/tmp/local-overlay.yaml'
         self.patch_object(lc_deploy, 'render_overlay')
@@ -179,6 +239,10 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
 
     def test_render_overlays_missing(self):
         RESP = {'mybundles/mybundle.yaml': None}
+        self.patch_object(
+            lc_deploy,
+            'is_local_overlay_enabled',
+            return_value=True)
         self.patch_object(lc_deploy, 'render_overlay')
         self.patch_object(lc_deploy, 'render_local_overlay')
         self.render_local_overlay.return_value = '/tmp/local.yaml'
@@ -187,14 +251,29 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
             ['/tmp/local.yaml'])
 
+    def test_render_overlays_no_local(self):
+        RESP = {
+            'mybundles/mybundle.yaml': '/tmp/mybundle.yaml'}
+        self.patch_object(
+            lc_deploy,
+            'is_local_overlay_enabled',
+            return_value=False)
+        self.patch_object(lc_deploy, 'render_local_overlay')
+        self.render_local_overlay.return_value = '/tmp/local-overlay.yaml'
+        self.patch_object(lc_deploy, 'render_overlay')
+        self.render_overlay.side_effect = lambda x, y: RESP[x]
+        self.assertEqual(
+            lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
+            ['/tmp/mybundle.yaml'])
+
     def test_deploy_bundle(self):
         self.patch_object(lc_deploy.utils, 'get_charm_config')
         self.get_charm_config.return_value = {}
         self.patch_object(lc_deploy, 'render_overlays')
-        self.patch_object(lc_deploy.subprocess, 'check_call')
+        self.patch_object(lc_deploy.utils, 'check_output_logging')
         self.render_overlays.return_value = []
         lc_deploy.deploy_bundle('bun.yaml', 'newmodel')
-        self.check_call.assert_called_once_with(
+        self.check_output_logging.assert_called_once_with(
             ['juju', 'deploy', '-m', 'newmodel', 'bun.yaml'])
 
     def test_deploy(self):

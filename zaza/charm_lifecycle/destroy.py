@@ -14,10 +14,10 @@
 
 """Run destroy phase."""
 import argparse
-import logging
 import sys
 
 import zaza.controller
+import zaza.utilities.cli as cli_utils
 
 
 def destroy(model_name):
@@ -49,8 +49,5 @@ def parse_args(args):
 def main():
     """Cleanup after test run."""
     args = parse_args(sys.argv[1:])
-    level = getattr(logging, args.loglevel.upper(), None)
-    if not isinstance(level, int):
-        raise ValueError('Invalid log level: "{}"'.format(args.loglevel))
-    logging.basicConfig(level=level)
+    cli_utils.setup_logging(log_level=args.loglevel.upper())
     destroy(args.model_name)

@@ -1,5 +1,5 @@
 CLI Utilities
 -------------
 
-.. automodule:: zaza.utilities.cli
+.. automodule:: zaza.openstack.utilities.cli
    :members:
