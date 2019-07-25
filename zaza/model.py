@@ -655,6 +655,34 @@ def units_with_wl_status_state(model, state):
     return matching_units
 
 
+async def async_resolve_units(application_name=None, wait=True, timeout=60,
+                              model_name=None):
+    """Mark all the errored units as resolved or limit to an application.
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    """
+    async with run_in_model(model_name) as model:
+        erred_units = units_with_wl_status_state(model, 'error')
+        if application_name:
+            erred_units = [u for u in erred_units
+                           if u.application == application_name]
+        for u in erred_units:
+            logging.info('Resolving unit: {}'.format(u.entity_id))
+            # Use u.resolved() when implemented in libjuju
+            cmd = ['juju', 'resolved', '-m', model.info.name, u.entity_id]
+            subprocess.check_output(cmd)
+        if wait:
+            for unit in erred_units:
+                await model.block_until(
+                    lambda: not unit.workload_status == 'error',
+                    timeout=timeout)
+
+resolve_units = sync_wrapper(async_resolve_units)
+
+
 def check_model_for_hard_errors(model):
     """Check model for any hard errors that should halt a deployment.
 
