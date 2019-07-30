@@ -1148,6 +1148,29 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
                 'active',
                 timeout=0.1)
 
+    def test_block_until_unit_wl_status_inverse(self):
+        async def _block_until(f, timeout=None):
+            rc = await f()
+            if not rc:
+                raise asyncio.futures.TimeoutError
+
+        async def _get_status():
+            return self.juju_status
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'get_unit_from_name')
+        self.patch_object(model, 'async_get_status')
+        self.async_get_status.side_effect = _get_status
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
+        model.block_until_unit_wl_status(
+            'app/1',
+            'unknown',
+            negate_match=True,
+            timeout=0.1)
+
     def resolve_units_mocks(self):
         async def _block_until(f, timeout=None):
             if not f():
