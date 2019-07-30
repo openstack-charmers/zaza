@@ -673,6 +673,7 @@ async def async_resolve_units(application_name=None, wait=True, timeout=60,
     """
     async with run_in_model(model_name) as model:
         erred_units = units_with_wl_status_state(model, 'error')
+
         if application_name:
             erred_units = [u for u in erred_units
                            if u.application == application_name]
@@ -1226,7 +1227,7 @@ block_until_services_restarted = sync_wrapper(
 
 
 async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
-                                           timeout=2700):
+                                           negate_match=False, timeout=2700):
     """Block until the given unit has the desired workload status.
 
     A units workload status may change during a given action. This function
@@ -1247,14 +1248,20 @@ async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
     :type status: str
     :param model_name: Name of model to query.
     :type model_name: str
+    :param negate_match: Wait until the match is not true.
+    :type negate_match: bool
     :param timeout: Time to wait for unit to achieved desired status
     :type timeout: float
     """
     async def _unit_status():
         app = unit_name.split("/")[0]
         model_status = await async_get_status()
-        return (model_status.applications[app]['units'][unit_name]
-                ['workload-status']['status'] == status)
+        v = model_status.applications[app]['units'][unit_name][
+            'workload-status']['status']
+        if negate_match:
+            return v != status
+        else:
+            return v == status
 
     async with run_in_model(model_name):
         await async_block_until(_unit_status, timeout=timeout)
