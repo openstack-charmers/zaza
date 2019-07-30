@@ -656,19 +656,29 @@ def units_with_wl_status_state(model, state):
 
 
 async def async_resolve_units(application_name=None, wait=True, timeout=60,
-                              model_name=None):
+                              erred_hook=None, model_name=None):
     """Mark all the errored units as resolved or limit to an application.
 
-    :param model_name: Name of model to query.
-    :type model_name: str
     :param application_name: Name of application
     :type application_name: str
+    :param wait: Whether to wait for error state to have cleared.
+    :type wait: bool
+    :param timeout: Seconds to wait for an individual units state to clear.
+    :type timeout: int
+    :param erred_hook: Only resolve units that went into an error state when
+                       running the specified hook.
+    :type erred_hook: str
+    :param model_name: Name of model to query.
+    :type model_name: str
     """
     async with run_in_model(model_name) as model:
         erred_units = units_with_wl_status_state(model, 'error')
         if application_name:
             erred_units = [u for u in erred_units
                            if u.application == application_name]
+        if erred_hook:
+            erred_units = [u for u in erred_units
+                           if erred_hook in u.workload_status_message]
         for u in erred_units:
             logging.info('Resolving unit: {}'.format(u.entity_id))
             # Use u.resolved() when implemented in libjuju
