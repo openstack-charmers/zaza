@@ -1155,6 +1155,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'units_with_wl_status_state')
+        self.unit1.workload_status_message = 'hook failed: "update-status"'
         self.units_with_wl_status_state.return_value = [self.unit1]
         self.patch_object(model, 'subprocess')
         self.Model_mock.block_until.side_effect = _block_until
@@ -1177,6 +1178,17 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             model.resolve_units(wait=True, timeout=0.1)
         self.subprocess.check_output.assert_called_once_with(
             ['juju', 'resolved', '-m', 'testmodel', 'app/2'])
+
+    def test_resolve_units_erred_hook(self):
+        self.resolve_units_mocks()
+        model.resolve_units(wait=False, erred_hook='update-status')
+        self.subprocess.check_output.assert_called_once_with(
+            ['juju', 'resolved', '-m', 'testmodel', 'app/2'])
+
+    def test_resolve_units_erred_hook_no_match(self):
+        self.resolve_units_mocks()
+        model.resolve_units(erred_hook='foo', wait=False)
+        self.assertFalse(self.subprocess.check_output.called)
 
     def test_wait_for_agent_status(self):
         async def _block_until(f, timeout=None):
