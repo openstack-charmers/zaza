@@ -655,6 +655,45 @@ def units_with_wl_status_state(model, state):
     return matching_units
 
 
+async def async_resolve_units(application_name=None, wait=True, timeout=60,
+                              erred_hook=None, model_name=None):
+    """Mark all the errored units as resolved or limit to an application.
+
+    :param application_name: Name of application
+    :type application_name: str
+    :param wait: Whether to wait for error state to have cleared.
+    :type wait: bool
+    :param timeout: Seconds to wait for an individual units state to clear.
+    :type timeout: int
+    :param erred_hook: Only resolve units that went into an error state when
+                       running the specified hook.
+    :type erred_hook: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    """
+    async with run_in_model(model_name) as model:
+        erred_units = units_with_wl_status_state(model, 'error')
+
+        if application_name:
+            erred_units = [u for u in erred_units
+                           if u.application == application_name]
+        if erred_hook:
+            erred_units = [u for u in erred_units
+                           if erred_hook in u.workload_status_message]
+        for u in erred_units:
+            logging.info('Resolving unit: {}'.format(u.entity_id))
+            # Use u.resolved() when implemented in libjuju
+            cmd = ['juju', 'resolved', '-m', model.info.name, u.entity_id]
+            subprocess.check_output(cmd)
+        if wait:
+            for unit in erred_units:
+                await model.block_until(
+                    lambda: not unit.workload_status == 'error',
+                    timeout=timeout)
+
+resolve_units = sync_wrapper(async_resolve_units)
+
+
 def check_model_for_hard_errors(model):
     """Check model for any hard errors that should halt a deployment.
 
@@ -1188,7 +1227,7 @@ block_until_services_restarted = sync_wrapper(
 
 
 async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
-                                           timeout=2700):
+                                           negate_match=False, timeout=2700):
     """Block until the given unit has the desired workload status.
 
     A units workload status may change during a given action. This function
@@ -1209,14 +1248,20 @@ async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
     :type status: str
     :param model_name: Name of model to query.
     :type model_name: str
+    :param negate_match: Wait until the match is not true.
+    :type negate_match: bool
     :param timeout: Time to wait for unit to achieved desired status
     :type timeout: float
     """
     async def _unit_status():
         app = unit_name.split("/")[0]
         model_status = await async_get_status()
-        return (model_status.applications[app]['units'][unit_name]
-                ['workload-status']['status'] == status)
+        v = model_status.applications[app]['units'][unit_name][
+            'workload-status']['status']
+        if negate_match:
+            return v != status
+        else:
+            return v == status
 
     async with run_in_model(model_name):
         await async_block_until(_unit_status, timeout=timeout)

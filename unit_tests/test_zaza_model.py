@@ -1148,6 +1148,71 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
                 'active',
                 timeout=0.1)
 
+    def test_block_until_unit_wl_status_inverse(self):
+        async def _block_until(f, timeout=None):
+            rc = await f()
+            if not rc:
+                raise asyncio.futures.TimeoutError
+
+        async def _get_status():
+            return self.juju_status
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'get_unit_from_name')
+        self.patch_object(model, 'async_get_status')
+        self.async_get_status.side_effect = _get_status
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
+        model.block_until_unit_wl_status(
+            'app/1',
+            'unknown',
+            negate_match=True,
+            timeout=0.1)
+
+    def resolve_units_mocks(self):
+        async def _block_until(f, timeout=None):
+            if not f():
+                raise asyncio.futures.TimeoutError
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'units_with_wl_status_state')
+        self.unit1.workload_status_message = 'hook failed: "update-status"'
+        self.units_with_wl_status_state.return_value = [self.unit1]
+        self.patch_object(model, 'subprocess')
+        self.Model_mock.block_until.side_effect = _block_until
+
+    def test_resolve_units(self):
+        self.resolve_units_mocks()
+        model.resolve_units(wait=False)
+        self.subprocess.check_output.assert_called_once_with(
+            ['juju', 'resolved', '-m', 'testmodel', 'app/2'])
+
+    def test_resolve_units_no_match(self):
+        self.resolve_units_mocks()
+        model.resolve_units(application_name='foo', wait=False)
+        self.assertFalse(self.subprocess.check_output.called)
+
+    def test_resolve_units_wait_timeout(self):
+        self.resolve_units_mocks()
+        self.unit1.workload_status = 'error'
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.resolve_units(wait=True, timeout=0.1)
+        self.subprocess.check_output.assert_called_once_with(
+            ['juju', 'resolved', '-m', 'testmodel', 'app/2'])
+
+    def test_resolve_units_erred_hook(self):
+        self.resolve_units_mocks()
+        model.resolve_units(wait=False, erred_hook='update-status')
+        self.subprocess.check_output.assert_called_once_with(
+            ['juju', 'resolved', '-m', 'testmodel', 'app/2'])
+
+    def test_resolve_units_erred_hook_no_match(self):
+        self.resolve_units_mocks()
+        model.resolve_units(erred_hook='foo', wait=False)
+        self.assertFalse(self.subprocess.check_output.called)
+
     def test_wait_for_agent_status(self):
         async def _block_until(f, timeout=None):
             if not f():
