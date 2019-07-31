@@ -6,5 +6,6 @@ dist/
 zaza.egg-info/
 .coverage
 .vscode/
+.idea/
 # Sphinx
 doc/build
