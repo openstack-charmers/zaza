@@ -32,6 +32,7 @@ async def async_add_model(model_name, config=None):
     """
     # Tactical fix until https://github.com/juju/python-libjuju/issues/333
     # is resolved
+    subprocess.check_call(['juju', 'list-controllers', '--refresh'])
     model_cmd = ['juju', 'add-model']
     if config:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml') as fp:
