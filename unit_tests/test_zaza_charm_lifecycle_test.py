@@ -49,7 +49,7 @@ class TestCharmLifecycleTest(ut_utils.BaseTestCase):
         self.assertEqual(
             args.tests,
             ['my.test_class1', 'my.test_class2'])
-        self.assertEqual(args.model_name, 'modelname')
+        self.assertEqual(args.model, {'default_alias': 'modelname'})
 
     def test_parser_logging(self):
         # Using defaults

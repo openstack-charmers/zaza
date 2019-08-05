@@ -40,7 +40,7 @@ class TestCharmLifecycleConfigure(ut_utils.BaseTestCase):
         args = lc_configure.parse_args(
             ['-m', 'modelname', '-c', 'my.func1', 'my.func2'])
         self.assertEqual(args.configfuncs, ['my.func1', 'my.func2'])
-        self.assertEqual(args.model_name, 'modelname')
+        self.assertEqual(args.model, {'default_alias': 'modelname'})
 
     def test_parser_logging(self):
         # Using defaults

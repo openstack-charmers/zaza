@@ -199,3 +199,38 @@ Destroy the environment::
 
     $ functest-destroy -m testmodel 
 
+Run tests directly using model maps
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Steps defined in the tests.yaml will often be related to a model alias. For
+example::
+
+    charm_name: ubuntu
+    tests:
+     - bionic_model:
+       - zaza.charm_tests.noop.tests.NoopTestBionic
+     - xenial_model:
+       - zaza.charm_tests.noop.tests.NoopTestXenial
+     - zaza.charm_tests.noop.tests.NoopTest
+    configure:
+     - bionic_model:
+       - zaza.charm_tests.noop.setup.basic_setup_bionic
+     - xenial_model:
+       - zaza.charm_tests.noop.setup.basic_setup_xenial
+     - zaza.charm_tests.noop.setup.basic_setup
+
+In the above setup two model aliases are in use: 'bionic_model' and
+'xenial_model'. To map an existing model to a model alias (and thereby run
+the specific step for the alias) pass in the map to the model command. This is
+done by specifying 'alias:existing_model_name'. For example if there is an
+existing model called 'bio' then to associate that with 'bionic_model' alias
+run::
+
+    $ functest-configure -m bionic_model:bio
+    $ functest-test -m bionic_model:bio
+
+Multiple model aliases can also be passed. To run the tests associated with
+both aliases::
+
+    $ functest-configure -m bionic_model:bio -m xenial_model:xen
+    $ functest-test -m bionic_model:bio -m xenial_model:xen
