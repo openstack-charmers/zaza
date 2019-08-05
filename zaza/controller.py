@@ -15,6 +15,8 @@
 """Module for interacting with a juju controller."""
 
 import logging
+import tempfile
+import yaml
 from juju.controller import Controller
 import subprocess
 from zaza import sync_wrapper
@@ -28,12 +30,18 @@ async def async_add_model(model_name, config=None):
     :param config: Model configuration.
     :type config: dict
     """
-    controller = Controller()
-    await controller.connect()
-    logging.debug("Adding model {}".format(model_name))
-    model = await controller.add_model(model_name, config=config)
-    await model.disconnect()
-    await controller.disconnect()
+    # Tactical fix until https://github.com/juju/python-libjuju/issues/333
+    # is resolved
+    model_cmd = ['juju', 'add-model']
+    if config:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml') as fp:
+            fp.write(yaml.dump(config, default_flow_style=False))
+            model_cmd.extend(['--config', fp.name, model_name])
+            fp.seek(0)
+            subprocess.check_call(model_cmd)
+    else:
+        model_cmd.extend([model_name])
+        subprocess.check_call(model_cmd)
 
 add_model = sync_wrapper(async_add_model)
 
