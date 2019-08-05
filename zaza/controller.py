@@ -16,6 +16,7 @@
 
 import logging
 import tempfile
+import time
 import yaml
 from juju.controller import Controller
 import subprocess
@@ -43,6 +44,7 @@ async def async_add_model(model_name, config=None):
     else:
         model_cmd.extend([model_name])
         subprocess.check_call(model_cmd)
+    time.sleep(10)
 
 add_model = sync_wrapper(async_add_model)
 
