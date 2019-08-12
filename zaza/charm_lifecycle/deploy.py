@@ -36,6 +36,8 @@ VALID_ENVIRONMENT_KEY_PREFIXES = [
     'VIP_RANGE',
     'AMULET_',
     'MOJO_',
+    'JUJU_',
+    'CHARM_',
 ]
 LOCAL_OVERLAY_TEMPLATE = """
 applications:
