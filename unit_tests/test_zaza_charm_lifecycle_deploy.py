@@ -47,11 +47,14 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
 
     def test_get_charm_config_context(self):
         self.patch_object(lc_deploy.utils, 'get_charm_config')
+        self.patch_object(lc_deploy.os.path, 'abspath')
         self.get_charm_config.return_value = {
             'charm_name': 'mycharm'}
+        self.abspath.return_value = '/some/absolute/path'
         self.assertEqual(
             lc_deploy.get_charm_config_context(),
-            {'charm_location': '../../../mycharm', 'charm_name': 'mycharm'})
+            {'charm_location': '/some/absolute/path/../../../mycharm',
+             'charm_name': 'mycharm'})
 
     def test_get_template_overlay_context(self):
         self.patch_object(lc_deploy, 'get_template_context_from_env')
