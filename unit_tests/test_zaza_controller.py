@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import mock
+import unittest
 
 import unit_tests.utils as ut_utils
 
@@ -69,12 +70,14 @@ class TestController(ut_utils.BaseTestCase):
         self.patch_object(controller, 'Controller')
         self.Controller.return_value = self.Controller_mock
 
+    @unittest.skip("Skipping unti libjuju issue 333 is resolved")
     def test_add_model(self):
         controller.add_model(self.model1.info.name)
         self.Controller_mock.add_model.assert_called_once_with(
             self.model1.info.name,
             config=None)
 
+    @unittest.skip("Skipping unti libjuju issue 333 is resolved")
     def test_add_model_config(self):
         controller.add_model(self.model1.info.name,
                              {'run-faster': 'true'})

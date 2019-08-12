@@ -77,10 +77,18 @@ def get_charm_config_context():
     :returns: Context for template rendering
     :rtype: dict
     """
+    # NOTE(fnordahl): Starting with Juju version 2.7, relative charm paths will
+    # be interpreted in relation to the location of the overlay file.  Previous
+    # versions would interpret paths relative to the location of the main
+    # bundle file.  Build an absolute path so we can work with both paradigms.
+    bundle_dir_abspath = os.path.abspath(utils.BUNDLE_DIR)
     test_config = utils.get_charm_config()
     ctxt = {
         'charm_name': test_config['charm_name'],
-        'charm_location': '../../../{}'.format(test_config['charm_name'])}
+        'charm_location': '{}/../../../{}'
+                          .format(bundle_dir_abspath,
+                                  test_config['charm_name']),
+    }
     return ctxt
 
 
