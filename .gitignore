@@ -8,3 +8,4 @@ zaza.egg-info/
 .vscode/
 # Sphinx
 doc/build
+coverage.xml

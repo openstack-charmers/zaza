@@ -1,0 +1,4 @@
+ignore:
+  - "unit_tests/*"
+  - "unit_tests/utilities/*"
+  - "unit_tests/**/*"
