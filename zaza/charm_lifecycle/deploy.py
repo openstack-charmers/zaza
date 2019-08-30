@@ -261,11 +261,15 @@ def deploy(bundle, model, wait=True):
     if wait:
         run_report.register_event_start('Wait for Deployment')
         test_config = utils.get_charm_config()
+        deployment_context = deployment_env.get_deployment_context()
         logging.info("Waiting for environment to settle")
         zaza.model.set_juju_model(model)
         zaza.model.wait_for_application_states(
             model,
-            test_config.get('target_deploy_status', {}))
+            test_config.get('target_deploy_status', {}),
+            deployment_context.get('TEST_DEPLOYMENT_TIMEOUT',
+                                   zaza.model.TIMEOUT),
+        )
         run_report.register_event_finish('Wait for Deployment')
 
 

@@ -44,6 +44,7 @@ VALID_ENVIRONMENT_KEY_PREFIXES = [
     'JUJU_',
     'CHARM_',
     'MODEL_',
+    'TEST_',
 ]
 
 MODEL_DEFAULTS = {

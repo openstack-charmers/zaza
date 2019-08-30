@@ -260,11 +260,24 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.patch_object(lc_deploy.utils, 'get_charm_config')
         self.get_charm_config.return_value = {}
         self.patch_object(lc_deploy, 'deploy_bundle')
+        self.patch_object(lc_deploy.deployment_env, 'get_deployment_context')
+        self.get_deployment_context.return_value = {}
+        self.patch_object(lc_deploy.zaza.model, 'TIMEOUT')
         lc_deploy.deploy('bun.yaml', 'newmodel')
         self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
-            {})
+            {},
+            self.TIMEOUT)
+        self.get_deployment_context.return_value = {
+            'TEST_DEPLOYMENT_TIMEOUT': 42
+        }
+        self.wait_for_application_states.reset_mock()
+        lc_deploy.deploy('bun.yaml', 'newmodel')
+        self.wait_for_application_states.assert_called_once_with(
+            'newmodel',
+            {},
+            42)
 
     def test_deploy_bespoke_states(self):
         self.patch_object(lc_deploy.zaza.model, 'wait_for_application_states')
@@ -275,13 +288,15 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
                     'workload-status': 'blocked',
                     'workload-status-message': 'Vault needs to be inited'}}}
         self.patch_object(lc_deploy, 'deploy_bundle')
+        self.patch_object(lc_deploy.zaza.model, 'TIMEOUT')
         lc_deploy.deploy('bun.yaml', 'newmodel')
         self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
             {'vault': {
                 'workload-status': 'blocked',
-                'workload-status-message': 'Vault needs to be inited'}})
+                'workload-status-message': 'Vault needs to be inited'}},
+            self.TIMEOUT)
 
     def test_deploy_nowait(self):
         self.patch_object(lc_deploy.zaza.model, 'wait_for_application_states')
