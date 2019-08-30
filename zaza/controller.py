@@ -44,6 +44,10 @@ async def async_add_model(model_name, config=None):
     else:
         model_cmd.extend([model_name])
         subprocess.check_call(model_cmd)
+
+    # XXX Temp sleep workaround due to:
+    # https://github.com/juju/python-libjuju/issues/333
+    # https://github.com/openstack-charmers/zaza/commit/c4f6e244
     time.sleep(10)
 
 add_model = sync_wrapper(async_add_model)
