@@ -268,7 +268,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
             {},
-            self.TIMEOUT)
+            5400)
         self.get_deployment_context.return_value = {
             'TEST_DEPLOYMENT_TIMEOUT': 42
         }
@@ -288,7 +288,6 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
                     'workload-status': 'blocked',
                     'workload-status-message': 'Vault needs to be inited'}}}
         self.patch_object(lc_deploy, 'deploy_bundle')
-        self.patch_object(lc_deploy.zaza.model, 'TIMEOUT')
         lc_deploy.deploy('bun.yaml', 'newmodel')
         self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
         self.wait_for_application_states.assert_called_once_with(
@@ -296,7 +295,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             {'vault': {
                 'workload-status': 'blocked',
                 'workload-status-message': 'Vault needs to be inited'}},
-            self.TIMEOUT)
+            5400)
 
     def test_deploy_nowait(self):
         self.patch_object(lc_deploy.zaza.model, 'wait_for_application_states')

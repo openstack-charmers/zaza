@@ -268,7 +268,7 @@ def deploy(bundle, model, wait=True):
             model,
             test_config.get('target_deploy_status', {}),
             deployment_context.get('TEST_DEPLOYMENT_TIMEOUT',
-                                   zaza.model.TIMEOUT),
+                                   5400),
         )
         run_report.register_event_finish('Wait for Deployment')
 
