@@ -33,7 +33,13 @@ async def async_add_model(model_name, config=None):
     """
     # Tactical fix until https://github.com/juju/python-libjuju/issues/333
     # is resolved
-    subprocess.check_call(['juju', 'list-controllers', '--refresh'])
+
+    # if you have a dead controller, this cmd will wait forever.
+    # add timeout to avoid waiting.
+    # use `juju unregister` to remove your dead controller and try again
+    # related bug: https://bugs.launchpad.net/juju-core/+bug/1593506
+    subprocess.check_call(['juju', 'list-controllers', '--refresh'],
+                          timeout=60)
     model_cmd = ['juju', 'add-model', '--no-switch']
     if config:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml') as fp:
