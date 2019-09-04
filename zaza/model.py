@@ -35,6 +35,7 @@ from juju.model import Model
 from zaza import sync_wrapper
 
 CURRENT_MODEL = None
+TIMEOUT = 2700
 
 
 class ModelTimeout(Exception):
@@ -795,7 +796,7 @@ wait_for_agent_status = sync_wrapper(async_wait_for_agent_status)
 
 
 async def async_wait_for_application_states(model_name=None, states=None,
-                                            timeout=2700):
+                                            timeout=TIMEOUT):
     """Wait for model to achieve the desired state.
 
     Check the workload status and workload status message for every unit of
@@ -881,7 +882,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
 wait_for_application_states = sync_wrapper(async_wait_for_application_states)
 
 
-async def async_block_until_all_units_idle(model_name=None, timeout=2700):
+async def async_block_until_all_units_idle(model_name=None, timeout=TIMEOUT):
     """Block until all units in the given model are idle.
 
     An example accessing this function via its sync wrapper::
@@ -906,7 +907,7 @@ block_until_all_units_idle = sync_wrapper(async_block_until_all_units_idle)
 
 
 async def async_block_until_service_status(unit_name, services, target_status,
-                                           model_name=None, timeout=2700,
+                                           model_name=None, timeout=TIMEOUT,
                                            pgrep_full=False):
     """Block until all services on the unit are in the desired state.
 
@@ -1024,7 +1025,7 @@ async def async_block_until(*conditions, timeout=None, wait_period=0.5,
 
 async def async_block_until_file_ready(application_name, remote_file,
                                        check_function, model_name=None,
-                                       timeout=2700):
+                                       timeout=TIMEOUT):
     """Block until the check_function passes against.
 
     Block until the check_function passes against the provided file. It is
@@ -1066,7 +1067,8 @@ async def async_block_until_file_ready(application_name, remote_file,
 
 async def async_block_until_file_has_contents(application_name, remote_file,
                                               expected_contents,
-                                              model_name=None, timeout=2700):
+                                              model_name=None,
+                                              timeout=TIMEOUT):
     """Block until the expected_contents are present on all units.
 
     Block until the given string (expected_contents) is present in the file
@@ -1109,7 +1111,7 @@ async def async_block_until_oslo_config_entries_match(application_name,
                                                       remote_file,
                                                       expected_contents,
                                                       model_name=None,
-                                                      timeout=2700):
+                                                      timeout=TIMEOUT):
     """Block until dict is represented in the file using oslo.config parser.
 
     Block until the expected_contents are in the given file on all units of
@@ -1177,7 +1179,8 @@ block_until_oslo_config_entries_match = sync_wrapper(
 
 async def async_block_until_services_restarted(application_name, mtime,
                                                services, model_name=None,
-                                               timeout=2700, pgrep_full=False):
+                                               timeout=TIMEOUT,
+                                               pgrep_full=False):
     """Block until the given services have a start time later then mtime.
 
     For example to check that the glance-api service has been restarted::
@@ -1227,7 +1230,8 @@ block_until_services_restarted = sync_wrapper(
 
 
 async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
-                                           negate_match=False, timeout=2700):
+                                           negate_match=False,
+                                           timeout=TIMEOUT):
     """Block until the given unit has the desired workload status.
 
     A units workload status may change during a given action. This function
