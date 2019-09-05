@@ -80,7 +80,7 @@ def parse_args(args):
     parser.add_argument('-t', '--tests', nargs='+',
                         help='Space separated list of test classes',
                         required=False)
-    parser.add_argument('-m', '--model-name', help='Name of model to remove',
+    parser.add_argument('-m', '--model-name', help='Name of model to test',
                         required=True)
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
