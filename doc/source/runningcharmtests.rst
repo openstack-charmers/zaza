@@ -70,6 +70,10 @@ of environment variables as context. Currently these are:
  * NET\_ID
  * OS\_\*
  * VIP\_RANGE
+ * JUJU\_\*
+ * CHARM\_\*
+ * MODEL\_\*
+ * TEST\_\*
 
 The rendered overlay will be used on top of the specified bundle at deploy time.
 
