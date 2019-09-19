@@ -66,11 +66,11 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
                 'model_alias1': ['test3'],
                 'model_alias2': ['test4']})
 
-    def test_get_test_bundles(self):
+    def test_get_test_bundle_mappings(self):
         self.patch_object(lc_utils, "get_charm_config")
         self.get_charm_config.return_value = {
             'gate_bundles': ['bundle1']}
-        self.assertEqual(lc_utils.get_test_bundles(
+        self.assertEqual(lc_utils.get_test_bundle_mappings(
             'gate_bundles'),
             [{'default_alias': 'bundle1'}])
         self.get_charm_config.return_value = {
@@ -80,7 +80,7 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
                 {
                     'model_alias1': 'bundle_3',
                     'model_alias2': 'bundle_4'}]}
-        self.assertEqual(lc_utils.get_test_bundles(
+        self.assertEqual(lc_utils.get_test_bundle_mappings(
             'gate_bundles'),
             [
                 {'default_alias': 'bundle1'},

@@ -28,6 +28,49 @@ import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
 
 
+def run_env_deployments(env_deployment, keep_model=False):
+    """Run the environment deployment.
+
+    :param env_deployment: Environment Deploy to execute.
+    :type env_deployment: utils.EnvironmentDeploy
+    :param keep_model: Whether to destroy models at end of run
+    :type keep_model: boolean
+    """
+    config_steps = utils.get_config_steps()
+    test_steps = utils.get_test_steps()
+
+    model_aliases = {model_deploy.model_alias: model_deploy.model_name
+                     for model_deploy in env_deployment.model_deploys}
+
+    for deployment in env_deployment.model_deploys:
+        prepare.prepare(deployment.model_name)
+
+    for deployment in env_deployment.model_deploys:
+        deploy.deploy(
+            os.path.join(
+                utils.BUNDLE_DIR, '{}.yaml'.format(deployment.bundle)),
+            deployment.model_name,
+            model_ctxt=model_aliases)
+
+    for deployment in env_deployment.model_deploys:
+        configure.configure(
+            deployment.model_name,
+            config_steps.get(deployment.model_alias, []))
+
+    for deployment in env_deployment.model_deploys:
+        test.test(
+            deployment.model_name,
+            test_steps.get(deployment.model_alias, []))
+
+    # Destroy
+    # Keep the model from the last run if keep_model is true, this is to
+    # maintian compat with osci and should change when the zaza collect
+    # functions take over from osci for artifact collection.
+    if not keep_model:
+        for model_name in model_aliases.values():
+            destroy.destroy(model_name)
+
+
 def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
     """Deploy the bundles and run the tests as defined by the charms tests.yaml.
 
@@ -39,7 +82,14 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
     :type dev: boolean
     """
     if bundle:
-        bundles = [{utils.DEFAULT_MODEL_ALIAS: bundle}]
+        environment_deploys = [
+            utils.EnvironmentDeploy(
+                'default',
+                [utils.ModelDeploy(
+                    utils.DEFAULT_MODEL_ALIAS,
+                    utils.generate_model_name(),
+                    bundle)],
+                True)]
     else:
         if smoke:
             bundle_key = 'smoke_bundles'
@@ -47,42 +97,14 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
             bundle_key = 'dev_bundles'
         else:
             bundle_key = 'gate_bundles'
-        bundles = utils.get_test_bundles(bundle_key)
-    last_test = bundles[-1]
-    config_steps = utils.get_config_steps()
-    test_steps = utils.get_test_steps()
-    for bundle in bundles:
-        model_aliases = {}
-        for model_alias in sorted(bundle.keys()):
-            model_name = utils.generate_model_name()
-            # Prepare
-            prepare.prepare(model_name)
-            model_aliases[model_alias] = model_name
-        for model_alias, model_name in model_aliases.items():
-            # TODO Deploys should run in parallel
-            # Deploy
-            deploy.deploy(
-                os.path.join(
-                    utils.BUNDLE_DIR, '{}.yaml'.format(bundle[model_alias])),
-                model_aliases[model_alias])
-        for model_alias, model_name in model_aliases.items():
-            configure.configure(
-                model_name,
-                config_steps.get(model_alias, []))
-        # Test
-        for model_alias, model_name in model_aliases.items():
-            test.test(
-                model_name,
-                test_steps.get(model_alias, []))
-        # Destroy
-        # Keep the model from the last run if keep_model is true, this is to
-        # maintian compat with osci and should change when the zaza collect
-        # functions take over from osci for artifact collection.
-        if keep_model and bundle == last_test:
-            pass
-        else:
-            for model_name in model_aliases.values():
-                destroy.destroy(model_name)
+        environment_deploys = utils.get_environment_deploys(bundle_key)
+    last_test = environment_deploys[-1].name
+
+    for env_deployment in environment_deploys:
+        preserve_model = False
+        if keep_model and last_test == env_deployment.name:
+            preserve_model = True
+        run_env_deployments(env_deployment, keep_model=preserve_model)
 
 
 def parse_args(args):

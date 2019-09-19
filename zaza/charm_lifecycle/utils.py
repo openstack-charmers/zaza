@@ -24,6 +24,14 @@ import yaml
 BUNDLE_DIR = "./tests/bundles/"
 DEFAULT_TEST_CONFIG = "./tests/tests.yaml"
 DEFAULT_MODEL_ALIAS = "default_alias"
+DEFAULT_DEPLOY_NAME = 'default{}'
+
+ModelDeploy = collections.namedtuple(
+    'ModelDeploy', ['model_alias', 'model_name', 'bundle'])
+EnvironmentDeploy = collections.namedtuple(
+    'EnvironmentDeploy', ['name', 'model_deploys', 'run_in_series'])
+
+default_deploy_number = 0
 
 
 def _model_alias_str_fmt(data):
@@ -70,8 +78,45 @@ def _concat_model_alias_maps(data):
     return new_data
 
 
-def get_test_bundles(bundle_key):
+def get_test_bundle_mappings(bundle_key):
     """Get test bundles with their model alias.
+
+    Get a list of test bundles with their model alias. If no model alias is
+    supplied then DEFAULT_MODEL_ALIAS is used.
+    eg if test.yaml contained:
+        gate_bundles:
+          - bundle1
+          - bundle2
+          - model_alias1: bundle_3
+            model_alias2: bundle_4
+       then get_test_bundles('gate_bundles') would return:
+            [
+                {'default_alias': 'bundle1'},
+                {'default_alias': 'bundle2'},
+                {'model_alias1': 'bundle1', 'model_alias2': 'bundle2'}])
+    :param bundle_key: Name of group of bundles eg gate_bundles
+    :type bundle_key: str
+    :returns: A list of dicts where the dict contain a model alias to bundle
+              mapping.
+    :rtype: List[Dict[str, str]]
+    """
+    return [_model_alias_str_fmt(b)
+            for b in get_charm_config()[bundle_key]]
+
+
+def get_default_env_deploy_name():
+    """Generate a default name for the environment deploy.
+
+    :returns: Environment name
+    :rtype: str
+    """
+    global default_deploy_number
+    default_deploy_number = default_deploy_number + 1
+    return DEFAULT_DEPLOY_NAME.format(default_deploy_number)
+
+
+def get_environment_deploys(bundle_key, deployment_name=None):
+    """Describe environment deploys for a given set ug bundles.
 
     Get a list of test bundles with their model alias. If no model alias is
     supplied then DEFAULT_MODEL_ALIAS is used.
@@ -83,22 +128,45 @@ def get_test_bundles(bundle_key):
           - bundle2
           - model_alias1: bundle_3
             model_alias2: bundle_4
+          - my-cmr-test:
+            - model_alias3: bundle_5
+            - model_alias4: bundle_6
 
        then get_test_bundles('gate_bundles') would return:
 
             [
                 {'default_alias': 'bundle1'},
                 {'default_alias': 'bundle2'},
-                {'model_alias1': 'bundle1', 'model_alias2': 'bundle2'}])
+                {'model_alias1': 'bundle_3', 'model_alias2': 'bundle_5'},
+                {'model_alias3': 'bundle_4', 'model_alias2': 'bundle_6'}]
 
     :param bundle_key: Name of group of bundles eg gate_bundles
     :type bundle_key: str
     :returns: A list of dicts where the dict contain a model alias to bundle
               mapping.
-    :rtype: List[Dict[str, str]]
+    :rtype: List[EnvironmentDeploy, EnvironmentDeploy, ...]
     """
-    return [_model_alias_str_fmt(b)
-            for b in get_charm_config()[bundle_key]]
+    bundle_mappings = get_test_bundle_mappings(bundle_key)
+    environment_deploys = []
+    for b in bundle_mappings:
+        env_deploy_name = None
+        model_deploys = []
+        for alias, bundle in b.items():
+            model_name = generate_model_name()
+            if isinstance(bundle, list):
+                env_deploy_name = alias
+                model_deploys.append(ModelDeploy(alias, model_name, bundle))
+                run_in_series = True
+            else:
+                if not env_deploy_name:
+                    env_deploy_name = get_default_env_deploy_name()
+                model_deploys.append(ModelDeploy(alias, model_name, bundle))
+                run_in_series = False
+        environment_deploys.append(EnvironmentDeploy(
+            env_deploy_name,
+            model_deploys,
+            run_in_series))
+    return environment_deploys
 
 
 def get_config_steps():
