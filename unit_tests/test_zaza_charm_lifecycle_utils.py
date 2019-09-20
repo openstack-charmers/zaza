@@ -22,15 +22,6 @@ import unit_tests.utils as ut_utils
 
 class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
 
-    def test_model_alias_str_fmt(self):
-        self.assertEqual(
-            lc_utils._model_alias_str_fmt('bundle1'),
-            {'default_alias': 'bundle1'})
-        self.assertEqual(
-            lc_utils._model_alias_str_fmt(
-                {'model_alias1': 'bundle1'}),
-            {'model_alias1': 'bundle1'})
-
     def test__concat_model_alias_maps(self):
         # - test1
         self.assertEqual(
@@ -66,26 +57,30 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
                 'model_alias1': ['test3'],
                 'model_alias2': ['test4']})
 
-    def test_get_test_bundle_mappings(self):
-        self.patch_object(lc_utils, "get_charm_config")
-        self.get_charm_config.return_value = {
-            'gate_bundles': ['bundle1']}
-        self.assertEqual(lc_utils.get_test_bundle_mappings(
-            'gate_bundles'),
-            [{'default_alias': 'bundle1'}])
-        self.get_charm_config.return_value = {
-            'gate_bundles': [
-                'bundle1',
-                'bundle2',
-                {
-                    'model_alias1': 'bundle_3',
-                    'model_alias2': 'bundle_4'}]}
-        self.assertEqual(lc_utils.get_test_bundle_mappings(
-            'gate_bundles'),
-            [
-                {'default_alias': 'bundle1'},
-                {'default_alias': 'bundle2'},
-                {'model_alias1': 'bundle_3', 'model_alias2': 'bundle_4'}])
+    def test_get_default_env_deploy_name(self):
+        self.assertEqual(
+            lc_utils.get_default_env_deploy_name(reset_count=True),
+            'default1')
+
+    def test_get_deployment_type_raw(self):
+        self.assertEqual(
+            lc_utils.get_deployment_type('xenial-keystone'),
+            lc_utils.RAW_BUNDLE)
+
+    def test_get_deployment_type_multi_ordered(self):
+        self.assertEqual(
+            lc_utils.get_deployment_type({
+                'model_alias1': 'bundle1',
+                'model_alias2': 'bundle2'}),
+            lc_utils.MUTLI_UNORDERED)
+
+    def test_get_deployment_type_multi_unordered(self):
+        self.assertEqual(
+            lc_utils.get_deployment_type({
+                'env-test-alias': [
+                    {'model_alias1': 'bundle1'},
+                    {'model_alias2': 'bundle2'}]}),
+            lc_utils.MUTLI_ORDERED)
 
     def test_get_config_steps(self):
         self.patch_object(lc_utils, "get_charm_config")
@@ -110,6 +105,25 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
             lc_utils.get_test_steps(),
             {'default_alias': ['test.class1', 'test.class2'],
              'model_alias1': ['test.class3']})
+
+    def test_get_environment_deploys(self):
+        self.patch_object(lc_utils, 'get_charm_config')
+        charm_config = {
+            'smoke_bundles': ['map1', 'map2', 'map3']}
+        self.patch_object(lc_utils, 'get_environment_deploy')
+        env_depl1 = lc_utils.EnvironmentDeploy('ed1', [], True)
+        env_depl2 = lc_utils.EnvironmentDeploy('ed2', [], True)
+        env_depl3 = lc_utils.EnvironmentDeploy('ed3', [], True)
+        env_deploys = {
+            'map1': env_depl1,
+            'map2': env_depl2,
+            'map3': env_depl3
+        }
+        self.get_charm_config.return_value = charm_config
+        self.get_environment_deploy.side_effect = lambda x: env_deploys[x]
+        self.assertEqual(
+            lc_utils.get_environment_deploys('smoke_bundles'),
+            [env_depl1, env_depl2, env_depl3])
 
     def test_generate_model_name(self):
         self.patch_object(lc_utils.uuid, "uuid4")
