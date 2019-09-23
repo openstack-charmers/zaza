@@ -25,20 +25,9 @@ import zaza.model
 import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
+import zaza.utilities.deployment_env as deployment_env
 
 DEFAULT_OVERLAY_TEMPLATE_DIR = 'tests/bundles/overlays'
-VALID_ENVIRONMENT_KEY_PREFIXES = [
-    'FIP_RANGE',
-    'GATEWAY',
-    'NAME_SERVER',
-    'NET_ID',
-    'OS_',
-    'VIP_RANGE',
-    'AMULET_',
-    'MOJO_',
-    'JUJU_',
-    'CHARM_',
-]
 LOCAL_OVERLAY_TEMPLATE = """
 applications:
   {{ charm_name }}:
@@ -46,31 +35,6 @@ applications:
 """
 LOCAL_OVERLAY_TEMPLATE_NAME = 'local-charm-overlay.yaml'
 LOCAL_OVERLAY_ENABLED_KEY = 'local_overlay_enabled'
-
-
-def is_valid_env_key(key):
-    """Check if key is a valid environment variable name for use with template.
-
-    :param key: List of configure functions functions
-    :type key: str
-    :returns: Whether key is a valid environment variable name
-    :rtype: bool
-    """
-    valid = False
-    for _k in VALID_ENVIRONMENT_KEY_PREFIXES:
-        if key.startswith(_k):
-            valid = True
-            break
-    return valid
-
-
-def get_template_context_from_env():
-    """Return environment vars from the current env for template rendering.
-
-    :returns: Environment variable key values for use with template rendering
-    :rtype: dict
-    """
-    return {k: v for k, v in os.environ.items() if is_valid_env_key(k)}
 
 
 def get_charm_config_context():
@@ -102,7 +66,7 @@ def get_template_overlay_context():
     """
     context = {}
     contexts = [
-        get_template_context_from_env(),
+        deployment_env.get_deployment_context(),
     ]
     try:
         contexts.append(get_charm_config_context())

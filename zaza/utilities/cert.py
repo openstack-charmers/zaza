@@ -94,10 +94,10 @@ def generate_cert(common_name,
             cryptography.x509.oid.NameOID.COMMON_NAME, issuer_name),
     ]))
     builder = builder.not_valid_before(
-        datetime.datetime.today() - datetime.timedelta(0, 1, 0),
+        datetime.datetime.utcnow() - datetime.timedelta(0, 1, 0),
     )
     builder = builder.not_valid_after(
-        datetime.datetime.today() + datetime.timedelta(30, 0, 0),
+        datetime.datetime.utcnow() + datetime.timedelta(30, 0, 0),
     )
     builder = builder.serial_number(cryptography.x509.random_serial_number())
     builder = builder.public_key(public_key)

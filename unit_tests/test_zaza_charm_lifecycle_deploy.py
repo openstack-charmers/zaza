@@ -21,29 +21,20 @@ import unit_tests.utils as ut_utils
 
 class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
 
-    def test_is_valid_env_key(self):
-        self.assertTrue(lc_deploy.is_valid_env_key('OS_VIP04'))
-        self.assertTrue(lc_deploy.is_valid_env_key('FIP_RANGE'))
-        self.assertTrue(lc_deploy.is_valid_env_key('GATEWAY'))
-        self.assertTrue(lc_deploy.is_valid_env_key('NAME_SERVER'))
-        self.assertTrue(lc_deploy.is_valid_env_key('NET_ID'))
-        self.assertTrue(lc_deploy.is_valid_env_key('VIP_RANGE'))
-        self.assertTrue(lc_deploy.is_valid_env_key('AMULET_OS_VIP'))
-        self.assertFalse(lc_deploy.is_valid_env_key('ZAZA_TEMPLATE_VIP00'))
-        self.assertFalse(lc_deploy.is_valid_env_key('PATH'))
-
-    def test_get_template_context_from_env(self):
-        self.patch_object(lc_deploy.os, 'environ')
-        self.environ.items.return_value = [
-            ('AMULET_OS_VIP', '10.10.0.2'),
-            ('OS_VIP04', '10.10.0.2'),
-            ('ZAZA_TEMPLATE_VIP00', '20.3.4.5'),
-            ('PATH', 'aa')]
+    def test_get_template_overlay_context(self):
+        self.patch_object(lc_deploy.deployment_env, 'get_deployment_context')
+        self.patch_object(lc_deploy, 'get_charm_config_context')
+        self.get_deployment_context.return_value = {
+            'OS_VIP04': '10.10.0.2'}
+        self.get_charm_config_context.return_value = {
+            'charm_location': '../../../mycharm',
+            'charm_name': 'mycharm'}
         self.assertEqual(
-            lc_deploy.get_template_context_from_env(),
-            {'OS_VIP04': '10.10.0.2',
-             'AMULET_OS_VIP': '10.10.0.2'}
-        )
+            lc_deploy.get_template_overlay_context(),
+            {
+                'OS_VIP04': '10.10.0.2',
+                'charm_location': '../../../mycharm',
+                'charm_name': 'mycharm'})
 
     def test_get_charm_config_context(self):
         self.patch_object(lc_deploy.utils, 'get_charm_config')
@@ -55,21 +46,6 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             lc_deploy.get_charm_config_context(),
             {'charm_location': '/some/absolute/path/../../../mycharm',
              'charm_name': 'mycharm'})
-
-    def test_get_template_overlay_context(self):
-        self.patch_object(lc_deploy, 'get_template_context_from_env')
-        self.patch_object(lc_deploy, 'get_charm_config_context')
-        self.get_template_context_from_env.return_value = {
-            'OS_VIP04': '10.10.0.2'}
-        self.get_charm_config_context.return_value = {
-            'charm_location': '../../../mycharm',
-            'charm_name': 'mycharm'}
-        self.assertEqual(
-            lc_deploy.get_template_overlay_context(),
-            {
-                'OS_VIP04': '10.10.0.2',
-                'charm_location': '../../../mycharm',
-                'charm_name': 'mycharm'})
 
     def test_get_overlay_template_dir(self):
         self.assertEqual(
