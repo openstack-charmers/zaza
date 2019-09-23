@@ -319,11 +319,15 @@ get_unit_time = sync_wrapper(async_get_unit_time)
 async def async_get_unit_service_start_time(unit_name, service,
                                             model_name=None, timeout=None,
                                             pgrep_full=False):
-    """Return the time that the given service was started on a unit.
+    r"""Return the time that the given service was started on a unit.
 
-    Return the time (in seconds since Epoch) that the given service was
-    started on the given unit. If the service is not running raise
-    ServiceNotRunning exception.
+    Return the time (in seconds since Epoch) that the oldest process of the
+    given service was started on the given unit. If the service is not running
+    raise ServiceNotRunning exception.
+
+    If pgrep_full is True  ensure that any special characters in the name of
+    the service are escaped e.g.
+        service = 'aodh-evaluator: AlarmEvaluationService worker\(0\)'
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -341,10 +345,16 @@ async def async_get_unit_service_start_time(unit_name, service,
     :raises: ServiceNotRunning
     """
     if pgrep_full:
-        pid_cmd = 'pgrep -f "{}"'.format(service)
+        pid_cmd = r"pgrep -o -f '{}'".format(service)
+        cmd = "stat -c %Y /proc/$({})".format(pid_cmd)
     else:
-        pid_cmd = "pidof -x {}".format(service)
-    cmd = "stat -c %Y /proc/$({} | cut -f1 -d ' ')".format(pid_cmd)
+        pid_cmd = r"pidof -x '{}'".format(service)
+        cmd = pid_cmd + (
+            "| "
+            r"tr -d '\n' | "
+            "xargs -d' ' -I {} stat -c %Y /proc/{}  | "
+            "sort -n |"
+            " head -1")
     out = await async_run_on_unit(
         unit_name=unit_name,
         command=cmd,
@@ -936,9 +946,9 @@ async def async_block_until_service_status(unit_name, services, target_status,
     async def _check_service():
         for service in services:
             if pgrep_full:
-                command = 'pgrep -f "{}"'.format(service)
+                command = r"pgrep -f '{}'".format(service)
             else:
-                command = "pidof -x {}".format(service)
+                command = r"pidof -x '{}'".format(service)
             out = await async_run_on_unit(
                 unit_name,
                 command,
