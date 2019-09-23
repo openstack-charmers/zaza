@@ -343,7 +343,7 @@ async def async_get_unit_service_start_time(unit_name, service,
     if pgrep_full:
         pid_cmd = 'pgrep -f "{}"'.format(service)
     else:
-        pid_cmd = "pidof -x {}".format(service)
+        pid_cmd = 'pidof -x "{}"'.format(service)
     cmd = "stat -c %Y /proc/$({} | cut -f1 -d ' ')".format(pid_cmd)
     out = await async_run_on_unit(
         unit_name=unit_name,

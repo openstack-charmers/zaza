@@ -852,7 +852,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.async_run_on_unit.side_effect = _run_on_unit
         self.assertEqual(
             model.get_unit_service_start_time('app/2', 'mysvc1'), 1524409654)
-        cmd = "stat -c %Y /proc/$(pidof -x mysvc1 | cut -f1 -d ' ')"
+        cmd = 'stat -c %Y /proc/$(pidof -x "mysvc1" | cut -f1 -d \' \')'
         self.async_run_on_unit.assert_called_once_with(
             unit_name='app/2',
             command=cmd,
