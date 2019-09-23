@@ -938,7 +938,7 @@ async def async_block_until_service_status(unit_name, services, target_status,
             if pgrep_full:
                 command = 'pgrep -f "{}"'.format(service)
             else:
-                command = "pidof -x {}".format(service)
+                command = 'pidof -x "{}"'.format(service)
             out = await async_run_on_unit(
                 unit_name,
                 command,
