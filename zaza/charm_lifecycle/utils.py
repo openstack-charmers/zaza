@@ -24,23 +24,34 @@ import yaml
 BUNDLE_DIR = "./tests/bundles/"
 DEFAULT_TEST_CONFIG = "./tests/tests.yaml"
 DEFAULT_MODEL_ALIAS = "default_alias"
+DEFAULT_DEPLOY_NAME = 'default{}'
 
+RAW_BUNDLE = "raw-bundle"
+MUTLI_UNORDERED = "multi-unordered"
+MUTLI_ORDERED = "multi-ordered"
 
-def _model_alias_str_fmt(data):
-    """Convert to model_alias:str format if needed.
+"""
+  A ModelDeploy represents a deployment of one bundle to one model. An
+  EnvironmentDeploy consists of ModelDeploys. Some tests, such as cross model
+  relation tests, require two or more ModelDeploys.
 
-    If a string is passed in then the string is mapped to the
-    DEFAULT_MODEL_ALIAS. If a dict is passed then this is a noop.
+  ModelDeploy   ModelDeploy         ModelDeploy
+    |               |                   |
+    ----------------                    |
+            |                           |
+    EnvironmentDeploy               EnvironmentDeploy
+            |                           |
+            -----------------------------
+                        |
+                EnvironmentDeploys
 
-    :param data: String or Model Alias to data map
-    :type data: Union[str, Dict[str, str]]
-    :returns: Model Alias to data map
-    :rtype: Dict[str, str]
-    """
-    if isinstance(data, collections.Mapping):
-        return data
-    else:
-        return {DEFAULT_MODEL_ALIAS: data}
+"""
+ModelDeploy = collections.namedtuple(
+    'ModelDeploy', ['model_alias', 'model_name', 'bundle'])
+EnvironmentDeploy = collections.namedtuple(
+    'EnvironmentDeploy', ['name', 'model_deploys', 'run_in_series'])
+
+default_deploy_number = 0
 
 
 def _concat_model_alias_maps(data):
@@ -70,8 +81,102 @@ def _concat_model_alias_maps(data):
     return new_data
 
 
-def get_test_bundles(bundle_key):
-    """Get test bundles with their model alias.
+def get_default_env_deploy_name(reset_count=False):
+    """Generate a default name for the environment deploy.
+
+    :returns: Environment name
+    :rtype: str
+    """
+    global default_deploy_number
+    if reset_count:
+        default_deploy_number = 0
+    default_deploy_number = default_deploy_number + 1
+    return DEFAULT_DEPLOY_NAME.format(default_deploy_number)
+
+
+def get_deployment_type(deployment_directive):
+    """Given a deployment directive reverse engineer the type.
+
+    :returns: The type of the deployment_directive
+    :rtype: str
+    """
+    if isinstance(deployment_directive, str):
+        return RAW_BUNDLE
+    if isinstance(deployment_directive, collections.Mapping):
+        if len(deployment_directive) == 1:
+            first_value = deployment_directive[list(deployment_directive)[0]]
+            if isinstance(first_value, list):
+                return MUTLI_ORDERED
+        else:
+            return MUTLI_UNORDERED
+
+
+def get_environment_deploy(deployment_directive):
+    """Get the EnvironmentDeploy object from the deployment directive.
+
+    :returns: The EnvironmentDeploy for the give deployment directive.
+    :rtype: EnvironmentDeploy
+    """
+    env_deploy_f = {
+        RAW_BUNDLE: get_environment_deploy_raw,
+        MUTLI_ORDERED: get_environment_deploy_multi_ordered,
+        MUTLI_UNORDERED: get_environment_deploy_multi_unordered}
+    return env_deploy_f[get_deployment_type(deployment_directive)](
+        deployment_directive)
+
+
+def get_environment_deploy_raw(deployment_directive):
+    """Get the EnvironmentDeploy object for a raw deployment_directive.
+
+    :returns: The EnvironmentDeploy for the give deployment directive.
+    :rtype: EnvironmentDeploy
+    """
+    env_alias = get_default_env_deploy_name()
+    model_deploys = [
+        ModelDeploy(
+            DEFAULT_MODEL_ALIAS,
+            generate_model_name(),
+            deployment_directive)]
+    return EnvironmentDeploy(env_alias, model_deploys, False)
+
+
+def get_environment_deploy_multi_ordered(deployment_directive):
+    """Get EnvironmentDeploy for a multi model ordered deployment_directive.
+
+    :returns: The EnvironmentDeploy for the give deployment directive.
+    :rtype: EnvironmentDeploy
+    """
+    env_alias = list(deployment_directive)[0]
+    model_deploys = []
+    for model_alias_map in deployment_directive[env_alias]:
+        for alias, bundle in model_alias_map.items():
+            model_deploys.append(
+                ModelDeploy(
+                    alias,
+                    generate_model_name(),
+                    bundle))
+    return EnvironmentDeploy(env_alias, model_deploys, True)
+
+
+def get_environment_deploy_multi_unordered(deployment_directive):
+    """Get EnvironmentDeploy for a multi model unordered deployment_directive.
+
+    :returns: The EnvironmentDeploy for the give deployment directive.
+    :rtype: EnvironmentDeploy
+    """
+    env_alias = get_default_env_deploy_name()
+    model_deploys = []
+    for alias, bundle in deployment_directive.items():
+        model_deploys.append(
+            ModelDeploy(
+                alias,
+                generate_model_name(),
+                bundle))
+    return EnvironmentDeploy(env_alias, model_deploys, True)
+
+
+def get_environment_deploys(bundle_key, deployment_name=None):
+    """Describe environment deploys for a given set of bundles.
 
     Get a list of test bundles with their model alias. If no model alias is
     supplied then DEFAULT_MODEL_ALIAS is used.
@@ -83,22 +188,28 @@ def get_test_bundles(bundle_key):
           - bundle2
           - model_alias1: bundle_3
             model_alias2: bundle_4
+          - my-cmr-test:
+            - model_alias3: bundle_5
+            - model_alias4: bundle_6
 
        then get_test_bundles('gate_bundles') would return:
 
             [
                 {'default_alias': 'bundle1'},
                 {'default_alias': 'bundle2'},
-                {'model_alias1': 'bundle1', 'model_alias2': 'bundle2'}])
+                {'model_alias1': 'bundle_3', 'model_alias2': 'bundle_5'},
+                {'model_alias3': 'bundle_4', 'model_alias2': 'bundle_6'}]
 
     :param bundle_key: Name of group of bundles eg gate_bundles
     :type bundle_key: str
     :returns: A list of dicts where the dict contain a model alias to bundle
               mapping.
-    :rtype: List[Dict[str, str]]
+    :rtype: List[EnvironmentDeploy, EnvironmentDeploy, ...]
     """
-    return [_model_alias_str_fmt(b)
-            for b in get_charm_config()[bundle_key]]
+    environment_deploys = []
+    for bundle_mapping in get_charm_config()[bundle_key]:
+        environment_deploys.append(get_environment_deploy(bundle_mapping))
+    return environment_deploys
 
 
 def get_config_steps():

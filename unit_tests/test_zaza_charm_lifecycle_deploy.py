@@ -87,7 +87,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.assertIsNone(lc_deploy.get_template('mybundle.yaml'))
 
     def test_render_template(self):
-        self.patch_object(lc_deploy, 'get_template_overlay_context')
+        self.patch_object(lc_deploy, 'get_template_overlay_context',
+                          return_value={})
         template_mock = mock.MagicMock()
         template_mock.render.return_value = 'Template contents'
         m = mock.mock_open()
@@ -105,7 +106,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         lc_deploy.render_overlay('my_overlay.yaml', '/tmp/special-dir')
         self.render_template.assert_called_once_with(
             template_mock,
-            '/tmp/special-dir/my_overlay.yaml')
+            '/tmp/special-dir/my_overlay.yaml',
+            model_ctxt=None)
 
     def test_template_missing_required_variables(self):
         self.patch_object(lc_deploy, 'get_template_overlay_context')
@@ -142,7 +144,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.assertFalse(self.Environment.called)
         self.render_template.assert_called_once_with(
             'atemplate',
-            '/target/local-charm-overlay.yaml')
+            '/target/local-charm-overlay.yaml',
+            model_ctxt=None)
 
     def test_render_local_overlay_default(self):
         jenv_mock = mock.MagicMock()
@@ -160,7 +163,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         jenv_mock.from_string.assert_called_once_with(mock.ANY)
         self.render_template.assert_called_once_with(
             'atemplate',
-            '/target/local-charm-overlay.yaml')
+            '/target/local-charm-overlay.yaml',
+            model_ctxt=None)
 
     def yaml_read_patch(self, yaml, yaml_dict):
         self.patch("builtins.open",
@@ -211,7 +215,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.patch_object(lc_deploy, 'render_local_overlay')
         self.render_local_overlay.return_value = '/tmp/local-overlay.yaml'
         self.patch_object(lc_deploy, 'render_overlay')
-        self.render_overlay.side_effect = lambda x, y: RESP[x]
+        self.render_overlay.side_effect = lambda x, y, model_ctxt: RESP[x]
         self.assertEqual(
             lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
             ['/tmp/local-overlay.yaml', '/tmp/mybundle.yaml'])
@@ -225,7 +229,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.patch_object(lc_deploy, 'render_overlay')
         self.patch_object(lc_deploy, 'render_local_overlay')
         self.render_local_overlay.return_value = '/tmp/local.yaml'
-        self.render_overlay.side_effect = lambda x, y: RESP[x]
+        self.render_overlay.side_effect = lambda x, y, model_ctxt: RESP[x]
         self.assertEqual(
             lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
             ['/tmp/local.yaml'])
@@ -240,7 +244,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.patch_object(lc_deploy, 'render_local_overlay')
         self.render_local_overlay.return_value = '/tmp/local-overlay.yaml'
         self.patch_object(lc_deploy, 'render_overlay')
-        self.render_overlay.side_effect = lambda x, y: RESP[x]
+        self.render_overlay.side_effect = lambda x, y, model_ctxt: RESP[x]
         self.assertEqual(
             lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
             ['/tmp/mybundle.yaml'])
@@ -261,7 +265,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.get_charm_config.return_value = {}
         self.patch_object(lc_deploy, 'deploy_bundle')
         lc_deploy.deploy('bun.yaml', 'newmodel')
-        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
+        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel',
+                                                   model_ctxt=None)
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
             {})
@@ -276,7 +281,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
                     'workload-status-message': 'Vault needs to be inited'}}}
         self.patch_object(lc_deploy, 'deploy_bundle')
         lc_deploy.deploy('bun.yaml', 'newmodel')
-        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
+        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel',
+                                                   model_ctxt=None)
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
             {'vault': {
@@ -287,7 +293,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.patch_object(lc_deploy.zaza.model, 'wait_for_application_states')
         self.patch_object(lc_deploy, 'deploy_bundle')
         lc_deploy.deploy('bun.yaml', 'newmodel', wait=False)
-        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
+        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel',
+                                                   model_ctxt=None)
         self.assertFalse(self.wait_for_application_states.called)
 
     def test_parser(self):
