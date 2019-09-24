@@ -98,7 +98,7 @@ def get_machines_for_application(application):
     return machines
 
 
-def get_unit_name_from_host_name(host_name, application):
+def get_unit_name_from_host_name(host_name, application_name):
     """Return the juju unit name corresponding to a hostname.
 
     :param host_name: Host name to map to unit name.
@@ -110,22 +110,23 @@ def get_unit_name_from_host_name(host_name, application):
     machine_number = host_name.split('-')[-1]
     unit_names = [
         u.entity_id
-        for u in model.get_units(application_name=application)
+        for u in model.get_units(application_name=application_name)
         if int(u.data['machine-id']) == int(machine_number)]
     return unit_names[0]
 
 
-def get_unit_name_from_ip_address(ip, application):
+def get_unit_name_from_ip_address(ip, application_name):
     """Return the juju unit name corresponding to an IP address.
 
     :param ip: IP address to map to unit name.
     :type ip: string
-    :param application: Application name
-    :type application: string
+    :param application_name: Application name
+    :type application_name: string
     """
-    for u in model.get_units(application_name=application):
-        if (u.data['public-address'] == ip) or (u.data['private-address'] == ip):
-            return u.data['name']
+    for unit in model.get_units(application_name=application_name):
+        if (unit.data['public-address'] == ip) or (
+                unit.data['private-address'] == ip):
+            return unit.data['name']
 
 
 def get_machine_status(machine, key=None):
