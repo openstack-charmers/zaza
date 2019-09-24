@@ -789,7 +789,7 @@ class TestModel(ut_utils.BaseTestCase):
             pgrep_full=True)
         self.async_run_on_unit.assert_called_once_with(
             'app/2',
-            'pgrep -f "test_svc"',
+            "pgrep -f 'test_svc'",
             model_name=None,
             timeout=2700
         )
@@ -852,7 +852,8 @@ class TestModel(ut_utils.BaseTestCase):
         self.async_run_on_unit.side_effect = _run_on_unit
         self.assertEqual(
             model.get_unit_service_start_time('app/2', 'mysvc1'), 1524409654)
-        cmd = "stat -c %Y /proc/$(pidof -x mysvc1 | cut -f1 -d ' ')"
+        cmd = (r"pidof -x 'mysvc1'| tr -d '\n' | "
+               "xargs -d' ' -I {} stat -c %Y /proc/{}  | sort -n | head -1")
         self.async_run_on_unit.assert_called_once_with(
             unit_name='app/2',
             command=cmd,
@@ -875,7 +876,8 @@ class TestModel(ut_utils.BaseTestCase):
                                               'mysvc1',
                                               pgrep_full=True),
             1524409654)
-        cmd = "stat -c %Y /proc/$(pgrep -f \"mysvc1\" | cut -f1 -d ' ')"
+        cmd = "stat -c %Y /proc/$(pgrep -o -f 'mysvc1')"
+
         self.async_run_on_unit.assert_called_once_with(
             unit_name='app/2',
             command=cmd,
