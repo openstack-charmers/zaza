@@ -115,6 +115,19 @@ def get_unit_name_from_host_name(host_name, application):
     return unit_names[0]
 
 
+def get_unit_name_from_ip_address(ip, application):
+    """Return the juju unit name corresponding to an IP address.
+
+    :param ip: IP address to map to unit name.
+    :type ip: string
+    :param application: Application name
+    :type application: string
+    """
+    for u in model.get_units(application_name=application):
+        if (u.data['public-address'] == ip) or (u.data['private-address'] == ip):
+            return u.data['name']
+
+
 def get_machine_status(machine, key=None):
     """Return the juju status for a machine.
 

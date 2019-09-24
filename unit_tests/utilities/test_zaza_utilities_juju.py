@@ -131,6 +131,22 @@ class TestJujuUtils(ut_utils.BaseTestCase):
             juju_utils.get_unit_name_from_host_name('juju-model-12', 'myapp'),
             'myapp/2')
 
+
+    def test_get_unit_name_from_ip_address(self):
+        unit_mock3 = mock.MagicMock()
+        unit_mock3.data = {'public-address': '10.0.0.12'}
+        unit_mock3.data = {'private-address': '10.0.0.12'}
+        unit_mock3.entity_id = 'myapp/2'
+        unit_mock4 = mock.MagicMock()
+        unit_mock4.data = {'public-address': '10.0.0.240'}
+        unit_mock4.data = {'private-address': '10.0.0.240'}
+        unit_mock4.entity_id = 'myapp/5'
+        self.model.get_units.return_value = [unit_mock3, unit_mock4]
+        self.assertEqual(
+            juju_utils.get_unit_name_from_ip_address('10.0.0.12', 'myapp'),
+            'myapp/2')
+
+
     def test_get_machine_status(self):
         self.patch_object(juju_utils, "get_full_juju_status")
         self.get_full_juju_status.return_value = self.juju_status
