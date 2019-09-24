@@ -135,6 +135,9 @@ def render_template(template, target_file, model_ctxt=None):
     :type template: jinja2.Template
     :param target_file: File name for rendered template
     :type target_file: str
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
     """
     model_ctxt = model_ctxt or {}
     try:
@@ -158,6 +161,9 @@ def render_overlay(overlay_name, target_dir, model_ctxt=None):
     :type overlay_name: str
     :param target_dir: Directory to render overlay in
     :type overlay_name: str
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
     :returns: Path to rendered overlay
     :rtype: str
     """
@@ -176,6 +182,9 @@ def render_local_overlay(target_dir, model_ctxt=None):
 
     :param target_dir: Directory to render overlay in
     :type overlay_name: str
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
     :returns: Path to rendered overlay
     :rtype: str
     """
@@ -218,6 +227,9 @@ def render_overlays(bundle, target_dir, model_ctxt=None):
     :type bundle: str
     :param target_dir: Directory to render overlay in
     :type overlay_name: str
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
     :returns: List of rendered overlays
     :rtype: [str, str,...]
     """
@@ -240,6 +252,9 @@ def deploy_bundle(bundle, model, model_ctxt=None):
     :type bundle: str
     :param model: Name of model to deploy bundle in
     :type model: str
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
     """
     logging.info("Deploying bundle '{}' on to '{}' model"
                  .format(bundle, model))
@@ -261,7 +276,10 @@ def deploy(bundle, model, wait=True, model_ctxt=None):
     :param model: Name of model to deploy bundle in
     :type model: str
     :param wait: Whether to wait until deployment completes
-    :type model: bool
+    :type wait: bool
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
     """
     run_report.register_event_start('Deploy Bundle')
     deploy_bundle(bundle, model, model_ctxt=model_ctxt)

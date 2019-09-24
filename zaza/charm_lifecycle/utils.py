@@ -176,7 +176,7 @@ def get_environment_deploy_multi_unordered(deployment_directive):
 
 
 def get_environment_deploys(bundle_key, deployment_name=None):
-    """Describe environment deploys for a given set ug bundles.
+    """Describe environment deploys for a given set of bundles.
 
     Get a list of test bundles with their model alias. If no model alias is
     supplied then DEFAULT_MODEL_ALIAS is used.
