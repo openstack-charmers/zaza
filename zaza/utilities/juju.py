@@ -103,15 +103,15 @@ def get_unit_name_from_host_name(host_name, application_name):
 
     :param host_name: Host name to map to unit name.
     :type host_name: string
-    :param application: Application name
-    :type application: string
+    :param application_name: Application name
+    :type application_name: string
     """
     # Assume that a juju managed hostname always ends in the machine number.
     machine_number = host_name.split('-')[-1]
     unit_names = [
-        u.entity_id
-        for u in model.get_units(application_name=application_name)
-        if int(u.data['machine-id']) == int(machine_number)]
+        unit.entity_id
+        for unit in model.get_units(application_name=application_name)
+        if int(unit.data['machine-id']) == int(machine_number)]
     return unit_names[0]
 
 
