@@ -1141,6 +1141,27 @@ block_until_file_has_contents = sync_wrapper(
 
 async def async_block_until_file_missing(
         app, path, model_name=None, timeout=2700):
+    """Block until the file at path is not there.
+
+    Block until the file at the param 'path' is not present on the file system
+    for all units on a given application.
+
+    An example accessing this function via its sync wrapper::
+
+        block_until_file_missing(
+            '/some/path/name'
+            'keystone')
+
+
+    :param app: the application name
+    :type app: str
+    :param path: the file name to check for.
+    :type path: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param timeout: Time to wait for contents to appear in file
+    :type timeout: float
+    """
     async def _check_for_file(model):
         units = model.applications[app].units
         results = []
@@ -1331,8 +1352,10 @@ block_until_unit_wl_status = sync_wrapper(
 
 async def async_block_until_wl_status_info_starts_with(
         app, status, model_name=None, negate_match=False, timeout=2700):
-    """Block until the all the units have a desired workload status that starts
-    with status.
+    """Block until the all the units have a desired workload status.
+
+    Block until all of the units have a desired workload status that starts
+    with the string in the status param.
 
     :param app: the application to check against
     :type app: str
