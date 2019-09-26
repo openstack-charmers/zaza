@@ -859,40 +859,58 @@ async def async_wait_for_application_states(model_name=None, states=None,
         errored_units = units_with_wl_status_state(model, 'error')
         if errored_units:
             raise UnitError(errored_units)
-        try:
-            for application, app_data in model.applications.items():
-                check_info = states.get(application, {})
-                for unit in app_data.units:
-                    app_wls = check_info.get('workload-status')
-                    if app_wls:
-                        all_approved_statuses = approved_statuses + [app_wls]
-                    else:
-                        all_approved_statuses = approved_statuses
-                    logging.info("Checking workload status of {}".format(
-                        unit.entity_id))
+
+        for application, app_data in model.applications.items():
+            check_info = states.get(application, {})
+            for unit in app_data.units:
+                app_wls = check_info.get('workload-status')
+                if app_wls:
+                    all_approved_statuses = approved_statuses + [app_wls]
+                else:
+                    all_approved_statuses = approved_statuses
+                logging.info("Checking workload status of {}".format(
+                    unit.entity_id))
+                try:
                     await model.block_until(
                         lambda: check_unit_workload_status(
                             model,
                             unit,
                             all_approved_statuses),
                         timeout=timeout)
-                    check_msg = check_info.get('workload-status-message')
-                    logging.info("Checking workload status message of {}"
-                                 .format(unit.entity_id))
+                except concurrent.futures._base.TimeoutError:
+                    msg = (
+                        "Timed out waiting for {}. It is in state {} which is "
+                        "not one of the approved states ({})").format(
+                            unit.entity_id,
+                            unit.workload_status,
+                            all_approved_statuses)
+                    raise ModelTimeout(msg)
+
+                check_msg = check_info.get('workload-status-message')
+                logging.info("Checking workload status message of {}"
+                             .format(unit.entity_id))
+                prefixes = approved_message_prefixes
+                if check_msg is not None:
+                    prefixes = approved_message_prefixes + [check_msg]
+                else:
                     prefixes = approved_message_prefixes
-                    if check_msg is not None:
-                        prefixes = approved_message_prefixes + [check_msg]
-                    else:
-                        prefixes = approved_message_prefixes
+                try:
                     await model.block_until(
                         lambda: check_unit_workload_status_message(
                             model,
                             unit,
                             prefixes=prefixes),
                         timeout=timeout)
-        except concurrent.futures._base.TimeoutError:
-            raise ModelTimeout("Zaza has timed out waiting on the model to "
-                               "reach expected workload statuses.")
+                except concurrent.futures._base.TimeoutError:
+                    msg = (
+                        "Timed out waiting for {}. It has wl status message "
+                        "{} which is not one of the approved "
+                        " messages ({})").format(
+                            unit.entity_id,
+                            unit.workload_status_message,
+                            prefixes)
+                    raise ModelTimeout(msg)
+
 
 wait_for_application_states = sync_wrapper(async_wait_for_application_states)
 
