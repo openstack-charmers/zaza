@@ -1167,7 +1167,7 @@ async def async_block_until_file_missing(
         results = []
         for unit in units:
             try:
-                output = await unit.run('test -e {}; echo $?'.format(path))
+                output = await unit.run('test -e "{}"; echo $?'.format(path))
                 contents = output.data.get('results')['Stdout']
                 results.append("1" in contents)
             # libjuju throws a generic error for connection failure. So we
