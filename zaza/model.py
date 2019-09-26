@@ -529,7 +529,7 @@ class ActionFailed(Exception):
 
 
 async def async_run_action(unit_name, action_name, model_name=None,
-                           action_params={}, raise_on_failure=False):
+                           action_params=None, raise_on_failure=False):
     """Run action on given unit.
 
     :param unit_name: Name of unit to run action on
@@ -546,6 +546,9 @@ async def async_run_action(unit_name, action_name, model_name=None,
     :rtype: juju.action.Action
     :raises: ActionFailed
     """
+    if action_params is None:
+        action_params = {}
+
     async with run_in_model(model_name) as model:
         unit = get_unit_from_name(unit_name, model)
         action_obj = await unit.run_action(action_name, **action_params)
@@ -576,6 +579,9 @@ async def async_run_action_on_leader(application_name, action_name,
     :rtype: juju.action.Action
     :raises: ActionFailed
     """
+    if action_params is None:
+        action_params = {}
+
     async with run_in_model(model_name) as model:
         for unit in model.applications[application_name].units:
             is_leader = await unit.is_leader_from_status()
