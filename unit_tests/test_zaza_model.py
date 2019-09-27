@@ -705,6 +705,29 @@ class TestModel(ut_utils.BaseTestCase):
                 timeout=0.1)
         self.unit1.run.assert_called_once_with('cat /tmp/src/myfile.txt')
 
+    def test_block_until_file_missing(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.action.data['results']['Stdout'] = "1"
+        model.block_until_file_missing(
+            'app',
+            '/tmp/src/myfile.txt',
+            timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'test -e "/tmp/src/myfile.txt"; echo $?')
+
+    def test_block_until_file_missing_isnt_missing(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.action.data['results']['Stdout'] = "0"
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.block_until_file_missing(
+                'app',
+                '/tmp/src/myfile.txt',
+                timeout=0.1)
+
     def test_async_block_until_all_units_idle(self):
 
         async def _block_until(f, timeout=None):
@@ -1172,6 +1195,53 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             'unknown',
             negate_match=True,
             timeout=0.1)
+
+    def test_block_until_wl_status_info_starts_with(self):
+        async def _block_until(f, timeout=None):
+            rc = await f()
+            if not rc:
+                raise asyncio.futures.TimeoutError
+
+        async def _get_status():
+            return self.juju_status
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'get_unit_from_name')
+        self.patch_object(model, 'async_get_status')
+        self.juju_status.applications['app']['units']['app/1'][
+            'workload-status']['info'] = "match-me if you want"
+        self.async_get_status.side_effect = _get_status
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
+        model.block_until_wl_status_info_starts_with(
+            'app',
+            'match-me')
+
+    def test_block_until_wl_status_info_starts_with_negative(self):
+        async def _block_until(f, timeout=None):
+            rc = await f()
+            if not rc:
+                raise asyncio.futures.TimeoutError
+
+        async def _get_status():
+            return self.juju_status
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'get_unit_from_name')
+        self.patch_object(model, 'async_get_status')
+        self.juju_status.applications['app']['units']['app/1'][
+            'workload-status']['info'] = "match-me if you want"
+        self.async_get_status.side_effect = _get_status
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
+        model.block_until_wl_status_info_starts_with(
+            'app',
+            'dont-match-me',
+            negate_match=True)
 
     def resolve_units_mocks(self):
         async def _block_until(f, timeout=None):

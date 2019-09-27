@@ -1139,6 +1139,52 @@ block_until_file_has_contents = sync_wrapper(
     async_block_until_file_has_contents)
 
 
+async def async_block_until_file_missing(
+        app, path, model_name=None, timeout=2700):
+    """Block until the file at path is not there.
+
+    Block until the file at the param 'path' is not present on the file system
+    for all units on a given application.
+
+    An example accessing this function via its sync wrapper::
+
+        block_until_file_missing(
+            'keystone',
+            '/some/path/name')
+
+
+    :param app: the application name
+    :type app: str
+    :param path: the file name to check for.
+    :type path: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param timeout: Time to wait for contents to appear in file
+    :type timeout: float
+    """
+    async def _check_for_file(model):
+        units = model.applications[app].units
+        results = []
+        for unit in units:
+            try:
+                output = await unit.run('test -e "{}"; echo $?'.format(path))
+                contents = output.data.get('results')['Stdout']
+                results.append("1" in contents)
+            # libjuju throws a generic error for connection failure. So we
+            # cannot differentiate between a connectivity issue and a
+            # target file not existing error. For now just assume the
+            # latter.
+            except JujuError:
+                results.append(False)
+        return all(results)
+
+    async with run_in_model(model_name) as model:
+        await async_block_until(lambda: _check_for_file(model),
+                                timeout=timeout)
+
+block_until_file_missing = sync_wrapper(async_block_until_file_missing)
+
+
 async def async_block_until_oslo_config_entries_match(application_name,
                                                       remote_file,
                                                       expected_contents,
@@ -1302,6 +1348,43 @@ async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
 
 block_until_unit_wl_status = sync_wrapper(
     async_block_until_unit_wl_status)
+
+
+async def async_block_until_wl_status_info_starts_with(
+        app, status, model_name=None, negate_match=False, timeout=2700):
+    """Block until the all the units have a desired workload status.
+
+    Block until all of the units have a desired workload status that starts
+    with the string in the status param.
+
+    :param app: the application to check against
+    :type app: str
+    :param status: Status to wait for at the start of the string
+    :type status: str
+    :param model_name: Name of model to query.
+    :type model_name: Union[None, str]
+    :param negate_match: Wait until the match is not true; i.e. none match
+    :type negate_match: Union[None, bool]
+    :param timeout: Time to wait for unit to achieved desired status
+    :type timeout: float
+    """
+    async def _unit_status():
+        model_status = await async_get_status()
+        wl_infos = [v['workload-status']['info']
+                    for k, v in model_status.applications[app]['units'].items()
+                    if k.split('/')[0] == app]
+        g = (s.startswith(status) for s in wl_infos)
+        if negate_match:
+            return not(any(g))
+        else:
+            return all(g)
+
+    async with run_in_model(model_name):
+        await async_block_until(_unit_status, timeout=timeout)
+
+
+block_until_wl_status_info_starts_with = sync_wrapper(
+    async_block_until_wl_status_info_starts_with)
 
 
 async def async_get_relation_id(application_name, remote_application_name,
