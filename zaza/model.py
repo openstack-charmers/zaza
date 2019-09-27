@@ -1149,8 +1149,8 @@ async def async_block_until_file_missing(
     An example accessing this function via its sync wrapper::
 
         block_until_file_missing(
-            '/some/path/name'
-            'keystone')
+            'keystone',
+            '/some/path/name')
 
 
     :param app: the application name
