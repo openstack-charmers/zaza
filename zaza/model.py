@@ -860,6 +860,9 @@ async def async_wait_for_application_states(model_name=None, states=None,
         if errored_units:
             raise UnitError(errored_units)
 
+        timeout_msg = (
+            "Timed out waiting for '{unit_name}'. The {gate_attr} "
+            "is '{unit_state}' which is not one of '{approved_states}'")
         for application, app_data in model.applications.items():
             check_info = states.get(application, {})
             for unit in app_data.units:
@@ -878,13 +881,12 @@ async def async_wait_for_application_states(model_name=None, states=None,
                             all_approved_statuses),
                         timeout=timeout)
                 except concurrent.futures._base.TimeoutError:
-                    msg = (
-                        "Timed out waiting for {}. It is in state {} which is "
-                        "not one of the approved states ({})").format(
-                            unit.entity_id,
-                            unit.workload_status,
-                            all_approved_statuses)
-                    raise ModelTimeout(msg)
+                    raise ModelTimeout(
+                        timeout_msg.format(
+                            unit_name=unit.entity_id,
+                            gate_attr='workload status',
+                            unit_state=unit.workload_status,
+                            approved_states=all_approved_statuses))
 
                 check_msg = check_info.get('workload-status-message')
                 logging.info("Checking workload status message of {}"
@@ -902,14 +904,12 @@ async def async_wait_for_application_states(model_name=None, states=None,
                             prefixes=prefixes),
                         timeout=timeout)
                 except concurrent.futures._base.TimeoutError:
-                    msg = (
-                        "Timed out waiting for {}. It has wl status message "
-                        "{} which is not one of the approved "
-                        " messages ({})").format(
-                            unit.entity_id,
-                            unit.workload_status_message,
-                            prefixes)
-                    raise ModelTimeout(msg)
+                    raise ModelTimeout(
+                        timeout_msg.format(
+                            unit_name=unit.entity_id,
+                            gate_attr='workload status message',
+                            unit_state=unit.workload_status_message,
+                            approved_states=prefixes))
 
 
 wait_for_application_states = sync_wrapper(async_wait_for_application_states)
