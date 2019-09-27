@@ -655,8 +655,8 @@ class TestModel(ut_utils.BaseTestCase):
             model.wait_for_application_states('modelname', timeout=-3)
         self.assertEqual(
             timeout.exception.args[0],
-            "Zaza has timed out waiting on the model to reach expected "
-            "workload statuses.")
+            ("Timed out waiting for 'app/2'. The workload status is 'blocked' "
+             "which is not one of '['active']'"))
 
     def test_get_current_model(self):
         self.patch_object(model, 'Model')
