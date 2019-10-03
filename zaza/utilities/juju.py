@@ -76,6 +76,34 @@ def get_full_juju_status():
     return status
 
 
+def is_subordinate_application(application_name, application_status=None):
+    """Is the given application a subordinate application.
+
+    :param application_name: Application name
+    :type application_name: string
+    :param application_status: Juju status dict for application
+    :type application_status: dict
+    :returns: Whether application_name is a subordinate
+    :rtype: bool
+    """
+    status = application_status or get_application_status(application_name)
+    return status.get("units") is None and status.get("subordinate-to")
+
+
+def get_principle_applications(application_name, application_status=None):
+    """Get the principle applications that application_name is related to.
+
+    :param application_name: Application name
+    :type application_name: string
+    :param application_status: Juju status dict for application
+    :type application_status: dict
+    :returns: List of principle applications
+    :rtype: list
+    """
+    status = application_status or get_application_status(application_name)
+    return status.get("subordinate-to")
+
+
 def get_machines_for_application(application):
     """Return machines for a given application.
 
@@ -88,7 +116,7 @@ def get_machines_for_application(application):
 
     # libjuju juju status no longer has units for subordinate charms
     # Use the application it is subordinate-to to find machines
-    if status.get("units") is None and status.get("subordinate-to"):
+    if is_subordinate_application(application):
         return get_machines_for_application(status.get("subordinate-to")[0])
 
     machines = []
@@ -105,14 +133,46 @@ def get_unit_name_from_host_name(host_name, application):
     :type host_name: string
     :param application: Application name
     :type application: string
+    :returns: The unit name of the application running on host_name.
+    :rtype: str or None
     """
     # Assume that a juju managed hostname always ends in the machine number.
     machine_number = host_name.split('-')[-1]
-    unit_names = [
-        u.entity_id
-        for u in model.get_units(application_name=application)
-        if int(u.data['machine-id']) == int(machine_number)]
-    return unit_names[0]
+    unit = None
+    app_status = get_application_status(application)
+    # If the application is not present there cannot be a matching unit.
+    if not app_status:
+        return unit
+    if is_subordinate_application(application, application_status=app_status):
+        # Find the principle services that the subordinate relates to. There
+        # may be multiple.
+        principle_services = get_principle_applications(
+            application,
+            application_status=app_status)
+        for principle_service in principle_services:
+            # Find the principle unit name that matches the provided
+            # hostname.
+            principle_unit = get_unit_name_from_host_name(
+                host_name,
+                principle_service)
+            # If the subordinate has been related to mulitple principles then
+            # principle_service may not be running on host_name.
+            if principle_unit:
+                unit_status = get_application_status(unit=principle_unit)
+                unit_names = list(unit_status['subordinates'].keys())
+                # The principle may have subordinates related to it other than
+                # the 'application' so search through them looking for a match.
+                for unit_name in unit_names:
+                    if unit_name.split('/')[0] == application:
+                        unit = unit_name
+    else:
+        unit_names = [
+            u.entity_id
+            for u in model.get_units(application_name=application)
+            if int(u.data['machine-id']) == int(machine_number)]
+        if unit_names:
+            unit = unit_names[0]
+    return unit
 
 
 def get_unit_name_from_ip_address(ip, application_name):
