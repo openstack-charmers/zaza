@@ -978,7 +978,7 @@ async def async_block_until_service_status(unit_name, services, target_status,
                 command,
                 model_name=model_name,
                 timeout=timeout)
-            response_size = len(out['Stdout'].strip())
+            response_size = len(out.get('Stdout', '').strip())
             if target_status == "running" and response_size == 0:
                 return False
             elif target_status == "stopped" and response_size > 0:
