@@ -74,6 +74,12 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
                 'model_alias2': 'bundle2'}),
             lc_utils.MUTLI_UNORDERED)
 
+    def test_get_deployment_type_single_aliased(self):
+        self.assertEqual(
+            lc_utils.get_deployment_type(
+                {'model_alias1': 'bundle1'}),
+            lc_utils.SINGLE_ALIASED)
+
     def test_get_deployment_type_multi_unordered(self):
         self.assertEqual(
             lc_utils.get_deployment_type({
@@ -124,6 +130,24 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         self.assertEqual(
             lc_utils.get_environment_deploys('smoke_bundles'),
             [env_depl1, env_depl2, env_depl3])
+
+    def test_get_environment_deploy_single_aliased(self):
+        self.patch_object(
+            lc_utils,
+            'generate_model_name',
+            return_value='zaza-model-1')
+        self.patch_object(
+            lc_utils,
+            'get_default_env_deploy_name',
+            return_value='env-alias-1')
+        expect = lc_utils.EnvironmentDeploy(
+            'env-alias-1',
+            [lc_utils.ModelDeploy('alias', 'zaza-model-1', 'bundle')],
+            True)
+        self.assertEqual(
+            lc_utils.get_environment_deploy_single_aliased(
+                {'alias': 'bundle'}),
+            expect)
 
     def test_generate_model_name(self):
         self.patch_object(lc_utils.uuid, "uuid4")
