@@ -27,6 +27,7 @@ DEFAULT_MODEL_ALIAS = "default_alias"
 DEFAULT_DEPLOY_NAME = 'default{}'
 
 RAW_BUNDLE = "raw-bundle"
+SINGLE_ALIASED = "single-aliased"
 MUTLI_UNORDERED = "multi-unordered"
 MUTLI_ORDERED = "multi-ordered"
 
@@ -107,6 +108,8 @@ def get_deployment_type(deployment_directive):
             first_value = deployment_directive[list(deployment_directive)[0]]
             if isinstance(first_value, list):
                 return MUTLI_ORDERED
+            else:
+                return SINGLE_ALIASED
         else:
             return MUTLI_UNORDERED
 
@@ -120,6 +123,7 @@ def get_environment_deploy(deployment_directive):
     env_deploy_f = {
         RAW_BUNDLE: get_environment_deploy_raw,
         MUTLI_ORDERED: get_environment_deploy_multi_ordered,
+        SINGLE_ALIASED: get_environment_deploy_single_aliased,
         MUTLI_UNORDERED: get_environment_deploy_multi_unordered}
     return env_deploy_f[get_deployment_type(deployment_directive)](
         deployment_directive)
@@ -173,6 +177,23 @@ def get_environment_deploy_multi_unordered(deployment_directive):
                 generate_model_name(),
                 bundle))
     return EnvironmentDeploy(env_alias, model_deploys, True)
+
+
+def get_environment_deploy_single_aliased(deployment_directive):
+    """Get EnvironmentDeploy for a single_aliased deployment_directive.
+
+    :returns: The EnvironmentDeploy for the give deployment directive.
+    :rtype: EnvironmentDeploy
+    """
+    env_alias = get_default_env_deploy_name()
+    (alias, bundle) = list(deployment_directive.items())[0]
+    return EnvironmentDeploy(
+        env_alias,
+        [ModelDeploy(
+            alias,
+            generate_model_name(),
+            bundle)],
+        True)
 
 
 def get_environment_deploys(bundle_key, deployment_name=None):
