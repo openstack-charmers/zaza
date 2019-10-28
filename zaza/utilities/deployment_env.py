@@ -33,13 +33,8 @@ MODEL_SETTINGS_SECTION = 'model_settings'
 MODEL_CONSTRAINTS_SECTION = 'model_constraints'
 
 VALID_ENVIRONMENT_KEY_PREFIXES = [
-    'FIP_RANGE',
-    'GATEWAY',
-    'NAME_SERVER',
-    'NET_ID',
     'OS_',
-    'VIP_RANGE',
-    'AMULET_',
+    'TEST_',
     'MOJO_',
     'JUJU_',
     'CHARM_',
