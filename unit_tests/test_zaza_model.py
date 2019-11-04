@@ -50,6 +50,12 @@ class TestModel(ut_utils.BaseTestCase):
         async def _wait():
             return
 
+        async def _add_relation(rel1, rel2):
+            return
+
+        async def _destroy_relation(rel1, rel2):
+            return
+
         def _is_leader(leader):
             async def _inner_is_leader():
                 return leader
@@ -107,6 +113,8 @@ class TestModel(ut_utils.BaseTestCase):
         _units = mock.MagicMock()
         _units.units = self.units
         _units.relations = self.relations
+        _units.add_relation.side_effect = _add_relation
+        _units.destroy_relation.side_effect = _destroy_relation
         self.mymodel = mock.MagicMock()
         self.mymodel.applications = {
             'app': _units
@@ -353,6 +361,24 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.assertEqual(model.get_relation_id('app', 'app'), 42)
+
+    def test_add_relation(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        model.add_relation('app', 'shared-db', 'mysql-shared-db')
+        self.mymodel.applications['app'].add_relation.assert_called_once_with(
+            'shared-db',
+            'mysql-shared-db')
+
+    def test_remove_relation(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        model.remove_relation('app', 'shared-db', 'mysql-shared-db')
+        self.mymodel.applications[
+            'app'].destroy_relation.assert_called_once_with('shared-db',
+                                                            'mysql-shared-db')
 
     def test_get_relation_id_interface(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
