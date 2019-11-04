@@ -1416,6 +1416,48 @@ async def async_get_relation_id(application_name, remote_application_name,
 get_relation_id = sync_wrapper(async_get_relation_id)
 
 
+async def async_add_relation(application_name, local_relation, remote_relation,
+                             model_name=None):
+    """
+    Add relation between applications.
+
+    :param application_name: Name of application on this side of relation
+    :type application_name: str
+    :param local_relation: Name of relation on this application
+    :type local_relation: str
+    :param remote_relation: Name of relation on the other application.
+    :type remote_relation: str ‘<application>[:<relation_name>]’
+    :param model_name: Name of model to operate on.
+    :type model_name: str
+    """
+    async with run_in_model(model_name) as model:
+        app = model.applications[application_name]
+        await app.add_relation(local_relation, remote_relation)
+
+add_relation = sync_wrapper(async_add_relation)
+
+
+async def async_remove_relation(application_name, local_relation,
+                                remote_relation, model_name=None):
+    """
+    Remove relation between applications.
+
+    :param application_name: Name of application on this side of relation
+    :type application_name: str
+    :param local_relation: Name of relation on this application
+    :type local_relation: str
+    :param remote_relation: Name of relation on the other application.
+    :type remote_relation: str ‘<application>[:<relation_name>]’
+    :param model_name: Name of model to operate on.
+    :type model_name: str
+    """
+    async with run_in_model(model_name) as model:
+        app = model.applications[application_name]
+        await app.destroy_relation(local_relation, remote_relation)
+
+remove_relation = sync_wrapper(async_remove_relation)
+
+
 def set_model_constraints(constraints, model_name=None):
     """
     Set constraints on a model.
