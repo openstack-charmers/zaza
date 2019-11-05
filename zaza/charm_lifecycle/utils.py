@@ -16,6 +16,7 @@
 import collections
 import importlib
 import logging
+import os
 import subprocess
 import uuid
 import sys
@@ -287,18 +288,31 @@ def get_test_steps():
     return _concat_model_alias_maps(get_charm_config().get('tests', []))
 
 
-def get_charm_config(yaml_file=None):
+def get_charm_config(yaml_file=None, fatal=True):
     """Read the yaml test config file and return the resulting config.
 
     :param yaml_file: File to be read
     :type yaml_file: str
+    :param fatal: Whether failure to load file should be fatal or not
+    :type fatal: bool
     :returns: Config dictionary
     :rtype: dict
     """
     if not yaml_file:
         yaml_file = DEFAULT_TEST_CONFIG
-    with open(yaml_file, 'r') as stream:
-        return yaml.safe_load(stream)
+    try:
+        with open(yaml_file, 'r') as stream:
+            return yaml.safe_load(stream)
+    except OSError:
+        if not fatal:
+            charm_name = os.path.basename(os.getcwd())
+            if charm_name.startswith('charm-'):
+                charm_name = charm_name[6:]
+            logging.warning('Unable to load charm config, deducing '
+                            'charm_name from cwd: "{}"'
+                            .format(charm_name))
+            return {'charm_name': charm_name}
+        raise
 
 
 def get_class(class_str):

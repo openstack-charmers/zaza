@@ -172,6 +172,16 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
                          _yaml_dict)
         self._open.assert_called_once_with(_filename, "r")
         self.yaml.safe_load.assert_called_once_with(_yaml)
+        self._open.side_effect = FileNotFoundError
+        self.patch_object(lc_utils.os, 'getcwd')
+        self.getcwd.return_value = '/absoulte/path/to/fakecwd'
+        with self.assertRaises(FileNotFoundError):
+            lc_utils.get_charm_config()
+        self.assertEqual(lc_utils.get_charm_config(fatal=False),
+                         {'charm_name': 'fakecwd'})
+        self.getcwd.return_value = '/absoulte/path/to/charm-fakecwd'
+        self.assertEqual(lc_utils.get_charm_config(fatal=False),
+                         {'charm_name': 'fakecwd'})
 
     def test_get_class(self):
         self.assertEqual(
