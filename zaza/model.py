@@ -260,8 +260,14 @@ async def async_run_on_unit(unit_name, command, model_name=None, timeout=None):
     async with run_in_model(model_name) as model:
         unit = get_unit_from_name(unit_name, model)
         action = await unit.run(command, timeout=timeout)
-        if action.data.get('results'):
-            return action.data.get('results')
+        results = action.data.get('results')
+        if results:
+            # In Juju 2.7 some keys are dropped from the results if there
+            # value was empty. This breaks some functions downstream, so
+            # ensure the keys are always present.
+            for key in ['Stderr', 'Stdout']:
+                results[key] = results.get(key, '')
+            return results
         else:
             return {}
 
