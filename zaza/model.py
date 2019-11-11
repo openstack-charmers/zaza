@@ -1088,7 +1088,7 @@ async def async_block_until_file_ready(application_name, remote_file,
         for unit in units:
             try:
                 output = await unit.run('cat {}'.format(remote_file))
-                contents = output.data.get('results')['Stdout']
+                contents = output.data.get('results').get('Stdout', '')
                 if not check_function(contents):
                     return False
             # libjuju throws a generic error for connection failure. So we
