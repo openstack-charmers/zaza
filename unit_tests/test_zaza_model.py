@@ -726,7 +726,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.run.assert_called_once_with(
             'cat /tmp/src/myfile.txt')
 
-    def test_block_until_file_has_contents_no_stdout(self):
+    def test_block_until_file_has_no_contents(self):
         self.action.data = {
             'results': {'Code': '0', 'Stderr': ''}
         }
