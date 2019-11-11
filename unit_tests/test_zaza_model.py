@@ -726,6 +726,30 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.run.assert_called_once_with(
             'cat /tmp/src/myfile.txt')
 
+    def test_block_until_file_has_no_contents(self):
+        self.action.data = {
+            'results': {'Code': '0', 'Stderr': ''}
+        }
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch("builtins.open",
+                   new_callable=mock.mock_open(),
+                   name="_open")
+        _fileobj = mock.MagicMock()
+        _fileobj.__enter__().read.return_value = ""
+        self._open.return_value = _fileobj
+        model.block_until_file_has_contents(
+            'app',
+            '/tmp/src/myfile.txt',
+            '',
+            timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+        self.unit2.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+
     def test_block_until_file_has_contents_missing(self):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
