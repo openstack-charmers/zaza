@@ -50,6 +50,12 @@ class TestModel(ut_utils.BaseTestCase):
         async def _wait():
             return
 
+        async def _add_relation(rel1, rel2):
+            return
+
+        async def _destroy_relation(rel1, rel2):
+            return
+
         def _is_leader(leader):
             async def _inner_is_leader():
                 return leader
@@ -107,6 +113,8 @@ class TestModel(ut_utils.BaseTestCase):
         _units = mock.MagicMock()
         _units.units = self.units
         _units.relations = self.relations
+        _units.add_relation.side_effect = _add_relation
+        _units.destroy_relation.side_effect = _destroy_relation
         self.mymodel = mock.MagicMock()
         self.mymodel.applications = {
             'app': _units
@@ -338,6 +346,19 @@ class TestModel(ut_utils.BaseTestCase):
                          expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
 
+    def test_run_on_unit_missing_stderr(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        expected = {'Code': '0', 'Stderr': '', 'Stdout': 'RESULT'}
+        self.action.data['results'] = {'Code': '0', 'Stdout': 'RESULT'}
+        self.cmd = cmd = 'somecommand someargument'
+        self.patch_object(model, 'Model')
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = self.unit1
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.run_on_unit('app/2', cmd),
+                         expected)
+        self.unit1.run.assert_called_once_with(cmd, timeout=None)
+
     def test_run_on_leader(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         expected = {'Code': '0', 'Stderr': '', 'Stdout': 'RESULT'}
@@ -353,6 +374,24 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.assertEqual(model.get_relation_id('app', 'app'), 42)
+
+    def test_add_relation(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        model.add_relation('app', 'shared-db', 'mysql-shared-db')
+        self.mymodel.applications['app'].add_relation.assert_called_once_with(
+            'shared-db',
+            'mysql-shared-db')
+
+    def test_remove_relation(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        model.remove_relation('app', 'shared-db', 'mysql-shared-db')
+        self.mymodel.applications[
+            'app'].destroy_relation.assert_called_once_with('shared-db',
+                                                            'mysql-shared-db')
 
     def test_get_relation_id_interface(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -655,8 +694,8 @@ class TestModel(ut_utils.BaseTestCase):
             model.wait_for_application_states('modelname', timeout=-3)
         self.assertEqual(
             timeout.exception.args[0],
-            "Zaza has timed out waiting on the model to reach expected "
-            "workload statuses.")
+            ("Timed out waiting for 'app/2'. The workload status is 'blocked' "
+             "which is not one of '['active']'"))
 
     def test_get_current_model(self):
         self.patch_object(model, 'Model')
@@ -687,6 +726,30 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.run.assert_called_once_with(
             'cat /tmp/src/myfile.txt')
 
+    def test_block_until_file_has_no_contents(self):
+        self.action.data = {
+            'results': {'Code': '0', 'Stderr': ''}
+        }
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch("builtins.open",
+                   new_callable=mock.mock_open(),
+                   name="_open")
+        _fileobj = mock.MagicMock()
+        _fileobj.__enter__().read.return_value = ""
+        self._open.return_value = _fileobj
+        model.block_until_file_has_contents(
+            'app',
+            '/tmp/src/myfile.txt',
+            '',
+            timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+        self.unit2.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+
     def test_block_until_file_has_contents_missing(self):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
@@ -704,6 +767,29 @@ class TestModel(ut_utils.BaseTestCase):
                 'somestring',
                 timeout=0.1)
         self.unit1.run.assert_called_once_with('cat /tmp/src/myfile.txt')
+
+    def test_block_until_file_missing(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.action.data['results']['Stdout'] = "1"
+        model.block_until_file_missing(
+            'app',
+            '/tmp/src/myfile.txt',
+            timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'test -e "/tmp/src/myfile.txt"; echo $?')
+
+    def test_block_until_file_missing_isnt_missing(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.action.data['results']['Stdout'] = "0"
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.block_until_file_missing(
+                'app',
+                '/tmp/src/myfile.txt',
+                timeout=0.1)
 
     def test_async_block_until_all_units_idle(self):
 
@@ -789,7 +875,7 @@ class TestModel(ut_utils.BaseTestCase):
             pgrep_full=True)
         self.async_run_on_unit.assert_called_once_with(
             'app/2',
-            'pgrep -f "test_svc"',
+            "pgrep -f 'test_svc'",
             model_name=None,
             timeout=2700
         )
@@ -852,7 +938,8 @@ class TestModel(ut_utils.BaseTestCase):
         self.async_run_on_unit.side_effect = _run_on_unit
         self.assertEqual(
             model.get_unit_service_start_time('app/2', 'mysvc1'), 1524409654)
-        cmd = "stat -c %Y /proc/$(pidof -x mysvc1 | cut -f1 -d ' ')"
+        cmd = (r"pidof -x 'mysvc1'| tr -d '\n' | "
+               "xargs -d' ' -I {} stat -c %Y /proc/{}  | sort -n | head -1")
         self.async_run_on_unit.assert_called_once_with(
             unit_name='app/2',
             command=cmd,
@@ -875,7 +962,8 @@ class TestModel(ut_utils.BaseTestCase):
                                               'mysvc1',
                                               pgrep_full=True),
             1524409654)
-        cmd = "stat -c %Y /proc/$(pgrep -f \"mysvc1\" | cut -f1 -d ' ')"
+        cmd = "stat -c %Y /proc/$(pgrep -o -f 'mysvc1')"
+
         self.async_run_on_unit.assert_called_once_with(
             unit_name='app/2',
             command=cmd,
@@ -1170,6 +1258,53 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             'unknown',
             negate_match=True,
             timeout=0.1)
+
+    def test_block_until_wl_status_info_starts_with(self):
+        async def _block_until(f, timeout=None):
+            rc = await f()
+            if not rc:
+                raise asyncio.futures.TimeoutError
+
+        async def _get_status():
+            return self.juju_status
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'get_unit_from_name')
+        self.patch_object(model, 'async_get_status')
+        self.juju_status.applications['app']['units']['app/1'][
+            'workload-status']['info'] = "match-me if you want"
+        self.async_get_status.side_effect = _get_status
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
+        model.block_until_wl_status_info_starts_with(
+            'app',
+            'match-me')
+
+    def test_block_until_wl_status_info_starts_with_negative(self):
+        async def _block_until(f, timeout=None):
+            rc = await f()
+            if not rc:
+                raise asyncio.futures.TimeoutError
+
+        async def _get_status():
+            return self.juju_status
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'get_unit_from_name')
+        self.patch_object(model, 'async_get_status')
+        self.juju_status.applications['app']['units']['app/1'][
+            'workload-status']['info'] = "match-me if you want"
+        self.async_get_status.side_effect = _get_status
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
+        model.block_until_wl_status_info_starts_with(
+            'app',
+            'dont-match-me',
+            negate_match=True)
 
     def resolve_units_mocks(self):
         async def _block_until(f, timeout=None):

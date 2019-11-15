@@ -195,6 +195,10 @@ Run the configure script to prepare the environment for running tests::
 
     $ functest-configure -m testmodel
 
+Run test::
+
+    $ functest-test -m testmodel
+
 Destroy the environment::
 
     $ functest-destroy -m testmodel 

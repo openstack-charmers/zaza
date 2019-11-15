@@ -3,7 +3,9 @@ dist: xenial
 language: python
 python:
   - "3.6"
-install: pip install tox-travis
+install:
+  - pip install tox-travis
+  - pip install codecov
 env:
   - ENV=pep8
   - ENV=py3
@@ -26,3 +28,5 @@ script:
   - if [ $ENV = 'func-travis' ]; then
     sudo su travis -c 'juju status -m $(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/)';
     fi
+after_success:
+  - codecov --verbose --gcov-glob unit_tests/*
