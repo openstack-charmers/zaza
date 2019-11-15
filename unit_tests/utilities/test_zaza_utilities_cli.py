@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import mock
 import unit_tests.utils as ut_utils
 from zaza.utilities import cli as cli_utils
@@ -83,3 +84,42 @@ class TestCLIUtils(ut_utils.BaseTestCase):
         _logger, _, _ = self.setup_logging_mocks()
         cli_utils.setup_logging('DeBug')
         _logger.setLevel.assert_called_with(10)
+
+    def test_parser_single_model(self):
+        parser = argparse.ArgumentParser()
+        cli_utils.add_model_parser(parser)
+        result = parser.parse_args([
+            '-m', 'mod1'])
+        self.assertEqual(
+            result.model,
+            {'default_alias': 'mod1'})
+
+    def test_parser_single_models(self):
+        parser = argparse.ArgumentParser()
+        cli_utils.add_model_parser(parser)
+        result = parser.parse_args([
+            '--models', 'model1'])
+        self.assertEqual(
+            result.model,
+            {'default_alias': 'model1'})
+
+    def test_parser_model_map(self):
+        parser = argparse.ArgumentParser()
+        cli_utils.add_model_parser(parser)
+        result = parser.parse_args([
+            '-m', 'modalias1:model1'])
+        self.assertEqual(
+            result.model,
+            {'modalias1': 'model1'})
+
+    def test_parser_multi_modeli_map(self):
+        parser = argparse.ArgumentParser()
+        cli_utils.add_model_parser(parser)
+        result = parser.parse_args([
+            '-m', 'modalias1:model1',
+            '-m', 'modalias2:model2'])
+        self.assertEqual(
+            result.model,
+            {
+                'modalias1': 'model1',
+                'modalias2': 'model2'})

@@ -80,8 +80,7 @@ def parse_args(args):
     parser.add_argument('-t', '--tests', nargs='+',
                         help='Space separated list of test classes',
                         required=False)
-    parser.add_argument('-m', '--model-name', help='Name of model to remove',
-                        required=True)
+    cli_utils.add_model_parser(parser)
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
     parser.set_defaults(loglevel='INFO')
@@ -96,7 +95,12 @@ def main():
     """
     args = parse_args(sys.argv[1:])
     cli_utils.setup_logging(log_level=args.loglevel.upper())
-    tests = args.tests or utils.get_charm_config()['tests']
-    test(args.model_name, tests)
+    for model_alias, model_name in args.model.items():
+        if args.tests:
+            tests = args.tests
+        else:
+            test_steps = utils.get_test_steps()
+            tests = test_steps.get(model_alias, [])
+        test(model_name, tests)
     run_report.output_event_report()
     asyncio.get_event_loop().close()

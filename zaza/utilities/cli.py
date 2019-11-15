@@ -14,6 +14,7 @@
 
 """Module containing utilities for working with commandline tools."""
 
+import argparse
 import logging
 import os
 
@@ -57,3 +58,40 @@ def setup_logging(log_level='INFO'):
         consoleHandler = logging.StreamHandler()
         consoleHandler.setFormatter(logFormatter)
         rootLogger.addHandler(consoleHandler)
+
+
+class StoreModelMapping(argparse.Action):
+    """Implement the Action API to process model arguments."""
+
+    def __call__(self, parser, namespace, values, option_strings=None):
+        """Process the models argument(s).
+
+        :param parser: The ArgumentParser object which contains this action.
+        :type parser: argparse.ArgumentParser
+        :param namespace: The Namespace object that will be returned by
+                          parse_args().
+        :type namespace: argparse.Namespace
+        :param values: The associated command-line arguments.
+        :type values: str
+        :param option_string: The option string that was used to invoke this
+                              action.
+        :type option_string: str
+        """
+        model_alias = 'default_alias'
+        if ':' in values:
+            model_alias, values = values.split(':')
+        model_map = getattr(namespace, self.dest) or {}
+        model_map[model_alias] = values
+        setattr(namespace, self.dest, model_map)
+
+
+def add_model_parser(parser):
+    """Add parser for model argument to supplied parser.
+
+    :param parser: argparse parser
+    :type parser: argparse.ArgumentParser
+    """
+    parser.add_argument('-m', '--model', '--model-name', '--models',
+                        help='Model to deploy to',
+                        action=StoreModelMapping,
+                        required=True)
