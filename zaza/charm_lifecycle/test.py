@@ -95,6 +95,7 @@ def main():
     """
     args = parse_args(sys.argv[1:])
     cli_utils.setup_logging(log_level=args.loglevel.upper())
+    zaza.model.set_juju_model_aliases(args.model)
     for model_alias, model_name in args.model.items():
         if args.tests:
             tests = args.tests
