@@ -29,7 +29,7 @@ class TestModel(ut_utils.BaseTestCase):
         super(TestModel, self).tearDown()
         # Clear cached model name
         model.CURRENT_MODEL = None
-        model.MODEL_ALIASES = None
+        model.MODEL_ALIASES = {}
 
     def setUp(self):
         super(TestModel, self).setUp()
