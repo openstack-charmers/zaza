@@ -29,6 +29,7 @@ class TestModel(ut_utils.BaseTestCase):
         super(TestModel, self).tearDown()
         # Clear cached model name
         model.CURRENT_MODEL = None
+        model.MODEL_ALIASES = {}
 
     def setUp(self):
         super(TestModel, self).setUp()
@@ -213,6 +214,29 @@ class TestModel(ut_utils.BaseTestCase):
         self.environ.__getitem__.side_effect = KeyError
         self.assertEqual(model.get_juju_model(), 'modelsmodel')
         self.async_get_current_model.assert_called_once()
+
+    def test_set_juju_model_aliases(self):
+        model.set_juju_model_aliases({'alias1': 'model1', 'alias2': 'model2'})
+        self.assertEqual(
+            model.MODEL_ALIASES,
+            {'alias1': 'model1', 'alias2': 'model2'})
+
+    def test_unset_juju_model_aliases(self):
+        model.unset_juju_model_aliases()
+        self.assertEqual(
+            model.MODEL_ALIASES,
+            {})
+        model.set_juju_model_aliases({'alias1': 'model1', 'alias2': 'model2'})
+        model.unset_juju_model_aliases()
+        self.assertEqual(
+            model.MODEL_ALIASES,
+            {})
+
+    def test_get_juju_model_aliases(self):
+        model.set_juju_model_aliases({'alias1': 'model1', 'alias2': 'model2'})
+        self.assertEqual(
+            model.get_juju_model_aliases(),
+            {'alias1': 'model1', 'alias2': 'model2'})
 
     def test_run_in_model(self):
         self.patch_object(model, 'Model')

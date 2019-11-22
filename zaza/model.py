@@ -35,6 +35,7 @@ from juju.model import Model
 from zaza import sync_wrapper
 
 CURRENT_MODEL = None
+MODEL_ALIASES = {}
 
 
 class ModelTimeout(Exception):
@@ -52,6 +53,31 @@ def set_juju_model(model_name):
     global CURRENT_MODEL
     os.environ["JUJU_MODEL"] = model_name
     CURRENT_MODEL = model_name
+
+
+def set_juju_model_aliases(model_aliases):
+    """Store the model aliases in a global.
+
+    :param model_aliases: Model alias map to store
+    :type model_aliases: dict
+    """
+    global MODEL_ALIASES
+    MODEL_ALIASES = model_aliases
+
+
+def get_juju_model_aliases():
+    """Return the model aliases from global.
+
+    :returns: Model alias map
+    :rtype: dict
+    """
+    global MODEL_ALIASES
+    return MODEL_ALIASES
+
+
+def unset_juju_model_aliases():
+    """Remove model alias data."""
+    set_juju_model_aliases({})
 
 
 async def async_get_juju_model():
