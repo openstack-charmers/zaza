@@ -195,12 +195,11 @@ def render_local_overlay(target_dir, model_ctxt=None):
     rendered_template_file = os.path.join(
         target_dir,
         os.path.basename(LOCAL_OVERLAY_TEMPLATE_NAME))
-    if utils.get_charm_config().get('charm_name', None):
-        render_template(
-            template,
-            rendered_template_file,
-            model_ctxt=model_ctxt)
-        return rendered_template_file
+    render_template(
+        template,
+        rendered_template_file,
+        model_ctxt=model_ctxt)
+    return rendered_template_file
 
 
 def is_local_overlay_enabled(bundle):
