@@ -195,15 +195,14 @@ def render_local_overlay(target_dir, model_ctxt=None):
     rendered_template_file = os.path.join(
         target_dir,
         os.path.basename(LOCAL_OVERLAY_TEMPLATE_NAME))
-    if utils.get_charm_config().get('charm_name', None):
-        render_template(
-            template,
-            rendered_template_file,
-            model_ctxt=model_ctxt)
-        return rendered_template_file
+    render_template(
+        template,
+        rendered_template_file,
+        model_ctxt=model_ctxt)
+    return rendered_template_file
 
 
-def is_local_overlay_enabled(bundle):
+def is_local_overlay_enabled_in_bundle(bundle):
     """Check the bundle to see if a local overlay should be applied.
 
     Read the bundle and look for LOCAL_OVERLAY_ENABLED_KEY and return
@@ -213,11 +212,40 @@ def is_local_overlay_enabled(bundle):
 
     :param bundle: Name of bundle being deployed
     :type bundle: str
-    :returns: Whether to enable local overlay
+    :returns: Whether the bundle asserts to enable local overlay
     :rtype: bool
     """
     with open(bundle, 'r') as stream:
         return yaml.safe_load(stream).get(LOCAL_OVERLAY_ENABLED_KEY, True)
+
+
+def should_render_local_overlay(bundle):
+    """Determine if the local overlay should be rendered.
+
+    Check if an overlay file exists, then check if the bundle overrides
+    LOCAL_OVERLAY_ENABLED_KEY with a False value. If no file exists, determine
+    if the LOCAL_OVERLAY_TEMPLATE should be rendered by checking for the
+    charm_name setting in the tests.yaml file.
+
+    :param bundle: Name of bundle being deployed
+    :type bundle: str
+    :returns: Whether to render a local overlay
+    :rtype: bool
+    """
+    # Is there a local overlay file?
+    if os.path.isfile(
+            os.path.join(
+                DEFAULT_OVERLAY_TEMPLATE_DIR,
+                "{}.j2".format(LOCAL_OVERLAY_TEMPLATE_NAME))):
+        # Check for an override in the bundle.
+        # Note: the default is True if the LOCAL_OVERLAY_ENABLED_KEY
+        # is not present.
+        return is_local_overlay_enabled_in_bundle(bundle)
+    # Should we render the LOCAL_OVERLAY_TEMPLATE?
+    elif utils.get_charm_config().get('charm_name', None):
+        # Need to convert to boolean
+        return True
+    return False
 
 
 def render_overlays(bundle, target_dir, model_ctxt=None):
@@ -234,7 +262,7 @@ def render_overlays(bundle, target_dir, model_ctxt=None):
     :rtype: [str, str,...]
     """
     overlays = []
-    if is_local_overlay_enabled(bundle):
+    if should_render_local_overlay(bundle):
         local_overlay = render_local_overlay(target_dir, model_ctxt=model_ctxt)
         if local_overlay:
             overlays.append(local_overlay)

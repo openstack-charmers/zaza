@@ -176,41 +176,73 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         _fileobj.__enter__.return_value = yaml
         self._open.return_value = _fileobj
 
-    def test_is_local_overlay_enabled_unset(self):
+    def test_is_local_overlay_enabled_in_bundle_in_bundle_unset(self):
         _yaml = "testconfig: someconfig"
         _yaml_dict = {'test_config': 'someconfig'}
         _filename = "filename"
         self.yaml_read_patch(_yaml, _yaml_dict)
 
-        self.assertTrue(lc_deploy.is_local_overlay_enabled(_filename))
+        self.assertTrue(
+            lc_deploy.is_local_overlay_enabled_in_bundle(_filename))
         self._open.assert_called_once_with(_filename, "r")
         self.yaml.safe_load.assert_called_once_with(_yaml)
 
-    def test_is_local_overlay_enabled_disabled(self):
+    def test_is_local_overlay_enabled_in_bundle_disabled(self):
         _yaml = "local_overlay_enabled: False"
         _yaml_dict = {'local_overlay_enabled': False}
         _filename = "filename"
         self.yaml_read_patch(_yaml, _yaml_dict)
 
-        self.assertFalse(lc_deploy.is_local_overlay_enabled(_filename))
+        self.assertFalse(
+            lc_deploy.is_local_overlay_enabled_in_bundle(_filename))
         self._open.assert_called_once_with(_filename, "r")
         self.yaml.safe_load.assert_called_once_with(_yaml)
 
-    def test_is_local_overlay_enabled_enabled(self):
+    def test_is_local_overlay_enabled_in_bundle_enabled(self):
         _yaml = "local_overlay_enabled: True"
         _yaml_dict = {'local_overlay_enabled': True}
         _filename = "filename"
         self.yaml_read_patch(_yaml, _yaml_dict)
 
-        self.assertTrue(lc_deploy.is_local_overlay_enabled(_filename))
+        self.assertTrue(
+            lc_deploy.is_local_overlay_enabled_in_bundle(_filename))
         self._open.assert_called_once_with(_filename, "r")
+
+    def test_should_render_local_overlay(self):
+        self.patch_object(
+            lc_deploy.os.path,
+            'isfile',
+            return_value=True)
+        self.patch_object(
+            lc_deploy,
+            'is_local_overlay_enabled_in_bundle',
+            return_value=True)
+        self.patch_object(lc_deploy.utils, 'get_charm_config')
+        _bundle = "bundle.yaml"
+
+        # File exists no bundle override
+        self.assertTrue(lc_deploy.should_render_local_overlay(_bundle))
+
+        # File exists bundle overrides False
+        self.is_local_overlay_enabled_in_bundle.return_value = False
+        self.assertFalse(lc_deploy.should_render_local_overlay(_bundle))
+
+        # No file, charm_name present
+        self.isfile.return_value = False
+        self.get_charm_config.return_value = {"charm_name": "CHARM"}
+        self.assertTrue(lc_deploy.should_render_local_overlay(_bundle))
+
+        # No file, charm_name not present
+        self.isfile.return_value = False
+        self.get_charm_config.return_value = {}
+        self.assertFalse(lc_deploy.should_render_local_overlay(_bundle))
 
     def test_render_overlays(self):
         RESP = {
             'mybundles/mybundle.yaml': '/tmp/mybundle.yaml'}
         self.patch_object(
             lc_deploy,
-            'is_local_overlay_enabled',
+            'is_local_overlay_enabled_in_bundle',
             return_value=True)
         self.patch_object(lc_deploy, 'render_local_overlay')
         self.render_local_overlay.return_value = '/tmp/local-overlay.yaml'
@@ -224,7 +256,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         RESP = {'mybundles/mybundle.yaml': None}
         self.patch_object(
             lc_deploy,
-            'is_local_overlay_enabled',
+            'is_local_overlay_enabled_in_bundle',
             return_value=True)
         self.patch_object(lc_deploy, 'render_overlay')
         self.patch_object(lc_deploy, 'render_local_overlay')
@@ -239,7 +271,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             'mybundles/mybundle.yaml': '/tmp/mybundle.yaml'}
         self.patch_object(
             lc_deploy,
-            'is_local_overlay_enabled',
+            'is_local_overlay_enabled_in_bundle',
             return_value=False)
         self.patch_object(lc_deploy, 'render_local_overlay')
         self.render_local_overlay.return_value = '/tmp/local-overlay.yaml'
