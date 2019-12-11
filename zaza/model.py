@@ -628,6 +628,55 @@ async def async_run_action_on_leader(application_name, action_name,
 run_action_on_leader = sync_wrapper(async_run_action_on_leader)
 
 
+async def async_run_action_on_units(units, action_name, action_params=None,
+                                    model_name=None, raise_on_failure=False,
+                                    timeout=600):
+    """Run action on list of unit in parallel.
+
+    The action is run on all units first without waiting for the action to
+    complete. Then block until they are done.
+
+    :param units: List of unit names
+    :type units: List[str]
+    :param action_name: Name of action to run
+    :type action_name: str
+    :param action_params: Dictionary of config options for action
+    :type action_params: dict
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param raise_on_failure: Raise ActionFailed exception on failure
+    :type raise_on_failure: bool
+    :param timeout: Time to wait for actions to complete
+    :type timeout: int
+    :returns: Action object
+    :rtype: juju.action.Action
+    :raises: ActionFailed
+    """
+    if action_params is None:
+        action_params = {}
+
+    async with run_in_model(model_name) as model:
+        actions = []
+        for unit_name in units:
+            unit = get_unit_from_name(unit_name, model)
+            action_obj = await unit.run_action(action_name, **action_params)
+            actions.append(action_obj)
+
+        async def _check_actions():
+            for action_obj in actions:
+                if action_obj.status in ['running', 'pending']:
+                    return False
+            return True
+
+        await async_block_until(_check_actions, timeout=timeout)
+
+        for action_obj in actions:
+            if raise_on_failure and action_obj.status != 'completed':
+                raise ActionFailed(action_obj)
+
+run_action_on_units = sync_wrapper(async_run_action_on_units)
+
+
 async def async_remove_application(application_name, model_name=None,
                                    forcefully_remove_machines=False):
     """Remove application from model.

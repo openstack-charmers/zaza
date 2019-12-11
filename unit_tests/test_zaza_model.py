@@ -507,6 +507,55 @@ class TestModel(ut_utils.BaseTestCase):
             '(id=aId status=failed enqueued=aEnqueued '
             'started=aStarted completed=aCompleted)')
 
+    def test_run_action_on_units(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_unit_from_name')
+        units = {
+            'app/1': self.unit1,
+            'app/2': self.unit2}
+        self.get_unit_from_name.side_effect = lambda x, y: units[x]
+        self.run_action.status = 'completed'
+        model.run_action_on_units(
+            ['app/1', 'app/2'],
+            'backup',
+            action_params={'backup_dir': '/dev/null'})
+        self.unit1.run_action.assert_called_once_with(
+            'backup',
+            backup_dir='/dev/null')
+        self.unit2.run_action.assert_called_once_with(
+            'backup',
+            backup_dir='/dev/null')
+
+    def test_run_action_on_units_timeout(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = self.unit1
+        self.run_action.status = 'running'
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.run_action_on_units(
+                ['app/1'],
+                'backup',
+                action_params={'backup_dir': '/dev/null'},
+                timeout=0.1)
+
+    def test_run_action_on_units_fail(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = self.unit1
+        self.run_action.status = 'failed'
+        with self.assertRaises(model.ActionFailed):
+            model.run_action_on_units(
+                ['app/1'],
+                'backup',
+                raise_on_failure=True,
+                action_params={'backup_dir': '/dev/null'})
+
     def _application_states_setup(self, setup, units_idle=True):
         self.system_ready = True
         self._block_until_calls = 0
