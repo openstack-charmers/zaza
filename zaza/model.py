@@ -1137,6 +1137,9 @@ async def async_block_until(*conditions, timeout=None, wait_period=0.5,
     await asyncio.wait_for(_block(), timeout, loop=loop)
 
 
+block_until = sync_wrapper(async_block_until)
+
+
 async def async_block_until_file_ready(application_name, remote_file,
                                        check_function, model_name=None,
                                        timeout=2700):
