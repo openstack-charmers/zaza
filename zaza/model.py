@@ -466,13 +466,13 @@ def get_first_unit_name(application_name, model_name=None):
 
 
 async def async_get_lead_unit_name(application_name, model_name=None):
-    """Return name of lowest numbered unit of given application.
+    """Return name of unit with leader status for given application.
 
     :param model_name: Name of model to query.
     :type model_name: str
     :param application_name: Name of application
     :type application_name: str
-    :returns: Name of lowest numbered unit
+    :returns: Name of unit with leader status
     :rtype: str
     """
     async with run_in_model(model_name) as model:
