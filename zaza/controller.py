@@ -31,7 +31,10 @@ async def async_add_model(model_name, config=None):
     controller = Controller()
     await controller.connect()
     logging.debug("Adding model {}".format(model_name))
-    await controller.add_model(model_name, config=config)
+    model = await controller.add_model(model_name, config=config)
+    # issue/135 It is necessary to disconnect the model here or async spews
+    # tracebacks even during a successful run.
+    await model.disconnect()
     await controller.disconnect()
 
 add_model = sync_wrapper(async_add_model)
