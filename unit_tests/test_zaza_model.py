@@ -128,17 +128,26 @@ class TestModel(ut_utils.BaseTestCase):
         self.machine = "1"
         self.machine_data = {self.key: self.key_data}
         self.unit = "app/1"
-        self.unit_data = {
-            "workload-status": {"status": "active"},
-            "machine": self.machine}
         self.application = "app"
-        self.application_data = {"units": {self.unit: self.unit_data}}
         self.subordinate_application = "subordinate_application"
         self.subordinate_application_data = {
-            "subordinate-to": [self.application]}
+            "subordinate-to": [self.application],
+            "units": None}
+        self.subordinate_unit = "subordinate_application/1"
+        self.subordinate_unit_data = {
+            "workload-status": {"status": "active"}}
+        self.unit_data = {
+            "workload-status": {"status": "active"},
+            "machine": self.machine,
+            "subordinates": {
+                self.subordinate_unit: self.subordinate_unit_data}}
+        self.application_data = {"units": {
+            self.unit1.name: self.subordinate_unit_data,
+            self.unit: self.unit_data}}
         self.juju_status = mock.MagicMock()
         self.juju_status.applications = {
-            self.application: self.application_data}
+            self.application: self.application_data,
+            self.subordinate_application: self.subordinate_application_data}
         self.juju_status.machines = self.machine_data
 
         async def _connect_model(model_name):
@@ -1282,6 +1291,10 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             'app/1',
             'active',
             timeout=0.1)
+        model.block_until_unit_wl_status(
+            'subordinate_application/1',
+            'active',
+            timeout=0.1)
 
     def test_block_until_unit_wl_status_fail(self):
         async def _block_until(f, timeout=None):
@@ -1294,6 +1307,9 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
 
         (self.juju_status.applications[self.application]
             ["units"][self.unit]["workload-status"]["status"]) = "blocked"
+        (self.juju_status.applications[self.application]
+            ["units"][self.unit]['subordinates'][self.subordinate_unit]
+            ["workload-status"]["status"]) = "blocked"
 
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
@@ -1306,6 +1322,11 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         with self.assertRaises(asyncio.futures.TimeoutError):
             model.block_until_unit_wl_status(
                 'app/1',
+                'active',
+                timeout=0.1)
+        with self.assertRaises(asyncio.futures.TimeoutError):
+            model.block_until_unit_wl_status(
+                'subordinate_application/1',
                 'active',
                 timeout=0.1)
 
@@ -1331,6 +1352,11 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             'unknown',
             negate_match=True,
             timeout=0.1)
+        model.block_until_unit_wl_status(
+            'subordinate_application/1',
+            'unknown',
+            negate_match=True,
+            timeout=0.1)
 
     def test_block_until_wl_status_info_starts_with(self):
         async def _block_until(f, timeout=None):
@@ -1347,6 +1373,8 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.patch_object(model, 'get_unit_from_name')
         self.patch_object(model, 'async_get_status')
         self.juju_status.applications['app']['units']['app/1'][
+            'workload-status']['info'] = "match-me if you want"
+        self.juju_status.applications['app']['units']['app/2'][
             'workload-status']['info'] = "match-me if you want"
         self.async_get_status.side_effect = _get_status
         self.patch_object(model, 'async_block_until')
@@ -1370,6 +1398,8 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.patch_object(model, 'get_unit_from_name')
         self.patch_object(model, 'async_get_status')
         self.juju_status.applications['app']['units']['app/1'][
+            'workload-status']['info'] = "match-me if you want"
+        self.juju_status.applications['app']['units']['app/2'][
             'workload-status']['info'] = "match-me if you want"
         self.async_get_status.side_effect = _get_status
         self.patch_object(model, 'async_block_until')
