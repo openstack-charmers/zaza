@@ -1,5 +1,5 @@
 TLS Certificate Utilities
 -------------------------
 
-.. automodule:: zaza.openstack.utilities.cert
+.. automodule:: zaza.utilities.cert
    :members:

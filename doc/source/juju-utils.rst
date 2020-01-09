@@ -1,5 +1,5 @@
 Juju Utilities
 --------------
 
-.. automodule:: zaza.openstack.utilities.juju
+.. automodule:: zaza.utilities.juju
    :members:

@@ -359,6 +359,7 @@ async def async_get_unit_service_start_time(unit_name, service,
 
     If pgrep_full is True  ensure that any special characters in the name of
     the service are escaped e.g.
+
         service = 'aodh-evaluator: AlarmEvaluationService worker\(0\)'
 
     :param model_name: Name of model to query.
