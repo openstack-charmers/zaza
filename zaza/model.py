@@ -1392,7 +1392,8 @@ block_until_services_restarted = sync_wrapper(
 
 
 async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
-                                           negate_match=False, timeout=2700):
+                                           negate_match=False, timeout=2700,
+                                           subordinate_principal=None):
     """Block until the given unit has the desired workload status.
 
     A units workload status may change during a given action. This function
@@ -1417,12 +1418,35 @@ async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
     :type negate_match: bool
     :param timeout: Time to wait for unit to achieved desired status
     :type timeout: float
+    :param subordinate_principal: Name of the principal of unit_name, if
+                                  unit_name is a subordinate
+    :type subordinate_principal: str
     """
     async def _unit_status():
         app = unit_name.split("/")[0]
         model_status = await async_get_status()
-        v = model_status.applications[app]['units'][unit_name][
-            'workload-status']['status']
+        try:
+            v = model_status.applications[app]['units'][unit_name][
+                'workload-status']['status']
+        except TypeError:
+            # For when the unit is a subordinate we need to get it's
+            # leader, and then get the status for the subordinate from its
+            # unit
+            lead_app_name = subordinate_principal
+            if not subordinate_principal:
+                lead_app_name = model_status.applications[app][
+                    'subordinate-to'][0]
+            units = model_status.applications[lead_app_name]['units']
+            for unit in units.values():
+                try:
+                    v = unit['subordinates'][unit_name][
+                        'workload-status']['status']
+                    break
+                except KeyError:
+                    pass
+            else:  # pragma: no cover
+                raise ValueError('{} does not exist as a subordinate under a '
+                                 'principal'.format(unit_name))
         if negate_match:
             return v != status
         else:
