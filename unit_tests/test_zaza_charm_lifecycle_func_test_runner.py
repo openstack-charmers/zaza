@@ -47,6 +47,9 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.patch_object(lc_func_test_runner.configure, 'configure')
         self.patch_object(lc_func_test_runner.test, 'test')
         self.patch_object(lc_func_test_runner.destroy, 'destroy')
+        self.patch_object(
+            lc_func_test_runner.zaza.model,
+            'block_until_all_units_idle')
         self.generate_model_name.return_value = 'newmodel'
         self.get_charm_config.return_value = {
             'charm_name': 'mycharm',
@@ -99,6 +102,9 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.patch_object(lc_func_test_runner.configure, 'configure')
         self.patch_object(lc_func_test_runner.test, 'test')
         self.patch_object(lc_func_test_runner.destroy, 'destroy')
+        self.patch_object(
+            lc_func_test_runner.zaza.model,
+            'block_until_all_units_idle')
         self.generate_model_name.return_value = 'newmodel'
         model_names = ['m6', 'm5', 'm4', 'm3', 'm2', 'm1']
         self.generate_model_name.side_effect = model_names.pop
@@ -186,6 +192,9 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.patch_object(lc_func_test_runner.configure, 'configure')
         self.patch_object(lc_func_test_runner.test, 'test')
         self.patch_object(lc_func_test_runner.destroy, 'destroy')
+        self.patch_object(
+            lc_func_test_runner.zaza.model,
+            'block_until_all_units_idle')
         self.generate_model_name.return_value = 'newmodel'
         self.get_charm_config.return_value = {
             'charm_name': 'mycharm',
@@ -213,6 +222,9 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.patch_object(lc_func_test_runner.test, 'test')
         self.patch_object(lc_func_test_runner.destroy, 'destroy')
         self.generate_model_name.return_value = 'newmodel'
+        self.patch_object(
+            lc_func_test_runner.zaza.model,
+            'block_until_all_units_idle')
         self.get_charm_config.return_value = {
             'charm_name': 'mycharm',
             'gate_bundles': ['bundle1', 'bundle2'],
@@ -240,6 +252,9 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.patch_object(lc_func_test_runner.configure, 'configure')
         self.patch_object(lc_func_test_runner.test, 'test')
         self.patch_object(lc_func_test_runner.destroy, 'destroy')
+        self.patch_object(
+            lc_func_test_runner.zaza.model,
+            'block_until_all_units_idle')
         self.generate_model_name.return_value = 'newmodel'
         self.get_charm_config.return_value = {
             'charm_name': 'mycharm',
@@ -265,6 +280,9 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.patch_object(lc_func_test_runner, 'cli_utils')
         self.patch_object(lc_func_test_runner, 'func_test_runner')
         self.patch_object(lc_func_test_runner, 'asyncio')
+        self.patch_object(
+            lc_func_test_runner.zaza.model,
+            'block_until_all_units_idle')
         _args = mock.Mock()
         _args.loglevel = 'DEBUG'
         _args.dev = True
