@@ -15,6 +15,7 @@
 """Run full test lifecycle."""
 import argparse
 import asyncio
+import logging
 import os
 import sys
 
@@ -53,6 +54,13 @@ def run_env_deployment(env_deployment, keep_model=False):
                 utils.BUNDLE_DIR, '{}.yaml'.format(deployment.bundle)),
             deployment.model_name,
             model_ctxt=model_aliases)
+
+    # When deploying bundles with cross model relations, hooks may be triggered
+    # in already deployedi models so wait for all models to settle.
+    for deployment in env_deployment.model_deploys:
+        logging.info("Waiting for {} to settle".format(deployment.model_name))
+        zaza.model.block_until_all_units_idle(
+            model_name=deployment.model_name)
 
     for deployment in env_deployment.model_deploys:
         configure.configure(
