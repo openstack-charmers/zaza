@@ -18,9 +18,11 @@ import logging
 import os
 import functools
 import yaml
+from os.path import expandvars
 
 ZAZA_SETUP_FILE_LOCATIONS = [
-    '{home}/.zaza.yaml']
+    expandvars('$HOME/.zaza.yaml'),
+]
 
 SECRETS = 'secrets'
 RUNTIME_CONFIG = 'runtime_config'
@@ -125,11 +127,9 @@ def find_setup_file():
     :returns: Location of zaza config file or None if not found.
     :rtype: str or None
     """
-    ctxt = {
-        'home': os.environ.get('HOME')}
     for setup_file in ZAZA_SETUP_FILE_LOCATIONS:
-        if os.path.isfile(setup_file.format(**ctxt)):
-            return setup_file.format(**ctxt)
+        if os.path.isfile(setup_file):
+            return setup_file
 
 
 def get_setup_file_contents():
