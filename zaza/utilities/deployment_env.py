@@ -140,16 +140,13 @@ def get_setup_file_contents():
     :rtype: dict
     """
     setup_file = find_setup_file()
-    setup_file_data = {}
     if setup_file:
         with open(setup_file, 'r') as stream:
             try:
-                _file_data = yaml.safe_load(stream)
-                if _file_data:
-                    setup_file_data.update(_file_data)
+                return yaml.safe_load(stream) or {}
             except yaml.YAMLError:
                 logging.warn("Unable to load data from {}".format(setup_file))
-    return setup_file_data
+    return {}
 
 
 def get_setup_file_section(section_name):
