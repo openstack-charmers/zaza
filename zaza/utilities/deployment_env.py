@@ -32,14 +32,14 @@ DEPLOYMENT_CONTEXT_SECTIONS = [
 MODEL_SETTINGS_SECTION = 'model_settings'
 MODEL_CONSTRAINTS_SECTION = 'model_constraints'
 
-VALID_ENVIRONMENT_KEY_PREFIXES = [
+VALID_ENVIRONMENT_KEY_PREFIXES = (
     'OS_',
     'TEST_',
     'MOJO_',
     'JUJU_',
     'CHARM_',
     'MODEL_',
-]
+)
 
 MODEL_DEFAULTS = {
     # Model defaults from charm-test-infra
@@ -116,12 +116,7 @@ def is_valid_env_key(key):
     :returns: Whether key is a valid environment variable name
     :rtype: bool
     """
-    valid = False
-    for _k in VALID_ENVIRONMENT_KEY_PREFIXES:
-        if key.startswith(_k):
-            valid = True
-            break
-    return valid
+    return key.startswith(VALID_ENVIRONMENT_KEY_PREFIXES)
 
 
 def find_setup_file():
