@@ -701,6 +701,47 @@ async def async_remove_application(application_name, model_name=None,
 remove_application = sync_wrapper(async_remove_application)
 
 
+async def async_add_unit_to_application(application_name, num_units=1,
+                                        to=None, model_name=None):
+    """Add unit[s] to the specified application.
+
+    :param application_name: Name of application
+    :type application_name: str
+    :param num_units: How many units to add to the application
+    :type num_units: int
+    :param to: Placement directive, e.g.::
+        '23' - machine 23
+        'lxc:7' - new lxc container on machine 7
+        '24/lxc/3' - lxc container 3 or machine 24
+
+        If None, a new machine is provisioned.
+    :type to: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    """
+    async with run_in_model(model_name) as model:
+        await model.applications[application_name].add_unit(num_units)
+
+
+add_unit_to_application = sync_wrapper(async_add_unit_to_application)
+
+
+async def async_remove_unit_from_application(unit_name, model_name=None):
+    """Remove unit from the specified application.
+
+    :param unit_name: Name of unit to remove
+    :type unit_name: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    """
+    async with run_in_model(model_name) as model:
+        unit = get_unit_from_name(unit_name, model)
+        await unit.remove()
+
+
+remove_unit_from_application = sync_wrapper(async_remove_unit_from_application)
+
+
 class UnitError(Exception):
     """Exception raised for units in error state."""
 
