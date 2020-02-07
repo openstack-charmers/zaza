@@ -22,6 +22,133 @@ import unit_tests.utils as ut_utils
 
 class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
 
+    def test__concat_model_alias_maps(self):
+        # - test1
+        self.assertEqual(
+            lc_utils._concat_model_alias_maps(['test1']),
+            {'default_alias': ['test1']})
+        # - test1
+        # - test2
+        self.assertEqual(
+            lc_utils._concat_model_alias_maps(['test1', 'test2']),
+            {'default_alias': ['test1', 'test2']})
+        # - default_alias1:
+        #   - test1
+        self.assertEqual(
+            lc_utils._concat_model_alias_maps([{'default_alias': ['test1']}]),
+            {'default_alias': ['test1']})
+        # - test1
+        # - test2
+        # - model_alias1:
+        #   - test3
+        # - model_alias2:
+        #   - test4
+        self.assertEqual(
+            lc_utils._concat_model_alias_maps(
+                [
+                    'test1',
+                    'test2',
+                    {
+                        'model_alias1': ['test3']},
+                    {
+                        'model_alias2': ['test4']}]),
+            {
+                'default_alias': ['test1', 'test2'],
+                'model_alias1': ['test3'],
+                'model_alias2': ['test4']})
+
+    def test_get_default_env_deploy_name(self):
+        self.assertEqual(
+            lc_utils.get_default_env_deploy_name(reset_count=True),
+            'default1')
+
+    def test_get_deployment_type_raw(self):
+        self.assertEqual(
+            lc_utils.get_deployment_type('xenial-keystone'),
+            lc_utils.RAW_BUNDLE)
+
+    def test_get_deployment_type_multi_ordered(self):
+        self.assertEqual(
+            lc_utils.get_deployment_type({
+                'model_alias1': 'bundle1',
+                'model_alias2': 'bundle2'}),
+            lc_utils.MUTLI_UNORDERED)
+
+    def test_get_deployment_type_single_aliased(self):
+        self.assertEqual(
+            lc_utils.get_deployment_type(
+                {'model_alias1': 'bundle1'}),
+            lc_utils.SINGLE_ALIASED)
+
+    def test_get_deployment_type_multi_unordered(self):
+        self.assertEqual(
+            lc_utils.get_deployment_type({
+                'env-test-alias': [
+                    {'model_alias1': 'bundle1'},
+                    {'model_alias2': 'bundle2'}]}),
+            lc_utils.MUTLI_ORDERED)
+
+    def test_get_config_steps(self):
+        self.patch_object(lc_utils, "get_charm_config")
+        self.get_charm_config.return_value = {
+            'configure': [
+                'conf.class1',
+                'conf.class2',
+                {'model_alias1': ['conf.class3']}]}
+        self.assertEqual(
+            lc_utils.get_config_steps(),
+            {'default_alias': ['conf.class1', 'conf.class2'],
+             'model_alias1': ['conf.class3']})
+
+    def test_get_test_steps(self):
+        self.patch_object(lc_utils, "get_charm_config")
+        self.get_charm_config.return_value = {
+            'tests': [
+                'test.class1',
+                'test.class2',
+                {'model_alias1': ['test.class3']}]}
+        self.assertEqual(
+            lc_utils.get_test_steps(),
+            {'default_alias': ['test.class1', 'test.class2'],
+             'model_alias1': ['test.class3']})
+
+    def test_get_environment_deploys(self):
+        self.patch_object(lc_utils, 'get_charm_config')
+        charm_config = {
+            'smoke_bundles': ['map1', 'map2', 'map3']}
+        self.patch_object(lc_utils, 'get_environment_deploy')
+        env_depl1 = lc_utils.EnvironmentDeploy('ed1', [], True)
+        env_depl2 = lc_utils.EnvironmentDeploy('ed2', [], True)
+        env_depl3 = lc_utils.EnvironmentDeploy('ed3', [], True)
+        env_deploys = {
+            'map1': env_depl1,
+            'map2': env_depl2,
+            'map3': env_depl3
+        }
+        self.get_charm_config.return_value = charm_config
+        self.get_environment_deploy.side_effect = lambda x: env_deploys[x]
+        self.assertEqual(
+            lc_utils.get_environment_deploys('smoke_bundles'),
+            [env_depl1, env_depl2, env_depl3])
+
+    def test_get_environment_deploy_single_aliased(self):
+        self.patch_object(
+            lc_utils,
+            'generate_model_name',
+            return_value='zaza-model-1')
+        self.patch_object(
+            lc_utils,
+            'get_default_env_deploy_name',
+            return_value='env-alias-1')
+        expect = lc_utils.EnvironmentDeploy(
+            'env-alias-1',
+            [lc_utils.ModelDeploy('alias', 'zaza-model-1', 'bundle')],
+            True)
+        self.assertEqual(
+            lc_utils.get_environment_deploy_single_aliased(
+                {'alias': 'bundle'}),
+            expect)
+
     def test_generate_model_name(self):
         self.patch_object(lc_utils.uuid, "uuid4")
         self.uuid4.return_value = "longer-than-12characters"
@@ -45,6 +172,16 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
                          _yaml_dict)
         self._open.assert_called_once_with(_filename, "r")
         self.yaml.safe_load.assert_called_once_with(_yaml)
+        self._open.side_effect = FileNotFoundError
+        self.patch_object(lc_utils.os, 'getcwd')
+        self.getcwd.return_value = '/absoulte/path/to/fakecwd'
+        with self.assertRaises(FileNotFoundError):
+            lc_utils.get_charm_config()
+        self.assertEqual(lc_utils.get_charm_config(fatal=False),
+                         {'charm_name': 'fakecwd'})
+        self.getcwd.return_value = '/absoulte/path/to/charm-fakecwd'
+        self.assertEqual(lc_utils.get_charm_config(fatal=False),
+                         {'charm_name': 'fakecwd'})
 
     def test_get_class(self):
         self.assertEqual(

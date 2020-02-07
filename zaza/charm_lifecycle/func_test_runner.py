@@ -15,6 +15,7 @@
 """Run full test lifecycle."""
 import argparse
 import asyncio
+import logging
 import os
 import sys
 
@@ -24,8 +25,61 @@ import zaza.charm_lifecycle.utils as utils
 import zaza.charm_lifecycle.prepare as prepare
 import zaza.charm_lifecycle.deploy as deploy
 import zaza.charm_lifecycle.test as test
+import zaza.model
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
+
+
+def run_env_deployment(env_deployment, keep_model=False):
+    """Run the environment deployment.
+
+    :param env_deployment: Environment Deploy to execute.
+    :type env_deployment: utils.EnvironmentDeploy
+    :param keep_model: Whether to destroy models at end of run
+    :type keep_model: boolean
+    """
+    config_steps = utils.get_config_steps()
+    test_steps = utils.get_test_steps()
+
+    model_aliases = {model_deploy.model_alias: model_deploy.model_name
+                     for model_deploy in env_deployment.model_deploys}
+    zaza.model.set_juju_model_aliases(model_aliases)
+
+    for deployment in env_deployment.model_deploys:
+        prepare.prepare(deployment.model_name)
+
+    for deployment in env_deployment.model_deploys:
+        deploy.deploy(
+            os.path.join(
+                utils.BUNDLE_DIR, '{}.yaml'.format(deployment.bundle)),
+            deployment.model_name,
+            model_ctxt=model_aliases)
+
+    # When deploying bundles with cross model relations, hooks may be triggered
+    # in already deployedi models so wait for all models to settle.
+    for deployment in env_deployment.model_deploys:
+        logging.info("Waiting for {} to settle".format(deployment.model_name))
+        zaza.model.block_until_all_units_idle(
+            model_name=deployment.model_name)
+
+    for deployment in env_deployment.model_deploys:
+        configure.configure(
+            deployment.model_name,
+            config_steps.get(deployment.model_alias, []))
+
+    for deployment in env_deployment.model_deploys:
+        test.test(
+            deployment.model_name,
+            test_steps.get(deployment.model_alias, []))
+
+    # Destroy
+    # Keep the model from the last run if keep_model is true, this is to
+    # maintian compat with osci and should change when the zaza collect
+    # functions take over from osci for artifact collection.
+    if not keep_model:
+        for model_name in model_aliases.values():
+            destroy.destroy(model_name)
+    zaza.model.unset_juju_model_aliases()
 
 
 def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
@@ -38,9 +92,15 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
     :type smoke: boolean
     :type dev: boolean
     """
-    test_config = utils.get_charm_config()
     if bundle:
-        bundles = [bundle]
+        environment_deploys = [
+            utils.EnvironmentDeploy(
+                'default',
+                [utils.ModelDeploy(
+                    utils.DEFAULT_MODEL_ALIAS,
+                    utils.generate_model_name(),
+                    bundle)],
+                True)]
     else:
         if smoke:
             bundle_key = 'smoke_bundles'
@@ -48,29 +108,14 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
             bundle_key = 'dev_bundles'
         else:
             bundle_key = 'gate_bundles'
-        bundles = test_config[bundle_key]
-    last_test = bundles[-1]
-    for t in bundles:
-        model_name = utils.generate_model_name()
-        # Prepare
-        prepare.prepare(model_name)
-        # Deploy
-        deploy.deploy(
-            os.path.join(utils.BUNDLE_DIR, '{}.yaml'.format(t)),
-            model_name)
-        if 'configure' in test_config:
-            # Configure
-            configure.configure(model_name, test_config['configure'])
-        # Test
-        test.test(model_name, test_config['tests'])
-        # Destroy
-        # Keep the model from the last run if keep_model is true, this is to
-        # maintian compat with osci and should change when the zaza collect
-        # functions take over from osci for artifact collection.
-        if keep_model and t == last_test:
-            pass
-        else:
-            destroy.destroy(model_name)
+        environment_deploys = utils.get_environment_deploys(bundle_key)
+    last_test = environment_deploys[-1].name
+
+    for env_deployment in environment_deploys:
+        preserve_model = False
+        if keep_model and last_test == env_deployment.name:
+            preserve_model = True
+        run_env_deployment(env_deployment, keep_model=preserve_model)
 
 
 def parse_args(args):

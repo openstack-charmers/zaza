@@ -60,8 +60,7 @@ def parse_args(args):
     parser.add_argument('-c', '--configfuncs', nargs='+',
                         help='Space separated list of config functions',
                         required=False)
-    parser.add_argument('-m', '--model-name', help='Name of model to remove',
-                        required=True)
+    cli_utils.add_model_parser(parser)
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
     parser.set_defaults(loglevel='INFO')
@@ -77,7 +76,12 @@ def main():
     """
     args = parse_args(sys.argv[1:])
     cli_utils.setup_logging(log_level=args.loglevel.upper())
-    funcs = args.configfuncs or utils.get_charm_config()['configure']
-    configure(args.model_name, funcs)
+    for model_alias, model_name in args.model.items():
+        if args.configfuncs:
+            funcs = args.configfuncs
+        else:
+            config_steps = utils.get_config_steps()
+            funcs = config_steps.get(model_alias, [])
+        configure(model_name, funcs)
     run_report.output_event_report()
     asyncio.get_event_loop().close()

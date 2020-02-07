@@ -21,42 +21,10 @@ import unit_tests.utils as ut_utils
 
 class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
 
-    def test_is_valid_env_key(self):
-        self.assertTrue(lc_deploy.is_valid_env_key('OS_VIP04'))
-        self.assertTrue(lc_deploy.is_valid_env_key('FIP_RANGE'))
-        self.assertTrue(lc_deploy.is_valid_env_key('GATEWAY'))
-        self.assertTrue(lc_deploy.is_valid_env_key('NAME_SERVER'))
-        self.assertTrue(lc_deploy.is_valid_env_key('NET_ID'))
-        self.assertTrue(lc_deploy.is_valid_env_key('VIP_RANGE'))
-        self.assertTrue(lc_deploy.is_valid_env_key('AMULET_OS_VIP'))
-        self.assertFalse(lc_deploy.is_valid_env_key('ZAZA_TEMPLATE_VIP00'))
-        self.assertFalse(lc_deploy.is_valid_env_key('PATH'))
-
-    def test_get_template_context_from_env(self):
-        self.patch_object(lc_deploy.os, 'environ')
-        self.environ.items.return_value = [
-            ('AMULET_OS_VIP', '10.10.0.2'),
-            ('OS_VIP04', '10.10.0.2'),
-            ('ZAZA_TEMPLATE_VIP00', '20.3.4.5'),
-            ('PATH', 'aa')]
-        self.assertEqual(
-            lc_deploy.get_template_context_from_env(),
-            {'OS_VIP04': '10.10.0.2',
-             'AMULET_OS_VIP': '10.10.0.2'}
-        )
-
-    def test_get_charm_config_context(self):
-        self.patch_object(lc_deploy.utils, 'get_charm_config')
-        self.get_charm_config.return_value = {
-            'charm_name': 'mycharm'}
-        self.assertEqual(
-            lc_deploy.get_charm_config_context(),
-            {'charm_location': '../../../mycharm', 'charm_name': 'mycharm'})
-
     def test_get_template_overlay_context(self):
-        self.patch_object(lc_deploy, 'get_template_context_from_env')
+        self.patch_object(lc_deploy.deployment_env, 'get_deployment_context')
         self.patch_object(lc_deploy, 'get_charm_config_context')
-        self.get_template_context_from_env.return_value = {
+        self.get_deployment_context.return_value = {
             'OS_VIP04': '10.10.0.2'}
         self.get_charm_config_context.return_value = {
             'charm_location': '../../../mycharm',
@@ -67,6 +35,17 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
                 'OS_VIP04': '10.10.0.2',
                 'charm_location': '../../../mycharm',
                 'charm_name': 'mycharm'})
+
+    def test_get_charm_config_context(self):
+        self.patch_object(lc_deploy.utils, 'get_charm_config')
+        self.patch_object(lc_deploy.os.path, 'abspath')
+        self.get_charm_config.return_value = {
+            'charm_name': 'mycharm'}
+        self.abspath.return_value = '/some/absolute/path'
+        self.assertEqual(
+            lc_deploy.get_charm_config_context(),
+            {'charm_location': '/some/absolute/path/../../../mycharm',
+             'charm_name': 'mycharm'})
 
     def test_get_overlay_template_dir(self):
         self.assertEqual(
@@ -108,7 +87,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.assertIsNone(lc_deploy.get_template('mybundle.yaml'))
 
     def test_render_template(self):
-        self.patch_object(lc_deploy, 'get_template_overlay_context')
+        self.patch_object(lc_deploy, 'get_template_overlay_context',
+                          return_value={})
         template_mock = mock.MagicMock()
         template_mock.render.return_value = 'Template contents'
         m = mock.mock_open()
@@ -126,7 +106,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         lc_deploy.render_overlay('my_overlay.yaml', '/tmp/special-dir')
         self.render_template.assert_called_once_with(
             template_mock,
-            '/tmp/special-dir/my_overlay.yaml')
+            '/tmp/special-dir/my_overlay.yaml',
+            model_ctxt=None)
 
     def test_template_missing_required_variables(self):
         self.patch_object(lc_deploy, 'get_template_overlay_context')
@@ -163,7 +144,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.assertFalse(self.Environment.called)
         self.render_template.assert_called_once_with(
             'atemplate',
-            '/target/local-charm-overlay.yaml')
+            '/target/local-charm-overlay.yaml',
+            model_ctxt=None)
 
     def test_render_local_overlay_default(self):
         jenv_mock = mock.MagicMock()
@@ -181,28 +163,123 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         jenv_mock.from_string.assert_called_once_with(mock.ANY)
         self.render_template.assert_called_once_with(
             'atemplate',
-            '/target/local-charm-overlay.yaml')
+            '/target/local-charm-overlay.yaml',
+            model_ctxt=None)
+
+    def yaml_read_patch(self, yaml, yaml_dict):
+        self.patch("builtins.open",
+                   new_callable=mock.mock_open(),
+                   name="_open")
+        self.patch_object(lc_deploy, 'yaml')
+        self.yaml.safe_load.return_value = yaml_dict
+        _fileobj = mock.MagicMock()
+        _fileobj.__enter__.return_value = yaml
+        self._open.return_value = _fileobj
+
+    def test_is_local_overlay_enabled_in_bundle_in_bundle_unset(self):
+        _yaml = "testconfig: someconfig"
+        _yaml_dict = {'test_config': 'someconfig'}
+        _filename = "filename"
+        self.yaml_read_patch(_yaml, _yaml_dict)
+
+        self.assertTrue(
+            lc_deploy.is_local_overlay_enabled_in_bundle(_filename))
+        self._open.assert_called_once_with(_filename, "r")
+        self.yaml.safe_load.assert_called_once_with(_yaml)
+
+    def test_is_local_overlay_enabled_in_bundle_disabled(self):
+        _yaml = "local_overlay_enabled: False"
+        _yaml_dict = {'local_overlay_enabled': False}
+        _filename = "filename"
+        self.yaml_read_patch(_yaml, _yaml_dict)
+
+        self.assertFalse(
+            lc_deploy.is_local_overlay_enabled_in_bundle(_filename))
+        self._open.assert_called_once_with(_filename, "r")
+        self.yaml.safe_load.assert_called_once_with(_yaml)
+
+    def test_is_local_overlay_enabled_in_bundle_enabled(self):
+        _yaml = "local_overlay_enabled: True"
+        _yaml_dict = {'local_overlay_enabled': True}
+        _filename = "filename"
+        self.yaml_read_patch(_yaml, _yaml_dict)
+
+        self.assertTrue(
+            lc_deploy.is_local_overlay_enabled_in_bundle(_filename))
+        self._open.assert_called_once_with(_filename, "r")
+
+    def test_should_render_local_overlay(self):
+        self.patch_object(
+            lc_deploy.os.path,
+            'isfile',
+            return_value=True)
+        self.patch_object(
+            lc_deploy,
+            'is_local_overlay_enabled_in_bundle',
+            return_value=True)
+        self.patch_object(lc_deploy.utils, 'get_charm_config')
+        _bundle = "bundle.yaml"
+
+        # File exists no bundle override
+        self.assertTrue(lc_deploy.should_render_local_overlay(_bundle))
+
+        # File exists bundle overrides False
+        self.is_local_overlay_enabled_in_bundle.return_value = False
+        self.assertFalse(lc_deploy.should_render_local_overlay(_bundle))
+
+        # No file, charm_name present
+        self.isfile.return_value = False
+        self.get_charm_config.return_value = {"charm_name": "CHARM"}
+        self.assertTrue(lc_deploy.should_render_local_overlay(_bundle))
+
+        # No file, charm_name not present
+        self.isfile.return_value = False
+        self.get_charm_config.return_value = {}
+        self.assertFalse(lc_deploy.should_render_local_overlay(_bundle))
 
     def test_render_overlays(self):
         RESP = {
             'mybundles/mybundle.yaml': '/tmp/mybundle.yaml'}
+        self.patch_object(
+            lc_deploy,
+            'is_local_overlay_enabled_in_bundle',
+            return_value=True)
         self.patch_object(lc_deploy, 'render_local_overlay')
         self.render_local_overlay.return_value = '/tmp/local-overlay.yaml'
         self.patch_object(lc_deploy, 'render_overlay')
-        self.render_overlay.side_effect = lambda x, y: RESP[x]
+        self.render_overlay.side_effect = lambda x, y, model_ctxt: RESP[x]
         self.assertEqual(
             lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
             ['/tmp/local-overlay.yaml', '/tmp/mybundle.yaml'])
 
     def test_render_overlays_missing(self):
         RESP = {'mybundles/mybundle.yaml': None}
+        self.patch_object(
+            lc_deploy,
+            'is_local_overlay_enabled_in_bundle',
+            return_value=True)
         self.patch_object(lc_deploy, 'render_overlay')
         self.patch_object(lc_deploy, 'render_local_overlay')
         self.render_local_overlay.return_value = '/tmp/local.yaml'
-        self.render_overlay.side_effect = lambda x, y: RESP[x]
+        self.render_overlay.side_effect = lambda x, y, model_ctxt: RESP[x]
         self.assertEqual(
             lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
             ['/tmp/local.yaml'])
+
+    def test_render_overlays_no_local(self):
+        RESP = {
+            'mybundles/mybundle.yaml': '/tmp/mybundle.yaml'}
+        self.patch_object(
+            lc_deploy,
+            'is_local_overlay_enabled_in_bundle',
+            return_value=False)
+        self.patch_object(lc_deploy, 'render_local_overlay')
+        self.render_local_overlay.return_value = '/tmp/local-overlay.yaml'
+        self.patch_object(lc_deploy, 'render_overlay')
+        self.render_overlay.side_effect = lambda x, y, model_ctxt: RESP[x]
+        self.assertEqual(
+            lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
+            ['/tmp/mybundle.yaml'])
 
     def test_deploy_bundle(self):
         self.patch_object(lc_deploy.utils, 'get_charm_config')
@@ -220,7 +297,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.get_charm_config.return_value = {}
         self.patch_object(lc_deploy, 'deploy_bundle')
         lc_deploy.deploy('bun.yaml', 'newmodel')
-        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
+        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel',
+                                                   model_ctxt=None)
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
             {})
@@ -235,7 +313,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
                     'workload-status-message': 'Vault needs to be inited'}}}
         self.patch_object(lc_deploy, 'deploy_bundle')
         lc_deploy.deploy('bun.yaml', 'newmodel')
-        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
+        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel',
+                                                   model_ctxt=None)
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
             {'vault': {
@@ -246,7 +325,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.patch_object(lc_deploy.zaza.model, 'wait_for_application_states')
         self.patch_object(lc_deploy, 'deploy_bundle')
         lc_deploy.deploy('bun.yaml', 'newmodel', wait=False)
-        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel')
+        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel',
+                                                   model_ctxt=None)
         self.assertFalse(self.wait_for_application_states.called)
 
     def test_parser(self):

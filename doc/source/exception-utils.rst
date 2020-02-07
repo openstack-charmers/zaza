@@ -1,5 +1,5 @@
 Utility Exceptions
 ------------------
 
-.. automodule:: zaza.openstack.utilities.exceptions
+.. automodule:: zaza.utilities.exceptions
    :members:
