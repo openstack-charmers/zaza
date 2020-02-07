@@ -506,7 +506,7 @@ async def async_get_lead_unit_ip(application_name, model_name=None):
     :type model_name: str
     :param application_name: Name of application
     :type application_name: str
-    :returns: Name of lowest numbered unit
+    :returns: IP of the lead unit
     :rtype: str
     """
     async with run_in_model(model_name) as model:
