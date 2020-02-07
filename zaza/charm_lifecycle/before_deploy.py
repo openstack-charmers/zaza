@@ -1,4 +1,4 @@
-# Copyright 2018 Canonical Ltd.
+# Copyright 2020 Canonical Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,9 +33,9 @@ def run_before_deploy_list(functions):
     :type tests: ['zaza.charms_tests.svc.setup', ...]
     """
     for func in functions:
-        run_report.register_event_start('BBefore Deploy {}'.format(func))
+        run_report.register_event_start('Before Deploy {}'.format(func))
         utils.get_class(func)()
-        run_report.register_event_finish('BBefore Deploy {}'.format(func))
+        run_report.register_event_finish('Before Deploy {}'.format(func))
 
 
 def before_deploy(model_name, functions):

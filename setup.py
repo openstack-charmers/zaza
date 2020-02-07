@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright 2018 Canonical Ltd.
+# Copyright 2020 Canonical Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -88,6 +88,7 @@ setup(
     entry_points={
         'console_scripts': [
             'functest-run-suite = zaza.charm_lifecycle.func_test_runner:main',
+            'functest-before-deploy = zaza.charm_lifecycle.before_deploy:main',
             'functest-deploy = zaza.charm_lifecycle.deploy:main',
             'functest-configure = zaza.charm_lifecycle.configure:main',
             'functest-destroy = zaza.charm_lifecycle.destroy:main',
