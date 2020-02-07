@@ -334,6 +334,16 @@ class TestModel(ut_utils.BaseTestCase):
             model.get_lead_unit_name('app', 'model'),
             'app/4')
 
+    def test_get_lead_unit_ip(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'get_units')
+        self.get_units.return_value = self.units
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(
+            model.get_lead_unit_ip('app', 'model'),
+            'ip2')
+
     def test_get_unit_from_name(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
