@@ -499,6 +499,26 @@ def get_app_ips(application_name, model_name=None):
             for u in get_units(application_name, model_name=model_name)]
 
 
+async def async_get_lead_unit_ip(application_name, model_name=None):
+    """Return the IP address of the lead unit of a given application.
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    :returns: IP of the lead unit
+    :rtype: str
+    """
+    async with run_in_model(model_name) as model:
+        for unit in model.applications[application_name].units:
+            is_leader = await unit.is_leader_from_status()
+            if is_leader:
+                return unit.public_address
+
+
+get_lead_unit_ip = sync_wrapper(async_get_lead_unit_ip)
+
+
 async def async_get_application_config(application_name, model_name=None):
     """Return application configuration.
 
