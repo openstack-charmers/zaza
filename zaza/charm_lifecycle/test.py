@@ -24,6 +24,9 @@ import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
 
+UNITTEST = 'unittest'
+DIRECT = 'direct'
+
 
 class Stream2Logger():
     """Act as a stream for the unit test runner."""
@@ -43,23 +46,69 @@ class Stream2Logger():
         pass
 
 
-def run_test_list(tests):
-    """Run the tests as defined in the list of test classes in series.
+def get_test_runners():
+    """Return mapping of test runner types to methods for those types.
 
-    :param tests: List of test class strings
-    :type tests: ['zaza.charms_tests.svc.TestSVCClass1', ...]
-    :raises: AssertionError if test run fails
+    :returns: Mapping of test runner types to methods
+    :rtype: dict
+    """
+    return {
+        UNITTEST: run_unittest,
+        DIRECT: run_direct}
+
+
+def run_unittest(testcase, test_name):
+    """Test runner for unittest test cases.
+
+    :param testcase: Class to pass to unittest test runner
+    :type testcase: Class
+    :param test_name: Name of test for logging.
+    :type test_name: str
+    """
+    suite = unittest.TestLoader().loadTestsFromTestCase(testcase)
+    test_result = unittest.TextTestRunner(
+        stream=Stream2Logger(),
+        verbosity=2).run(suite)
+    run_report.register_event_finish('Test {}'.format(test_name))
+    assert test_result.wasSuccessful(), "Test run failed"
+
+
+def run_direct(testcase, test_name):
+    """Test runner for standalone tests.
+
+    Test runner for tests which have not been build with
+    any particular test framework. The should expose a 'run'
+    method which will be called to execute the test.
+
+    :param testcase: Class that encapsulates the test to be run.
+    :type testcase: Class
+    :param test_name: Name of test for logging.
+    :type test_name: str
+    """
+    test_run = testcase().run()
+    assert test_run, "Test run failed"
+    run_report.register_event_finish('Test {}'.format(test_name))
+
+
+def run_test_list(tests):
+    """Run each test in the list using the appropriate test runner.
+
+    Test classes should declare the class viariable 'test_runner'
+    which will indicate which runner should be used. If none is provided
+    then the unittest runner is used.
+
+    :param tests: List of tests to be run.
+    :type tests: List
     """
     for _testcase in tests:
         run_report.register_event_start('Test {}'.format(_testcase))
         logging.info('## Running Test {} ##'.format(_testcase))
         testcase = utils.get_class(_testcase)
-        suite = unittest.TestLoader().loadTestsFromTestCase(testcase)
-        test_result = unittest.TextTestRunner(
-            stream=Stream2Logger(),
-            verbosity=2).run(suite)
-        run_report.register_event_finish('Test {}'.format(_testcase))
-        assert test_result.wasSuccessful(), "Test run failed"
+        try:
+            runner = testcase.test_runner
+        except AttributeError:
+            runner = UNITTEST
+        get_test_runners()[runner](testcase, _testcase)
 
 
 def test(model_name, tests):
