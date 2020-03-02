@@ -876,6 +876,17 @@ def check_unit_workload_status_message(model, unit, message=None,
         raise ValueError("Must be called with message or prefixes")
 
 
+def check_applications_status(app_data, status):
+    """Check that the applications in the model matches the supplied status.
+
+    :param model: Application data
+    :type model: dict
+    :param status: Acceptable application status
+    :type status: list
+    """
+    return app_data.status in status
+
+
 async def async_wait_for_agent_status(model_name=None, status='executing',
                                       timeout=60):
     """Wait for at least one unit to enter a specific agent status.
@@ -1012,6 +1023,16 @@ async def async_wait_for_application_states(model_name=None, states=None,
                             gate_attr='workload status message',
                             unit_state=unit.workload_status_message,
                             approved_states=prefixes))
+
+                logging.info("Waiting for application to be active")
+                try:
+                    await model.block_until(
+                        lambda: check_applications_status(app_data,
+                                                          approved_statuses),
+                        timeout=timeout)
+                except concurrent.futures._base.TimeoutError:
+                    raise ModelTimeout("Zaza has timed out waiting on the"
+                                       "applications to reach idle state.")
 
 
 wait_for_application_states = sync_wrapper(async_wait_for_application_states)
