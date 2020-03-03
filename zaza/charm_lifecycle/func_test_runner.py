@@ -30,13 +30,15 @@ import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
 
 
-def run_env_deployment(env_deployment, keep_model=False):
+def run_env_deployment(env_deployment, keep_model=False, force=False):
     """Run the environment deployment.
 
     :param env_deployment: Environment Deploy to execute.
     :type env_deployment: utils.EnvironmentDeploy
     :param keep_model: Whether to destroy models at end of run
     :type keep_model: boolean
+    :param force: Pass the force parameter if True
+    :type force: Boolean
     """
     config_steps = utils.get_config_steps()
     test_steps = utils.get_test_steps()
@@ -53,7 +55,8 @@ def run_env_deployment(env_deployment, keep_model=False):
             os.path.join(
                 utils.BUNDLE_DIR, '{}.yaml'.format(deployment.bundle)),
             deployment.model_name,
-            model_ctxt=model_aliases)
+            model_ctxt=model_aliases,
+            force=force)
 
     # When deploying bundles with cross model relations, hooks may be triggered
     # in already deployedi models so wait for all models to settle.
@@ -82,7 +85,8 @@ def run_env_deployment(env_deployment, keep_model=False):
     zaza.model.unset_juju_model_aliases()
 
 
-def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
+def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None,
+                     force=False):
     """Deploy the bundles and run the tests as defined by the charms tests.yaml.
 
     :param keep_model: Whether to destroy model at end of run
@@ -91,6 +95,8 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
     :param dev: Whether to just run dev test.
     :type smoke: boolean
     :type dev: boolean
+    :param force: Pass the force parameter if True to the juju deploy command
+    :type force: Boolean
     """
     if bundle:
         environment_deploys = [
@@ -115,7 +121,8 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None):
         preserve_model = False
         if keep_model and last_test == env_deployment.name:
             preserve_model = True
-        run_env_deployment(env_deployment, keep_model=preserve_model)
+        run_env_deployment(env_deployment, keep_model=preserve_model,
+                           force=force)
 
 
 def parse_args(args):
@@ -139,6 +146,9 @@ def parse_args(args):
     parser.add_argument('-b', '--bundle', dest='bundle',
                         help='Override the bundle to be run',
                         required=False)
+    parser.add_argument('-f', '--force', dest='force',
+                        help='Pass --force to the juju deploy command',
+                        action='store_true')
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
     parser.set_defaults(keep_model=False,
@@ -166,10 +176,15 @@ def main():
         raise ValueError('Ambiguous arguments: --bundle and '
                          '--smoke cannot be used together')
 
+    if args.force:
+        logging.warn("Using the --force argument for 'juju deploy'. Note "
+                     "that this disables juju checks for compatibility.")
+
     func_test_runner(
         keep_model=args.keep_model,
         smoke=args.smoke,
         dev=args.dev,
-        bundle=args.bundle)
+        bundle=args.bundle,
+        force=args.force)
     run_report.output_event_report()
     asyncio.get_event_loop().close()
