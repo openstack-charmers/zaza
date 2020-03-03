@@ -276,6 +276,9 @@ def render_overlays(bundle, target_dir, model_ctxt=None):
 def deploy_bundle(bundle, model, model_ctxt=None, force=False):
     """Deploy the given bundle file in the specified model.
 
+    The force param is used to enable zaza testing with Juju with charms
+    that would be rejected by juju (e.g. series not supported).
+
     :param bundle: Path to bundle file
     :type bundle: str
     :param model: Name of model to deploy bundle in
