@@ -67,17 +67,17 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             'tests': [
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
                 'zaza.charm_tests.mycharm.tests.ComplexTest']}
-        lc_func_test_runner.func_test_runner()
+        lc_func_test_runner.func_test_runner(force=True)
         prepare_calls = [
             mock.call('newmodel'),
             mock.call('newmodel')]
         deploy_calls = [
             mock.call('./tests/bundles/bundle1.yaml', 'newmodel',
                       model_ctxt={'default_alias': 'newmodel'},
-                      force=False),
+                      force=True),
             mock.call('./tests/bundles/bundle2.yaml', 'newmodel',
                       model_ctxt={'default_alias': 'newmodel'},
-                      force=False)]
+                      force=True)]
         configure_calls = [
             mock.call('newmodel', [
                 'zaza.charm_tests.mycharm.setup.basic_setup'
