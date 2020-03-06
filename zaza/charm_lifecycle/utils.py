@@ -315,6 +315,42 @@ def get_charm_config(yaml_file=None, fatal=True):
         raise
 
 
+def is_config_deploy_forced_for_bundle(
+        bundle_name, yaml_file=None, fatal=True):
+    """Ask the config if the bundle_name should be deploy_forced.
+
+    In the config file for the tests, the tests_options.force_deploy option
+    may be used to force the juju deploy; e.g. the bundle combination isn't
+    officially supported by Juju and thus the only way to test it is to parse
+    --force to the option.
+
+    The tests_options section needs to look like:
+
+        tests_options:
+          force_deploy:
+            - focal-ussuri
+
+    e.g. force_deploy is a list of bundle names; if the bundle is mentioned
+    then that bundle will be force_deployed.
+
+    :param bundle_name: the bundle to check in the force_deploy list
+    :type bundle_name: str
+    :param yaml_file: the YAML file that contains the tests specification
+    :type yaml_file: Optional[str]
+    :param fatal: whether any errors cause an exception or are just logged.
+    :type fatal: bool
+    :returns: True if the config option is set for the bundle
+    :rtype: bool
+    :raises: OSError if the YAML file doesn't exist and fatal=True
+    """
+    config = get_charm_config(yaml_file, fatal)
+    try:
+        return bundle_name in config['tests_options']['force_deploy']
+    except KeyError:
+        pass
+    return False
+
+
 def get_class(class_str):
     """Get the class represented by the given string.
 

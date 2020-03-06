@@ -183,6 +183,30 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         self.assertEqual(lc_utils.get_charm_config(fatal=False),
                          {'charm_name': 'fakecwd'})
 
+    def test_is_config_deploy_forced_for_bundle(self):
+        self.patch_object(lc_utils, 'get_charm_config')
+        # test that no options at all returns value
+        self.get_charm_config.return_value = {}
+        self.assertFalse(lc_utils.is_config_deploy_forced_for_bundle('x'))
+        # test that if options exist but no bundle
+        self.get_charm_config.return_value = {
+            'tests_options': {}
+        }
+        self.assertFalse(lc_utils.is_config_deploy_forced_for_bundle('x'))
+        self.get_charm_config.return_value = {
+            'tests_options': {
+                'force_deploy': []
+            }
+        }
+        self.assertFalse(lc_utils.is_config_deploy_forced_for_bundle('x'))
+        # verify that it returns True if the bundle is mentioned
+        self.get_charm_config.return_value = {
+            'tests_options': {
+                'force_deploy': ['x']
+            }
+        }
+        self.assertTrue(lc_utils.is_config_deploy_forced_for_bundle('x'))
+
     def test_get_class(self):
         self.assertEqual(
             type(lc_utils.get_class('unit_tests.'
