@@ -15,7 +15,7 @@ Add targets to tox.ini should include a target like::
     basepython = python3
     commands =
         functest-run-suite --keep-model
-    
+
     [testenv:func-smoke]
     basepython = python3
     commands =
@@ -123,3 +123,34 @@ look like::
       - base-bionic
     dev_bundles:
       - base-xenial-ha
+
+Deploying bundles using --force
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to allow early testing of new Ubuntu series the `juju deploy` command
+has a `--force` option.  This allows deployment of charms that don't specify
+the series being used, or for a new series that juju doesn't support yet.
+
+Force deploying can be achieved in two ways, either on the command line, or via
+an `tests_options.force_deploy` entry in the `tests.yaml` file.
+
+For the command line a `--force` param is provided:
+
+    functest-run-suite --keep-model --dev --force
+    functest-deploy <other options> --force
+
+In the `tests.yaml` the option is added as a list item:
+
+    charm_name: keystone
+    smoke_bundles:
+    - focal-ussuri
+
+    ...
+
+    tests_options:
+      force_deploy:
+        - focal-ussuri
+
+In the above case, focal-ussuri will be deployed using the --force parameter.
+i.e. the `tests_options.force_deploy['focal-ussuri']` option applies to the
+`focal-ussuri` bundle whether it appears in any of the bundle sections.

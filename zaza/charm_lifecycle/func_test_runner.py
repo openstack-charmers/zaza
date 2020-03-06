@@ -50,6 +50,9 @@ def run_env_deployment(env_deployment, keep_model=False, force=False):
     for deployment in env_deployment.model_deploys:
         prepare.prepare(deployment.model_name)
 
+    force = force or utils.is_config_deploy_forced_for_bundle(
+        deployment.bundle)
+
     for deployment in env_deployment.model_deploys:
         deploy.deploy(
             os.path.join(
