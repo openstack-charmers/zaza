@@ -46,6 +46,18 @@ variables::
         options:
             vip: '{{ OS_VIP00 }}'
 
+It is also possible to provide overlay templates tailored for specific juju
+provider types, this can be useful to do any provider specific morphing of
+a bundle. To use this feature use the following directory layout::
+
+    tests/bundles/overlays/xenial.yaml.j2
+    tests/bundles/overlays/lxd/xenial.yaml.j2
+
+With the above directory layout the overlay template in the lxd sub-directory
+will be used when tests are executed with juju on a LXD provider and the
+overlay template in the top level directory will be used for any other
+provider types.
+
 Add tests.yaml
 ~~~~~~~~~~~~~~
 

@@ -55,6 +55,37 @@ async def async_destroy_model(model_name):
 destroy_model = sync_wrapper(async_destroy_model)
 
 
+async def async_cloud(name=None):
+    """Return information about cloud.
+
+    :param name: Cloud name. If not specified, the cloud where
+                 the controller lives on is returned.
+    :type name: Optional[str]
+    :returns: Information on all clouds in the controller.
+    :rtype: CloudResult
+    """
+    controller = Controller()
+    await controller.connect()
+    cloud = await controller.cloud(name=name)
+    await controller.disconnect()
+    return cloud
+
+cloud = sync_wrapper(async_cloud)
+
+
+def get_cloud_type(name=None):
+    """Return type of cloud.
+
+    :param name: Cloud name. If not specified, the cloud where
+                 the controller lives on is returned.
+    :type name: Optional[str]
+    :returns: Type of cloud
+    :rtype: str
+    """
+    _cloud = cloud(name=name)
+    return _cloud.cloud.type_
+
+
 async def async_get_cloud():
     """Return the name of the current cloud.
 

@@ -52,17 +52,41 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             lc_deploy.get_overlay_template_dir(),
             'tests/bundles/overlays')
 
-    def test_get_jinja2_env(self):
+    def test_get_jinja2_loader(self):
         self.patch_object(lc_deploy, 'get_overlay_template_dir')
+        self.patch_object(lc_deploy.os, 'path')
+        self.patch_object(lc_deploy.zaza.controller, 'get_cloud_type')
         self.get_overlay_template_dir.return_value = 'mytemplatedir'
-        self.patch_object(lc_deploy.jinja2, 'Environment')
+        self.patch_object(lc_deploy.jinja2, 'ChoiceLoader')
         self.patch_object(lc_deploy.jinja2, 'FileSystemLoader')
+        self.path.join.return_value = 'mytemplatedir/someprovider'
+        self.path.exists.return_value = False
+        self.path.isdir.return_value = False
+        lc_deploy.get_jinja2_loader()
+        self.assertFalse(self.ChoiceLoader.called)
+        self.FileSystemLoader.assert_called_once_with('mytemplatedir')
+        self.path.exists.return_value = True
+        self.path.isdir.return_value = True
+        self.FileSystemLoader.reset_mock()
+        self.FileSystemLoader.side_effect = [
+            'mytemplatedir/someprovider', 'mytemplatedir']
+        lc_deploy.get_jinja2_loader()
+        self.ChoiceLoader.assert_called_once_with(
+            ['mytemplatedir/someprovider', 'mytemplatedir'])
+        self.FileSystemLoader.assert_has_calls([
+            mock.call('mytemplatedir/someprovider'),
+            mock.call('mytemplatedir'),
+        ])
+
+    def test_get_jinja2_env(self):
+        self.patch_object(lc_deploy, 'get_jinja2_loader')
+        self.patch_object(lc_deploy.jinja2, 'Environment')
         jinja_env_mock = mock.MagicMock()
         self.Environment.return_value = jinja_env_mock
         self.assertEqual(
             lc_deploy.get_jinja2_env(),
             jinja_env_mock)
-        self.FileSystemLoader.assert_called_once_with('mytemplatedir')
+        self.get_jinja2_loader.assert_called_once_with()
 
     def test_get_template_name(self):
         self.assertEqual(
@@ -114,6 +138,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.get_template_overlay_context.return_value = {}
         self.patch_object(lc_deploy.sys, 'exit')
         self.patch_object(lc_deploy.logging, 'error')
+        self.patch_object(lc_deploy, 'get_jinja2_loader', return_value=None)
         jinja2_env = lc_deploy.get_jinja2_env()
         template = jinja2_env.from_string('{{required_variable}}')
         m = mock.mock_open()
