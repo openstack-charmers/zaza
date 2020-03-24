@@ -15,6 +15,12 @@
 import aiounittest
 
 
+# Prior to Python 3.8 asyncio would raise a ``asyncio.futures.TimeoutError``
+# exception on timeout, from Python 3.8 onwards it raises a exception from a
+# new ``asyncio.exceptions`` module.
+#
+# Neither of these are inherited from a relevant built-in exception so we
+# cannot catch them generally with the built-in TimeoutError or similar.
 try:
     import asyncio.exceptions
     AsyncTimeoutError = asyncio.exceptions.TimeoutError
