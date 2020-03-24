@@ -3,7 +3,7 @@ async_generator
 juju
 juju_wait
 PyYAML>=3.0
-flake8>=2.2.4,<=3.5.0
+flake8>=2.2.4
 flake8-docstrings
 flake8-per-file-ignores
 pydocstyle<4.0.0

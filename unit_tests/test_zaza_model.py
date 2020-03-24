@@ -13,7 +13,22 @@
 # limitations under the License.
 
 import aiounittest
-import asyncio.futures
+
+
+# Prior to Python 3.8 asyncio would raise a ``asyncio.futures.TimeoutError``
+# exception on timeout, from Python 3.8 onwards it raises a exception from a
+# new ``asyncio.exceptions`` module.
+#
+# Neither of these are inherited from a relevant built-in exception so we
+# cannot catch them generally with the built-in TimeoutError or similar.
+try:
+    import asyncio.exceptions
+    AsyncTimeoutError = asyncio.exceptions.TimeoutError
+except ImportError:
+    import asyncio.futures
+    AsyncTimeoutError = asyncio.futures.TimeoutError
+
+
 import concurrent
 import mock
 
@@ -554,7 +569,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.run_action.status = 'running'
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             model.run_action_on_units(
                 ['app/1'],
                 'backup',
@@ -852,7 +867,7 @@ class TestModel(ut_utils.BaseTestCase):
         _fileobj = mock.MagicMock()
         _fileobj.__enter__().read.return_value = "anything else"
         self._open.return_value = _fileobj
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             model.block_until_file_has_contents(
                 'app',
                 '/tmp/src/myfile.txt',
@@ -877,7 +892,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.action.data['results']['Stdout'] = "0"
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             model.block_until_file_missing(
                 'app',
                 '/tmp/src/myfile.txt',
@@ -887,7 +902,7 @@ class TestModel(ut_utils.BaseTestCase):
 
         async def _block_until(f, timeout=None):
             if not f():
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
 
         def _all_units_idle():
             return True
@@ -902,7 +917,7 @@ class TestModel(ut_utils.BaseTestCase):
 
         async def _block_until(f, timeout=None):
             if not f():
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
 
         def _all_units_idle():
             return False
@@ -911,14 +926,14 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model.return_value = self.Model_mock
         self.Model_mock.block_until.side_effect = _block_until
         # Confirm exception is raised:
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             model.block_until_all_units_idle('modelname')
 
     def test_async_block_until_all_units_idle_errored_unit(self):
 
         async def _block_until(f, timeout=None):
             if not f():
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
 
         def _all_units_idle():
             return True
@@ -938,7 +953,7 @@ class TestModel(ut_utils.BaseTestCase):
         async def _block_until(f, timeout=None):
             rc = await f()
             if not rc:
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
 
         async def _run_on_unit(unit_name, cmd, model_name=None, timeout=None):
             return rou_return
@@ -975,7 +990,7 @@ class TestModel(ut_utils.BaseTestCase):
     def test_block_until_service_status_check_running_fail(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.block_until_service_status_base({'Stdout': ''})
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             model.block_until_service_status(
                 'app/2',
                 ['test_svc'],
@@ -992,7 +1007,7 @@ class TestModel(ut_utils.BaseTestCase):
     def test_block_until_service_status_check_stopped_fail(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.block_until_service_status_base({'Stdout': '152 409 54'})
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             model.block_until_service_status(
                 'app/2',
                 ['test_svc'],
@@ -1144,7 +1159,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             'glance_store': {
                 'filesystem_store_datadir': ['/var/lib/glance/images/'],
                 'default_store': ['file']}}
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             self.block_until_oslo_config_entries_match_base(
                 file_contents,
                 expected_contents)
@@ -1173,7 +1188,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             'glance_store': {
                 'filesystem_store_datadir': ['/var/lib/glance/images/'],
                 'default_store': ['file']}}
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             self.block_until_oslo_config_entries_match_base(
                 file_contents,
                 expected_contents)
@@ -1197,7 +1212,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             'glance_store': {
                 'filesystem_store_datadir': ['/var/lib/glance/images/'],
                 'default_store': ['file']}}
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             self.block_until_oslo_config_entries_match_base(
                 file_contents,
                 expected_contents)
@@ -1209,7 +1224,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         async def _block_until(f, timeout=None):
             rc = await f()
             if not rc:
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
         self.patch_object(model, 'async_block_until')
         self.async_block_until.side_effect = _block_until
 
@@ -1266,7 +1281,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
 
     def test_block_until_services_restarted_fail(self):
         self.block_until_services_restarted_base(gu_return=10)
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             model.block_until_services_restarted(
                 'app',
                 12,
@@ -1274,7 +1289,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
 
     def test_block_until_services_restarted_not_running(self):
         self.block_until_services_restarted_base(gu_raise_exception=True)
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             model.block_until_services_restarted(
                 'app',
                 12,
@@ -1284,7 +1299,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         async def _block_until(f, timeout=None):
             rc = await f()
             if not rc:
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
 
         async def _get_status():
             return self.juju_status
@@ -1310,7 +1325,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         async def _block_until(f, timeout=None):
             rc = await f()
             if not rc:
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
 
         async def _get_status():
             return self.juju_status
@@ -1329,12 +1344,12 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.async_get_status.side_effect = _get_status
         self.patch_object(model, 'async_block_until')
         self.async_block_until.side_effect = _block_until
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             model.block_until_unit_wl_status(
                 'app/1',
                 'active',
                 timeout=0.1)
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             model.block_until_unit_wl_status(
                 'subordinate_application/1',
                 'active',
@@ -1344,7 +1359,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         async def _block_until(f, timeout=None):
             rc = await f()
             if not rc:
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
 
         async def _get_status():
             return self.juju_status
@@ -1372,7 +1387,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         async def _block_until(f, timeout=None):
             rc = await f()
             if not rc:
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
 
         async def _get_status():
             return self.juju_status
@@ -1397,7 +1412,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         async def _block_until(f, timeout=None):
             rc = await f()
             if not rc:
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
 
         async def _get_status():
             return self.juju_status
@@ -1422,7 +1437,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
     def resolve_units_mocks(self):
         async def _block_until(f, timeout=None):
             if not f():
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'units_with_wl_status_state')
@@ -1445,7 +1460,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
     def test_resolve_units_wait_timeout(self):
         self.resolve_units_mocks()
         self.unit1.workload_status = 'error'
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             model.resolve_units(wait=True, timeout=0.1)
         self.subprocess.check_output.assert_called_once_with(
             ['juju', 'resolved', '-m', 'testmodel', 'app/2'])
@@ -1464,7 +1479,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
     def test_wait_for_agent_status(self):
         async def _block_until(f, timeout=None):
             if not f():
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.unit1.data = {'agent-status': {'current': 'idle'}}
@@ -1476,12 +1491,12 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
     def test_wait_for_agent_status_timeout(self):
         async def _block_until(f, timeout=None):
             if not f():
-                raise asyncio.futures.TimeoutError
+                raise AsyncTimeoutError
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.Model_mock.block_until.side_effect = _block_until
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             model.wait_for_agent_status(timeout=0.1)
 
     def test_upgrade_charm(self):
@@ -1565,7 +1580,7 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
         async def _g():
             return True
 
-        with self.assertRaises(asyncio.futures.TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             await model.async_block_until(_f, _g, timeout=0.1)
 
     async def test_async_block_until_pass(self):

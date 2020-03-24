@@ -1194,7 +1194,7 @@ async def async_block_until_file_ready(application_name, remote_file,
             # cannot differentiate between a connectivity issue and a
             # target file not existing error. For now just assume the
             # latter.
-            except JujuError as e:
+            except JujuError:
                 return False
         else:
             return True

@@ -1,32 +1,36 @@
-sudo: true
-dist: xenial
+dist: bionic
 language: python
-python:
-  - "3.6"
 install:
   - pip install tox-travis
   - pip install codecov
-env:
-  - ENV=pep8
-  - ENV=py3
-  - ENV=func-travis
+matrix:
+  include:
+    - python: 3.6
+      env: ENV=pep8,py3
+    - python: 3.7
+      env: ENV=pep8,py3
+    - python: 3.8
+      env: ENV=pep8,py3
+    - env: ENV=func
+      sudo: required
 comment: |
   install dependencies in script phase saving time on simpler test environments
-  sudo back to ourself to activate lxd group membership executable search path
+  change permissions on lxd socket to allow travis user access
+  (^^ this is a throw-away CI environment, do not do this at home)
 script:
-  - if [ $ENV = 'func-travis' ]; then
+  - if [ $ENV = 'func' ]; then
        sudo apt remove -y --purge lxd lxd-client;
-       sudo snap install lxd;
-       sudo snap install juju --classic;
+       sudo snap install --channel=3.20/stable lxd;
+       sudo snap install --classic juju;
        sudo sh -c 'echo PATH=/snap/bin:$PATH >> /etc/environment';
        sudo lxd waitready;
        sudo lxd init --auto;
-       sudo usermod -a -G lxd travis;
-       sudo su travis -c 'juju bootstrap --debug --no-gui localhost';
+       sudo chmod 666 /var/snap/lxd/common/lxd/unix.socket;
+       juju bootstrap --debug --no-gui localhost;
     fi
   - tox -c tox.ini -e $ENV
-  - if [ $ENV = 'func-travis' ]; then
-    sudo su travis -c 'juju status -m $(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/)';
+  - if [ $ENV = 'func' ]; then
+    juju status -m $(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/);
     fi
 after_success:
   - codecov --verbose --gcov-glob unit_tests/*

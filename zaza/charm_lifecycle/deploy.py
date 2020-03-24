@@ -21,6 +21,7 @@ import sys
 import tempfile
 import yaml
 
+import zaza.controller
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
@@ -87,15 +88,33 @@ def get_overlay_template_dir():
     return DEFAULT_OVERLAY_TEMPLATE_DIR
 
 
+def get_jinja2_loader():
+    """Inspect the template directory and set up appropriate loader.
+
+    :returns: Jinja2 loader
+    :rtype: jinja2.loaders.BaseLoader
+    """
+    template_dir = get_overlay_template_dir()
+    provider_template_dir = os.path.join(
+        template_dir, zaza.controller.get_cloud_type())
+    if (os.path.exists(provider_template_dir) and
+            os.path.isdir(provider_template_dir)):
+        return jinja2.ChoiceLoader([
+            jinja2.FileSystemLoader(provider_template_dir),
+            jinja2.FileSystemLoader(template_dir),
+        ])
+    else:
+        return jinja2.FileSystemLoader(template_dir)
+
+
 def get_jinja2_env():
     """Return a jinja2 environment that can be used to render templates from.
 
     :returns: Jinja2 template loader
     :rtype: jinja2.Environment
     """
-    template_dir = get_overlay_template_dir()
     return jinja2.Environment(
-        loader=jinja2.FileSystemLoader(template_dir),
+        loader=get_jinja2_loader(),
         undefined=jinja2.StrictUndefined
     )
 
