@@ -25,6 +25,7 @@ from setuptools.command.test import test as TestCommand
 
 version = "0.0.1.dev1"
 install_require = [
+    'oslo.config<6.12.0',  # pin at stable/train to retain Py3.5 support
     'async_generator',
     'cryptography',
     'hvac<0.7.0',
