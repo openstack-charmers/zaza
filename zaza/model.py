@@ -1743,12 +1743,17 @@ def attach_resource(application, resource_name, resource_path):
     subprocess.check_call(cmd)
 
 
-async def run_on_machine(machine, command, model_name=None, timeout=None):
+async def async_run_on_machine(
+    machine,
+    command,
+    model_name=None,
+    timeout=None
+):
     """Juju run on unit.
 
     This function uses a spawned process to run the `juju run` command rather
     that a native libjuju call as libjuju hasn't implemented `juju.Machine.run`
-    yet.
+    yet: https://github.com/juju/python-libjuju/issues/403
 
     :param model_name: Name of model unit is in
     :type model_name: str
@@ -1771,10 +1776,10 @@ async def run_on_machine(machine, command, model_name=None, timeout=None):
     await generic_utils.check_call(cmd)
 
 
-sync_run_on_machine = sync_wrapper(run_on_machine)
+run_on_machine = sync_wrapper(async_run_on_machine)
 
 
-async def wait_for_unit_idle(unit_name, timeout=600):
+async def async_wait_for_unit_idle(unit_name, timeout=600):
     """Wait until the unit's agent is idle.
 
     :param unit_name: The unit name of the application, ex: mysql/0
@@ -1785,6 +1790,13 @@ async def wait_for_unit_idle(unit_name, timeout=600):
     :rtype: None
     """
     app = unit_name.split('/')[0]
+
+    def _unit_idle(app, unit_name):
+        async def f():
+            x = await async_get_agent_status(app, unit_name)
+            return x == "idle"
+        return f
+
     try:
         await async_block_until(
             _unit_idle(app, unit_name),
@@ -1794,17 +1806,10 @@ async def wait_for_unit_idle(unit_name, timeout=600):
                            "reach idle state.".format(unit_name))
 
 
-sync_wait_for_unit_idle = sync_wrapper(wait_for_unit_idle)
+wait_for_unit_idle = sync_wrapper(async_wait_for_unit_idle)
 
 
-def _unit_idle(app, unit_name):
-    async def f():
-        x = await get_agent_status(app, unit_name)
-        return x == "idle"
-    return f
-
-
-async def get_agent_status(app, unit_name):
+async def async_get_agent_status(app, unit_name):
     """Get the current status of the specified unit.
 
     :param app: The name of the Juju application, ex: mysql
@@ -1818,4 +1823,4 @@ async def get_agent_status(app, unit_name):
         applications[app]['units'][unit_name]['agent-status']['status']
 
 
-sync_get_agent_status = sync_wrapper(get_agent_status)
+get_agent_status = sync_wrapper(async_get_agent_status)
