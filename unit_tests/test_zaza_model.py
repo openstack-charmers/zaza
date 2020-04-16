@@ -1592,3 +1592,32 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
             return True
 
         await model.async_block_until(_f, _g, timeout=0.1)
+
+    async def test_run_on_machine(self):
+        with mock.patch.object(
+            model.generic_utils,
+            'check_call'
+        ) as check_call:
+            await model.async_run_on_machine('1', 'test')
+        check_call.assert_called_once_with(
+            ['juju', 'run', '--machine=1', 'test'])
+
+    async def test_run_on_machine_with_timeout(self):
+        # self.patch_object(model.generic_utils, 'check_call')
+        with mock.patch.object(
+            model.generic_utils,
+            'check_call'
+        ) as check_call:
+            await model.async_run_on_machine('1', 'test', timeout='20m')
+        check_call.assert_called_once_with(
+            ['juju', 'run', '--machine=1', '--timeout=20m', 'test'])
+
+    async def test_run_on_machine_with_model(self):
+        # self.patch_object(model.generic_utils, 'check_call')
+        with mock.patch.object(
+            model.generic_utils,
+            'check_call'
+        ) as check_call:
+            await model.async_run_on_machine('1', 'test', model_name='test')
+        check_call.assert_called_once_with(
+            ['juju', 'run', '--machine=1', '--model=test', 'test'])
