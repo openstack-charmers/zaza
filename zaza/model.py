@@ -33,6 +33,7 @@ from juju.errors import JujuError
 from juju.model import Model
 
 from zaza import sync_wrapper
+import zaza.utilities.generic as generic_utils
 
 CURRENT_MODEL = None
 MODEL_ALIASES = {}
@@ -1740,3 +1741,81 @@ def attach_resource(application, resource_name, resource_path):
     cmd = ["juju", "attach-resource", "-m", juju_model,
            application, "{}={}".format(resource_name, resource_path)]
     subprocess.check_call(cmd)
+
+
+async def run_on_machine(machine, command, model_name=None, timeout=None):
+    """Juju run on unit.
+
+    This function uses a spawned process to run the `juju run` command rather
+    that a native libjuju call as libjuju hasn't implemented `juju.Machine.run`
+    yet.
+
+    :param model_name: Name of model unit is in
+    :type model_name: str
+    :param unit_name: Name of unit to match
+    :type unit: str
+    :param command: Command to execute
+    :type command: str
+    :param timeout: How long in seconds to wait for command to complete
+    :type timeout: int
+    :returns: action.data['results'] {'Code': '', 'Stderr': '', 'Stdout': ''}
+    :rtype: dict
+    """
+    cmd = ['juju', 'run', '--machine={}'.format(machine)]
+    if model_name:
+        cmd.append('--model={}'.format(model_name))
+    if timeout:
+        cmd.append('--timeout={}'.format(timeout))
+    cmd.append(command)
+    logging.info("About to call '{}'".format(cmd))
+    await generic_utils.check_call(cmd)
+
+
+sync_run_on_machine = sync_wrapper(run_on_machine)
+
+
+async def wait_for_unit_idle(unit_name, timeout=600):
+    """Wait until the unit's agent is idle.
+
+    :param unit_name: The unit name of the application, ex: mysql/0
+    :type unit_name: str
+    :param timeout: How long to wait before timing out
+    :type timeout: int
+    :returns: None
+    :rtype: None
+    """
+    app = unit_name.split('/')[0]
+    try:
+        await async_block_until(
+            _unit_idle(app, unit_name),
+            timeout=timeout)
+    except concurrent.futures._base.TimeoutError:
+        raise ModelTimeout("Zaza has timed out waiting on {} to "
+                           "reach idle state.".format(unit_name))
+
+
+sync_wait_for_unit_idle = sync_wrapper(wait_for_unit_idle)
+
+
+def _unit_idle(app, unit_name):
+    async def f():
+        x = await get_agent_status(app, unit_name)
+        return x == "idle"
+    return f
+
+
+async def get_agent_status(app, unit_name):
+    """Get the current status of the specified unit.
+
+    :param app: The name of the Juju application, ex: mysql
+    :type app: str
+    :param unit_name: The unit name of the application, ex: mysql/0
+    :type unit_name: str
+    :returns: The agent status, either active / idle, returned by Juju
+    :rtype: str
+    """
+    return (await async_get_status()). \
+        applications[app]['units'][unit_name]['agent-status']['status']
+
+
+sync_get_agent_status = sync_wrapper(get_agent_status)
