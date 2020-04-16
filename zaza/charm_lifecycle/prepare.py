@@ -35,7 +35,8 @@ def prepare(model_name):
     """
     zaza.controller.add_model(
         model_name,
-        config=deployment_env.get_model_settings())
+        config=deployment_env.get_model_settings(),
+        region=deployment_env.get_cloud_region())
     zaza.model.set_model_constraints(
         model_name=model_name,
         constraints=deployment_env.get_model_constraints())

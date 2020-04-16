@@ -34,6 +34,33 @@ semicolon e.g.::
     export MODEL_SETTINGS="no-proxy=jujucharms.com"
     export MODEL_CONSTRAINTS="virt-type=kvm"
 
+In addition to overriding Zaza's configuration via environment variables, some
+configuration can be done via a .zaza.yaml file in your home directory, eg.::
+
+    ---
+    model_settings:
+        default-series: xenial
+        image-stream: daily
+        test-mode: true
+        transmit-vendor-metrics: false
+        enable-os-upgrade: false
+        automatically-retry-hooks: false
+        use-default-secgroup: true
+    model_constraints:
+        mem: '4g'
+    secrets:
+        setting1: value1
+    runtime_config: {}
+
+In addition to the config shown above, some options can only be added
+via a .zaza.yaml file, eg.::
+
+    ---
+    region: my-region-name
+
+The above configuration is required to run Zaza on a multi cloud / region Juju
+controller.
+
 
 1) Prepare
 ~~~~~~~~~~

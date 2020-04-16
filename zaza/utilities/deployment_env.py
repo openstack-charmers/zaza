@@ -108,6 +108,15 @@ def get_model_constraints():
     return model_constraints
 
 
+def get_cloud_region():
+    """Return a configured cloud name to support multi-cloud controllers.
+
+    :returns: A string configured in .zaza.yaml or None
+    :rtype: Union[str, None]
+    """
+    return get_setup_file_contents().get('region')
+
+
 def is_valid_env_key(key):
     """Check if key is a valid environment variable name for use with template.
 

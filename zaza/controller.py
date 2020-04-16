@@ -20,18 +20,21 @@ import subprocess
 from zaza import sync_wrapper
 
 
-async def async_add_model(model_name, config=None):
+async def async_add_model(model_name, config=None, region=None):
     """Add a model to the current controller.
 
     :param model_name: Name to give the new model.
     :type model_name: str
     :param config: Model configuration.
     :type config: dict
+    :param region: Region in which to create the model.
+    :type region: str
     """
     controller = Controller()
     await controller.connect()
     logging.debug("Adding model {}".format(model_name))
-    model = await controller.add_model(model_name, config=config)
+    model = await controller.add_model(
+        model_name, config=config, region=region)
     # issue/135 It is necessary to disconnect the model here or async spews
     # tracebacks even during a successful run.
     await model.disconnect()
