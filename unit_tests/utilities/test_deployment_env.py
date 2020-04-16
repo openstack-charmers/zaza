@@ -221,3 +221,22 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
              'OS_SETTING1': 'from-file',
              'OS_SETTING2': 'from-env'}
         )
+
+    def test_get_cloud_region(self):
+        self.patch_object(
+            deployment_env,
+            'get_setup_file_contents',
+            return_value={
+                'region': 'test'})
+        self.assertEqual(
+            deployment_env.get_cloud_region(),
+            'test')
+
+    def test_get_cloud_region_default(self):
+        self.patch_object(
+            deployment_env,
+            'get_setup_file_contents',
+            return_value={})
+        self.assertEqual(
+            deployment_env.get_cloud_region(),
+            None)
