@@ -1779,13 +1779,19 @@ async def async_run_on_machine(
 run_on_machine = sync_wrapper(async_run_on_machine)
 
 
-async def async_wait_for_unit_idle(unit_name, timeout=600):
+async def async_wait_for_unit_idle(
+    unit_name,
+    timeout=600,
+    include_subordinates=False
+):
     """Wait until the unit's agent is idle.
 
     :param unit_name: The unit name of the application, ex: mysql/0
     :type unit_name: str
     :param timeout: How long to wait before timing out
     :type timeout: int
+    :param include_subordinates: Should this function wait for subordinate idle
+    :type include_subordinates: bool
     :returns: None
     :rtype: None
     """
@@ -1794,7 +1800,12 @@ async def async_wait_for_unit_idle(unit_name, timeout=600):
     def _unit_idle(app, unit_name):
         async def f():
             x = await async_get_agent_status(app, unit_name)
-            return x == "idle"
+            if include_subordinates:
+                subs_idle = await async_check_if_subordinates_idle(
+                    app, unit_name)
+            else:
+                subs_idle = True
+            return x == "idle" and subs_idle
         return f
 
     try:
@@ -1824,3 +1835,21 @@ async def async_get_agent_status(app, unit_name):
 
 
 get_agent_status = sync_wrapper(async_get_agent_status)
+
+
+async def async_check_if_subordinates_idle(app, unit_name):
+    """Check if the specified unit's subordinatesare idle.
+
+    :param app: The name of the Juju application, ex: mysql
+    :type app: str
+    :param unit_name: The unit name of the application, ex: mysql/0
+    :type unit_name: str
+    :returns: The agent status, either active / idle, returned by Juju
+    :rtype: str
+    """
+    status = await async_get_status()
+    subordinates = status.applications[app]['units'][unit_name]['subordinates']
+    statuses = [
+        unit['agent-status']['status']
+        for name, unit in subordinates.items()]
+    return len(set(statuses)) == 1 and statuses[0] == 'idle'
