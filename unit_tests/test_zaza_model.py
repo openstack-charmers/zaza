@@ -38,6 +38,62 @@ from juju import loop
 import zaza.model as model
 
 
+FAKE_STATUS = {
+    'can-upgrade-to': '',
+    'charm': 'local:trusty/app-136',
+    'subordinate-to': [],
+    'units': {'app/0': {'leader': True,
+                        'machine': '0',
+                        'agent-status': {
+                            'status': 'idle'
+                        },
+                        'subordinates': {
+                            'app-hacluster/0': {
+                                'charm': 'local:trusty/hacluster-0',
+                                'leader': True,
+                                'agent-status': {
+                                    'status': 'idle'
+                                }}}},
+              'app/1': {'machine': '1',
+                        'agent-status': {
+                            'status': 'idle'
+                        },
+                        'subordinates': {
+                            'app-hacluster/1': {
+                                'charm': 'local:trusty/hacluster-0',
+                                'agent-status': {
+                                    'status': 'idle'
+                                }}}},
+              'app/2': {'machine': '2',
+                        'agent-status': {
+                            'status': 'idle'
+                        },
+                        'subordinates': {
+                            'app-hacluster/2': {
+                                'charm': 'local:trusty/hacluster-0',
+                                'agent-status': {
+                                    'status': 'idle'
+                                }}}}}}
+
+
+EXECUTING_STATUS = {
+    'can-upgrade-to': '',
+    'charm': 'local:trusty/app-136',
+    'subordinate-to': [],
+    'units': {'app/0': {'leader': True,
+                        'machine': '0',
+                        'agent-status': {
+                            'status': 'executing'
+                        },
+                        'subordinates': {
+                            'app-hacluster/0': {
+                                'charm': 'local:trusty/hacluster-0',
+                                'leader': True,
+                                'agent-status': {
+                                    'status': 'executing'
+                                }}}}}}
+
+
 class TestModel(ut_utils.BaseTestCase):
 
     def tearDown(self):
@@ -1621,3 +1677,47 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
             await model.async_run_on_machine('1', 'test', model_name='test')
         check_call.assert_called_once_with(
             ['juju', 'run', '--machine=1', '--model=test', 'test'])
+
+    async def test_async_get_agent_status(self):
+        model_mock = mock.MagicMock()
+        model_mock.applications.__getitem__.return_value = FAKE_STATUS
+        with mock.patch.object(
+            model,
+            'async_get_status',
+            return_value=model_mock
+        ):
+            idle = await model.async_get_agent_status('app', 'app/0')
+        self.assertEqual('idle', idle)
+
+    async def test_async_check_if_subordinates_idle(self):
+        model_mock = mock.MagicMock()
+        model_mock.applications.__getitem__.return_value = FAKE_STATUS
+        with mock.patch.object(
+            model,
+            'async_get_status',
+            return_value=model_mock
+        ):
+            idle = await model.async_check_if_subordinates_idle('app', 'app/0')
+        assert(idle)
+
+    async def test_async_get_agent_status_busy(self):
+        model_mock = mock.MagicMock()
+        model_mock.applications.__getitem__.return_value = EXECUTING_STATUS
+        with mock.patch.object(
+            model,
+            'async_get_status',
+            return_value=model_mock
+        ):
+            idle = await model.async_get_agent_status('app', 'app/0')
+        self.assertEqual('executing', idle)
+
+    async def test_async_check_if_subordinates_idle_busy(self):
+        model_mock = mock.MagicMock()
+        model_mock.applications.__getitem__.return_value = EXECUTING_STATUS
+        with mock.patch.object(
+            model,
+            'async_get_status',
+            return_value=model_mock
+        ):
+            idle = await model.async_check_if_subordinates_idle('app', 'app/0')
+        self.assertFalse(idle)
