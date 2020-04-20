@@ -28,7 +28,7 @@ except ImportError:
     import asyncio.futures
     AsyncTimeoutError = asyncio.futures.TimeoutError
 
-
+import copy
 import concurrent
 import mock
 
@@ -1721,3 +1721,16 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
         ):
             idle = await model.async_check_if_subordinates_idle('app', 'app/0')
         self.assertFalse(idle)
+
+    async def test_async_check_if_subordinates_idle_missing(self):
+        model_mock = mock.MagicMock()
+        status = copy.deepcopy(EXECUTING_STATUS)
+        del(status['units']['app/0']['subordinates'])
+        model_mock.applications.__getitem__.return_value = status
+        with mock.patch.object(
+            model,
+            'async_get_status',
+            return_value=model_mock
+        ):
+            idle = await model.async_check_if_subordinates_idle('app', 'app/0')
+        assert(idle)

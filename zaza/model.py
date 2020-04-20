@@ -1848,7 +1848,10 @@ async def async_check_if_subordinates_idle(app, unit_name):
     :rtype: str
     """
     status = await async_get_status()
-    subordinates = status.applications[app]['units'][unit_name]['subordinates']
+    subordinates = status.applications[app]['units'][unit_name].get(
+        'subordinates', [])
+    if not subordinates:
+        return True
     statuses = [
         unit['agent-status']['status']
         for name, unit in subordinates.items()]
