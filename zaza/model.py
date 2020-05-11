@@ -1588,6 +1588,38 @@ async def async_remove_relation(application_name, local_relation,
 remove_relation = sync_wrapper(async_remove_relation)
 
 
+async def async_add_unit(application_name, count=1, to=None, model_name=None):
+    """
+    Add unit for an application.
+
+    :param application_name: Name of application on this side of relation
+    :type application_name: str
+    :param model_name: Name of model to operate on.
+    :type model_name: str
+    """
+    async with run_in_model(model_name) as model:
+        app = model.applications[application_name]
+        await app.add_unit(count=count, to=to)
+
+add_unit = sync_wrapper(async_add_unit)
+
+
+async def async_destroy_unit(application_name, *unit_names, model_name=None):
+    """
+    Remove unit of an application.
+
+    :param application_name: Name of application on this side of relation
+    :type application_name: str
+    :param model_name: Name of model to operate on.
+    :type model_name: str
+    """
+    async with run_in_model(model_name) as model:
+        app = model.applications[application_name]
+        await app.destroy_unit(*unit_names)
+
+destroy_unit = sync_wrapper(async_destroy_unit)
+
+
 def set_model_constraints(constraints, model_name=None):
     """
     Set constraints on a model.
