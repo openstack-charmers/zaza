@@ -1,6 +1,6 @@
 aiounittest
 async_generator
-juju
+juju<2.8.0
 juju_wait
 PyYAML>=3.0
 flake8>=2.2.4

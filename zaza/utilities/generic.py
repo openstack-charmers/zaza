@@ -210,7 +210,8 @@ def series_upgrade_non_leaders_first(application, from_series="trusty",
                            origin=None)
             completed_machines.append(machine)
         else:
-            logging.info("Skipping unit: {}. Machine: {} already upgraded. "
+            logging.info("Skipping unit: {}. Machine: {} (Application: {}) "
+                         "already upgraded. "
                          .format(unit, machine, application))
             model.block_until_all_units_idle()
 
@@ -223,7 +224,8 @@ def series_upgrade_non_leaders_first(application, from_series="trusty",
                        origin=None)
         completed_machines.append(machine)
     else:
-        logging.info("Skipping unit: {}. Machine: {} already upgraded."
+        logging.info("Skipping unit: {}. Machine: {} (Application: {}) "
+                     "already upgraded. "
                      .format(unit, machine, application))
         model.block_until_all_units_idle()
 
