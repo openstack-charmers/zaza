@@ -1590,10 +1590,14 @@ remove_relation = sync_wrapper(async_remove_relation)
 
 async def async_add_unit(application_name, count=1, to=None, model_name=None):
     """
-    Add unit for an application.
+    Add unit(s) to an application.
 
-    :param application_name: Name of application on this side of relation
+    :param application_name: Name of application to add unit(s) to
     :type application_name: str
+    :param count: Number of units to add
+    :type count: int
+    :param to: Location to add unit i.e. lxd:0
+    :type to: str
     :param model_name: Name of model to operate on.
     :type model_name: str
     """
@@ -1606,10 +1610,12 @@ add_unit = sync_wrapper(async_add_unit)
 
 async def async_destroy_unit(application_name, *unit_names, model_name=None):
     """
-    Remove unit of an application.
+    Remove unit(s) of an application.
 
-    :param application_name: Name of application on this side of relation
+    :param application_name: Name of application to remove unit(s) from
     :type application_name: str
+    :parm unit_names: One or more unit names. i.e. app/0
+    :type unit_name: str(s)
     :param model_name: Name of model to operate on.
     :type model_name: str
     """
