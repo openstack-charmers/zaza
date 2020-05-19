@@ -187,9 +187,13 @@ class TestModel(ut_utils.BaseTestCase):
         _units.relations = self.relations
         _units.add_relation.side_effect = _add_relation
         _units.destroy_relation.side_effect = _destroy_relation
+        self.app_data = mock.MagicMock()
+        self.app_data.units = self.units
+        self.app_data.relations = self.relations
+        self.app_data.status = 'active'
         self.mymodel = mock.MagicMock()
         self.mymodel.applications = {
-            'app': _units
+            'app': self.app_data
         }
         self.Model_mock = mock.MagicMock()
 
@@ -671,10 +675,18 @@ class TestModel(ut_utils.BaseTestCase):
             return_value=setup['workload-status'])
         p_mock_wsmsg = mock.PropertyMock(
             return_value=setup['workload-status-message'])
+        p_mock_ad = mock.PropertyMock(
+            return_value='active')
         type(self.unit1).workload_status = p_mock_ws
         type(self.unit1).workload_status_message = p_mock_wsmsg
         type(self.unit2).workload_status = p_mock_ws
         type(self.unit2).workload_status_message = p_mock_wsmsg
+        type(self.app_data).status = p_mock_ad
+
+    def _application_status_setup(self, setup):
+        p_mock_ad = mock.PropertyMock(
+            return_value=setup['status'])
+        type(self.app_data).status = p_mock_ad
 
     def test_units_with_wl_status_state(self):
         self._application_states_setup({
@@ -773,6 +785,26 @@ class TestModel(ut_utils.BaseTestCase):
                 self.Model_mock,
                 self.unit1,
                 prefixes=['Readyish', 'Unit is ready']))
+
+    def test_check_applications_status(self):
+        self._application_status_setup({'status': 'active'})
+
+        self.assertTrue(
+            model.check_applications_status(self.app_data,
+                                            ['active']))
+
+    def test_check_applications_status_no_match(self):
+        self._application_status_setup({'status': 'waiting'})
+        self.assertFalse(
+            model.check_applications_status(self.app_data,
+                                            ['active']))
+
+    def test_check_applications_status_multi(self):
+        self._application_status_setup({'status': 'active'})
+        self.assertTrue(
+            model.check_applications_status(
+                self.app_data,
+                ['active', 'blocked']))
 
     def test_wait_for_application_states(self):
         self._application_states_setup({
