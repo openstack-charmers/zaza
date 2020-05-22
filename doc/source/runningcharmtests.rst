@@ -79,7 +79,25 @@ To run manually::
                             Name of new model
       --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
-2) Deploy
+2) Before Deploy
+~~~~~~~~~~~~~~~~
+
+Perform pre-deployment tasks, for example: setup a default model configuration
+that is necessary to deploy a bundle.
+
+To run manually::
+
+    $ functest-before-deploy --help
+    usage: functest-before-deploy [-h] [-c BEFOREFUNCS [BEFOREFUNCS ...]] [--log LOGLEVEL]
+
+    optional arguments:
+      -h, --help
+                            show this help message and exit
+      -c BEFOREFUNCS, --beforefuncs BEFOREFUNCS
+                            Space separated list of config functions
+      --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
+
+3) Deploy
 ~~~~~~~~~
 
 Deploy the target bundle and wait for it to complete. **functest-run-suite** 
@@ -115,7 +133,7 @@ To run manually::
       --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
 
-3) Configure
+4) Configure
 ~~~~~~~~~~~~
 
 Post-deployment configuration, for example create network, tenant, image, etc.
@@ -136,7 +154,7 @@ To run manually::
       --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
 
-4) Test
+5) Test
 ~~~~~~~
 
 Run tests. These maybe tests in zaza or a wrapper around another testing
@@ -155,14 +173,14 @@ To run manually::
       --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
 
-5) Collect
+6) Collect
 ~~~~~~~~~~
 
 Collect artifacts useful for debugging any failures or useful for trend
 analysis like deprecation warning or deployment time.
 
 
-6) Destroy
+7) Destroy
 ~~~~~~~~~~
 
 Destroy the model::

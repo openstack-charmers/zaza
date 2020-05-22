@@ -288,6 +288,34 @@ def get_test_steps():
     return _concat_model_alias_maps(get_charm_config().get('tests', []))
 
 
+def get_before_deploy_steps():
+    """Get pre-deploy steps and their associated model aliases.
+
+    Get a map of configuration steps to model aliases. If there are
+    configuration steps which are not mapped to a model alias then these are
+    associated with the the DEFAULT_MODEL_ALIAS.
+
+    eg if test.yaml contained:
+
+        before_deploy:
+        - conf.class1
+        - conf.class2
+        - model_alias1:
+          - conf.class3
+
+       then get_before_deploy_steps() would return:
+
+        {
+            'default_alias': ['conf.class1', 'conf.class2'],
+            'model_alias1': ['conf.class3']}
+
+    :returns: A dict mapping config steps to model aliases
+    :rtype: Dict[str, List[str]]
+    """
+    return _concat_model_alias_maps(
+        get_charm_config().get('before_deploy', []))
+
+
 def get_charm_config(yaml_file=None, fatal=True):
     """Read the yaml test config file and return the resulting config.
 
