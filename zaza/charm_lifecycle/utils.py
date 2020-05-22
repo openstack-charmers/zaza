@@ -244,16 +244,16 @@ def get_config_steps():
     eg if test.yaml contained:
 
         configure:
-        - conf.class1
-        - conf.class2
+        - conf.method1
+        - conf.method2
         - model_alias1:
-          - conf.class3
+          - conf.method3
 
        then get_config_steps() would return:
 
         {
-            'default_alias': ['conf.class1', 'conf.class2'],
-            'model_alias1': ['conf.class3']}
+            'default_alias': ['conf.method1', 'conf.method2'],
+            'model_alias1': ['conf.method3']}
 
     :returns: A dict mapping config steps to model aliases
     :rtype: Dict[str, List[str]]
@@ -298,16 +298,16 @@ def get_before_deploy_steps():
     eg if test.yaml contained:
 
         before_deploy:
-        - conf.class1
-        - conf.class2
+        - conf.method1
+        - conf.method2
         - model_alias1:
-          - conf.class3
+          - conf.method3
 
        then get_before_deploy_steps() would return:
 
         {
-            'default_alias': ['conf.class1', 'conf.class2'],
-            'model_alias1': ['conf.class3']}
+            'default_alias': ['conf.method1', 'conf.method2'],
+            'model_alias1': ['conf.method3']}
 
     :returns: A dict mapping config steps to model aliases
     :rtype: Dict[str, List[str]]
