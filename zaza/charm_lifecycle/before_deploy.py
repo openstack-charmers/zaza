@@ -26,7 +26,7 @@ import zaza.utilities.run_report as run_report
 def run_before_deploy_list(functions):
     """Run the pre-deploy scripts.
 
-    Run the pre-deploy scripts as defined in the list of test classes in
+    Run the pre-deploy scripts as defined in the list of methods in
     series.
 
     :param functions: List of pre-deploy functions functions

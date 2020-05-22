@@ -26,8 +26,8 @@ import zaza.utilities.run_report as run_report
 def run_configure_list(functions):
     """Run the configure scripts.
 
-    Run the configure scripts as defined in the list of test classes in
-    series.
+    Run the configure scripts as defined in the list of configuration methods
+    in series.
 
     :param functions: List of configure functions functions
     :type tests: ['zaza.charms_tests.svc.setup', ...]
