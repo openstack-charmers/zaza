@@ -14,6 +14,7 @@
 
 import jinja2
 import mock
+import tempfile
 
 import zaza.charm_lifecycle.deploy as lc_deploy
 import unit_tests.utils as ut_utils
@@ -306,15 +307,35 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
             ['/tmp/mybundle.yaml'])
 
+    def test_render_bundle(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            bundle = '{}/bundle.yaml'.format(tmpdirname)
+            rendered_bundle = '{}/bundle-rendered.yaml'.format(tmpdirname)
+            with open(bundle, 'w') as f:
+                f.write("{{ OS_VAR }}")
+            lc_deploy.render_bundle(
+                bundle,
+                rendered_bundle,
+                model_ctxt={'OS_VAR': 'some value'})
+            with open(rendered_bundle, 'r') as f:
+                contents = f.read()
+            self.assertEqual(contents, 'some value')
+
     def test_deploy_bundle(self):
         self.patch_object(lc_deploy.utils, 'get_charm_config')
         self.get_charm_config.return_value = {}
+        self.patch_object(lc_deploy.tempfile, 'TemporaryDirectory')
+        enter_mock = mock.MagicMock()
+        enter_mock.__enter__.return_value = '/tmp/mytmpdir'
+        self.TemporaryDirectory.return_value = enter_mock
+        self.patch_object(lc_deploy, 'render_bundle')
         self.patch_object(lc_deploy, 'render_overlays')
         self.patch_object(lc_deploy.utils, 'check_output_logging')
         self.render_overlays.return_value = []
         lc_deploy.deploy_bundle('bun.yaml', 'newmodel', force=True)
         self.check_output_logging.assert_called_once_with(
-            ['juju', 'deploy', '-m', 'newmodel', 'bun.yaml', '--force'])
+            ['juju', 'deploy', '-m', 'newmodel', '--force',
+             '/tmp/mytmpdir/bun.yaml'])
 
     def test_deploy(self):
         self.patch_object(lc_deploy.zaza.model, 'wait_for_application_states')

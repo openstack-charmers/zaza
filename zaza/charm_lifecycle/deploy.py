@@ -292,6 +292,25 @@ def render_overlays(bundle, target_dir, model_ctxt=None):
     return overlays
 
 
+def render_bundle(bundle, target_file, model_ctxt=None):
+    """Read the bundle and render it out to target_file.
+
+    :param bundle: Path to source bundle file
+    :type bundle: str
+    :param bundle: Path to rendered bundle
+    :type bundle: str
+    :param model: Name of model to deploy bundle in
+    :type model: str
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
+    """
+    with open(bundle, 'r') as f:
+        template = jinja2.Environment(
+            loader=jinja2.BaseLoader()).from_string(f.read())
+        render_template(template, target_file, model_ctxt=model_ctxt)
+
+
 def deploy_bundle(bundle, model, model_ctxt=None, force=False):
     """Deploy the given bundle file in the specified model.
 
@@ -310,10 +329,13 @@ def deploy_bundle(bundle, model, model_ctxt=None, force=False):
     """
     logging.info("Deploying bundle '{}' on to '{}' model"
                  .format(bundle, model))
-    cmd = ['juju', 'deploy', '-m', model, bundle]
+    cmd = ['juju', 'deploy', '-m', model]
     if force:
         cmd.append('--force')
     with tempfile.TemporaryDirectory() as tmpdirname:
+        bundle_out = '{}/{}'.format(tmpdirname, os.path.basename(bundle))
+        render_bundle(bundle, bundle_out, model_ctxt=model_ctxt)
+        cmd.append(bundle_out)
         for overlay in render_overlays(bundle, tmpdirname,
                                        model_ctxt=model_ctxt):
             logging.info("Deploying overlay '{}' on to '{}' model"
