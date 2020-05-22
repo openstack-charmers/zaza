@@ -225,9 +225,9 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             mock.call('newmodel')]
         deploy_calls = [
             mock.call('./tests/bundles/bundle1.yaml', 'newmodel',
-                      model_ctxt={'default_alias': 'newmodel'}),
+                      model_ctxt={'default_alias': 'newmodel'}, force=False),
             mock.call('./tests/bundles/bundle2.yaml', 'newmodel',
-                      model_ctxt={'default_alias': 'newmodel'})]
+                      model_ctxt={'default_alias': 'newmodel'}, force=False)]
         before_deploy_calls = [
             mock.call('newmodel', [
                 'zaza.charm_tests.prepare.first',
