@@ -16,6 +16,7 @@ import jinja2
 import mock
 
 import zaza.charm_lifecycle.deploy as lc_deploy
+import zaza.utilities.exceptions as zaza_exceptions
 import unit_tests.utils as ut_utils
 
 
@@ -86,7 +87,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.assertEqual(
             lc_deploy.get_jinja2_env(),
             jinja_env_mock)
-        self.get_jinja2_loader.assert_called_once_with()
+        self.get_jinja2_loader.assert_called_once_with(
+            template_dir=None)
 
     def test_get_template_name(self):
         self.assertEqual(
@@ -309,12 +311,70 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
     def test_deploy_bundle(self):
         self.patch_object(lc_deploy.utils, 'get_charm_config')
         self.get_charm_config.return_value = {}
+        self.patch_object(lc_deploy.tempfile, 'TemporaryDirectory')
+        enter_mock = mock.MagicMock()
+        enter_mock.__enter__.return_value = '/tmp/mytmpdir'
+        self.TemporaryDirectory.return_value = enter_mock
         self.patch_object(lc_deploy, 'render_overlays')
         self.patch_object(lc_deploy.utils, 'check_output_logging')
         self.render_overlays.return_value = []
-        lc_deploy.deploy_bundle('bun.yaml', 'newmodel', force=True)
+        lc_deploy.deploy_bundle(
+            './tests/bundles/bionic.yaml',
+            'newmodel',
+            force=True)
         self.check_output_logging.assert_called_once_with(
-            ['juju', 'deploy', '-m', 'newmodel', 'bun.yaml', '--force'])
+            ['juju', 'deploy', '-m', 'newmodel', '--force',
+             './tests/bundles/bionic.yaml'])
+
+    def test_deploy_bundle_template(self):
+        self.patch_object(lc_deploy.utils, 'get_charm_config')
+        self.patch_object(lc_deploy, 'get_template')
+        self.get_template.return_value = './tests/bundles/bionic.yaml.j2'
+        self.patch_object(lc_deploy.os.path, 'exists')
+        self.exists.return_value = False
+        self.patch_object(lc_deploy, 'render_template')
+        self.render_template.return_value = '/tmp/mytmpdir/bionic.yaml'
+        self.get_charm_config.return_value = {}
+        self.patch_object(lc_deploy.tempfile, 'TemporaryDirectory')
+        enter_mock = mock.MagicMock()
+        enter_mock.__enter__.return_value = '/tmp/mytmpdir'
+        self.TemporaryDirectory.return_value = enter_mock
+        self.patch_object(lc_deploy, 'render_overlays')
+        self.patch_object(lc_deploy.utils, 'check_output_logging')
+        self.render_overlays.return_value = []
+        lc_deploy.deploy_bundle(
+            './tests/bundles/bionic.yaml',
+            'newmodel',
+            force=True)
+        self.check_output_logging.assert_called_once_with(
+            ['juju', 'deploy', '-m', 'newmodel', '--force',
+             '/tmp/mytmpdir/bionic.yaml'])
+        self.get_template.assert_called_once_with(
+            './tests/bundles/bionic.yaml',
+            template_dir='./tests/bundles')
+        self.render_template.assert_called_once_with(
+            './tests/bundles/bionic.yaml.j2',
+            '/tmp/mytmpdir/bionic.yaml',
+            model_ctxt=None)
+
+    def test_deploy_bundle_template_conflict(self):
+        self.patch_object(lc_deploy.utils, 'get_charm_config')
+        template_mock = mock.MagicMock()
+        template_mock.filename = './tests/bundles/bionic.yaml.j2'
+        self.patch_object(lc_deploy, 'get_template')
+        self.get_template.return_value = template_mock
+        self.patch_object(lc_deploy.os.path, 'exists')
+        self.exists.return_value = True
+        self.get_charm_config.return_value = {}
+        self.patch_object(lc_deploy.tempfile, 'TemporaryDirectory')
+        enter_mock = mock.MagicMock()
+        enter_mock.__enter__.return_value = '/tmp/mytmpdir'
+        self.TemporaryDirectory.return_value = enter_mock
+        with self.assertRaises(zaza_exceptions.TemplateConflict):
+            lc_deploy.deploy_bundle(
+                './tests/bundles/bionic.yaml',
+                'newmodel',
+                force=True)
 
     def test_deploy(self):
         self.patch_object(lc_deploy.zaza.model, 'wait_for_application_states')
