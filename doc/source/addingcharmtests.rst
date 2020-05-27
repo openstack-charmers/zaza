@@ -58,6 +58,12 @@ will be used when tests are executed with juju on a LXD provider and the
 overlay template in the top level directory will be used for any other
 provider types.
 
+Bundle templates can be placed in the `tests/bundles` directory. It is usually
+preferable to use overlay templates rather than bundle templates. Overlays
+can be used to neatly capture settings that a user might want to change
+on a per-cloud basis. However, if a bundle template is required place it
+in tests/bundles with a `j2` extension.
+
 Add tests.yaml
 ~~~~~~~~~~~~~~
 
