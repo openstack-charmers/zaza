@@ -25,6 +25,7 @@ import zaza.controller
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
+import zaza.utilities.exceptions as zaza_exceptions
 import zaza.utilities.run_report as run_report
 import zaza.utilities.deployment_env as deployment_env
 
@@ -88,13 +89,18 @@ def get_overlay_template_dir():
     return DEFAULT_OVERLAY_TEMPLATE_DIR
 
 
-def get_jinja2_loader():
+def get_jinja2_loader(template_dir=None):
     """Inspect the template directory and set up appropriate loader.
 
+    :param target_dir: Limit template loading to this directory.
+    :type target_dir: str
     :returns: Jinja2 loader
     :rtype: jinja2.loaders.BaseLoader
     """
-    template_dir = get_overlay_template_dir()
+    if template_dir:
+        return jinja2.FileSystemLoader(template_dir)
+    else:
+        template_dir = get_overlay_template_dir()
     provider_template_dir = os.path.join(
         template_dir, zaza.controller.get_cloud_type())
     if (os.path.exists(provider_template_dir) and
@@ -107,14 +113,16 @@ def get_jinja2_loader():
         return jinja2.FileSystemLoader(template_dir)
 
 
-def get_jinja2_env():
+def get_jinja2_env(template_dir=None):
     """Return a jinja2 environment that can be used to render templates from.
 
+    :param target_dir: Limit template loading to this directory.
+    :type target_dir: str
     :returns: Jinja2 template loader
     :rtype: jinja2.Environment
     """
     return jinja2.Environment(
-        loader=get_jinja2_loader(),
+        loader=get_jinja2_loader(template_dir=template_dir),
         undefined=jinja2.StrictUndefined
     )
 
@@ -133,13 +141,15 @@ def get_template_name(target_file):
     return '{}.j2'.format(os.path.basename(target_file))
 
 
-def get_template(target_file):
+def get_template(target_file, template_dir=None):
     """Return the jinja2 template for the given file.
 
+    :param target_dir: Limit template loading to this directory.
+    :type target_dir: str
     :returns: Template object used to generate target_file
     :rtype: jinja2.Template
     """
-    jinja2_env = get_jinja2_env()
+    jinja2_env = get_jinja2_env(template_dir=template_dir)
     try:
         template = jinja2_env.get_template(get_template_name(target_file))
     except jinja2.exceptions.TemplateNotFound:
@@ -310,10 +320,26 @@ def deploy_bundle(bundle, model, model_ctxt=None, force=False):
     """
     logging.info("Deploying bundle '{}' on to '{}' model"
                  .format(bundle, model))
-    cmd = ['juju', 'deploy', '-m', model, bundle]
+    cmd = ['juju', 'deploy', '-m', model]
     if force:
         cmd.append('--force')
     with tempfile.TemporaryDirectory() as tmpdirname:
+        bundle_out = '{}/{}'.format(tmpdirname, os.path.basename(bundle))
+        # Bundle templates should only exist in the bundle directory so
+        # explicitly set the Jinja2 load path.
+        bundle_template = get_template(
+            bundle,
+            template_dir=os.path.dirname(bundle))
+        if bundle_template:
+            if os.path.exists(bundle):
+                raise zaza_exceptions.TemplateConflict(
+                    "Found bundle template ({}) and bundle ({})".format(
+                        bundle_template.filename,
+                        bundle))
+            render_template(bundle_template, bundle_out, model_ctxt=model_ctxt)
+            cmd.append(bundle_out)
+        else:
+            cmd.append(bundle)
         for overlay in render_overlays(bundle, tmpdirname,
                                        model_ctxt=model_ctxt):
             logging.info("Deploying overlay '{}' on to '{}' model"
@@ -345,9 +371,14 @@ def deploy(bundle, model, wait=True, model_ctxt=None, force=False):
         test_config = utils.get_charm_config()
         logging.info("Waiting for environment to settle")
         zaza.model.set_juju_model(model)
+        deploy_ctxt = deployment_env.get_deployment_context()
+        timeout = int(deploy_ctxt.get('TEST_DEPLOY_TIMEOUT', '3600'))
+        logging.info("Timeout for deployment to settle set to: {}".format(
+            timeout))
         zaza.model.wait_for_application_states(
             model,
-            test_config.get('target_deploy_status', {}))
+            test_config.get('target_deploy_status', {}),
+            timeout=timeout)
         run_report.register_event_finish('Wait for Deployment')
 
 
