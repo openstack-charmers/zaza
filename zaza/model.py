@@ -573,12 +573,15 @@ class ActionFailed(Exception):
 
     def __init__(self, action):
         """Set information about action failure in message and raise."""
-        message = ('Run of action "{}" with parameters "{}" on "{}" failed '
-                   'with "{}" (id={} status={} enqueued={} started={} '
-                   'completed={})'
-                   .format(action.name, action.parameters, action.receiver,
-                           action.message, action.id, action.status,
-                           action.enqueued, action.started, action.completed))
+        params = {key: getattr(action, key, "<not-set>")
+                  for key in ['name', 'parameters', 'receiver',
+                              'message', 'id', 'status',
+                              'enqueued', 'started', 'completed']}
+        message = ('Run of action "{name}" with parameters "{parameters}" on '
+                   '"{receiver}" failed with "{message}" (id={id} '
+                   'status={status} enqueued={enqueued} started={started} '
+                   'completed={completed})'
+                   .format(**params))
         super(ActionFailed, self).__init__(message)
 
 
