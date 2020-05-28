@@ -347,6 +347,39 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                 force=False)]
         self.deploy.assert_has_calls(deploy_calls)
 
+    def test_func_test_runner_specify_bundle_with_alias(self):
+        self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
+        self.patch_object(lc_func_test_runner.utils, 'generate_model_name')
+        self.patch_object(lc_func_test_runner.prepare, 'prepare')
+        self.patch_object(lc_func_test_runner.before_deploy, 'before_deploy')
+        self.patch_object(lc_func_test_runner.deploy, 'deploy')
+        self.patch_object(lc_func_test_runner.configure, 'configure')
+        self.patch_object(lc_func_test_runner.test, 'test')
+        self.patch_object(lc_func_test_runner.destroy, 'destroy')
+        self.patch_object(
+            lc_func_test_runner.zaza.model,
+            'block_until_all_units_idle')
+        self.generate_model_name.return_value = 'newmodel'
+        self.get_charm_config.return_value = {
+            'charm_name': 'mycharm',
+            'gate_bundles': ['bundle1', 'bundle2'],
+            'smoke_bundles': ['bundle2'],
+            'dev_bundles': ['bundle3', 'bundle4'],
+            'configure': [
+                'zaza.charm_tests.mycharm.setup.basic_setup'
+                'zaza.charm_tests.othercharm.setup.setup'],
+            'tests': [
+                'zaza.charm_tests.mycharm.tests.SmokeTest',
+                'zaza.charm_tests.mycharm.tests.ComplexTest']}
+        lc_func_test_runner.func_test_runner(bundle='alias:maveric-filebeat')
+        deploy_calls = [
+            mock.call(
+                './tests/bundles/maveric-filebeat.yaml',
+                'newmodel',
+                model_ctxt={'alias': 'newmodel'},
+                force=False)]
+        self.deploy.assert_has_calls(deploy_calls)
+
     def test_main_smoke_dev_ambiguous(self):
         self.patch_object(lc_func_test_runner, 'parse_args')
         self.patch_object(lc_func_test_runner, 'cli_utils')

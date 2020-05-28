@@ -111,11 +111,15 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None,
     :type force: Boolean
     """
     if bundle:
+        if ':' in bundle:
+            model_alias, bundle = bundle.split(':')
+        else:
+            model_alias = utils.DEFAULT_MODEL_ALIAS
         environment_deploys = [
             utils.EnvironmentDeploy(
                 'default',
                 [utils.ModelDeploy(
-                    utils.DEFAULT_MODEL_ALIAS,
+                    model_alias,
                     utils.generate_model_name(),
                     bundle)],
                 True)]
