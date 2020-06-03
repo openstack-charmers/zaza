@@ -524,6 +524,17 @@ class TestModel(ut_utils.BaseTestCase):
         self.mymodel.applications['app'].add_unit.assert_called_once_with(
             count=2, to='lxd/0')
 
+    def test_add_unit_wait(self):
+        self.patch_object(model, 'async_block_until_unit_count')
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        model.add_unit('app', count=2, to='lxd/0', wait_appear=True)
+        self.mymodel.applications['app'].add_unit.assert_called_once_with(
+            count=2, to='lxd/0')
+        self.async_block_until_unit_count.assert_called_once_with(
+            'app', 4, model_name=None)
+
     def test_destroy_unit(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
@@ -531,6 +542,17 @@ class TestModel(ut_utils.BaseTestCase):
         model.destroy_unit('app', 'app/2')
         self.mymodel.applications['app'].destroy_unit.assert_called_once_with(
             'app/2')
+
+    def test_destroy_unit_wait(self):
+        self.patch_object(model, 'async_block_until_unit_count')
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        model.destroy_unit('app', 'app/2', wait_disappear=True)
+        self.mymodel.applications['app'].destroy_unit.assert_called_once_with(
+            'app/2')
+        self.async_block_until_unit_count.assert_called_once_with(
+            'app', 1, model_name=None)
 
     def test_get_relation_id_interface(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -1028,6 +1050,29 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model_mock.block_until.side_effect = _block_until
         with self.assertRaises(model.UnitError):
             model.block_until_all_units_idle('modelname')
+
+    def test_block_until_unit_count(self):
+
+        async def _block_until(f, timeout=None):
+            rc = await f()
+            if not rc:
+                raise AsyncTimeoutError
+
+        async def _get_status():
+            return self.juju_status
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
+        self.patch_object(model, 'async_get_status')
+        self.async_get_status.side_effect = _get_status
+        self.juju_status.applications[self.application]["units"] = [
+            'app/1', 'app/2']
+        model.block_until_unit_count('app', 2)
+        with self.assertRaises(AsyncTimeoutError):
+            model.block_until_unit_count('app', 3, timeout=0.1)
+        with self.assertRaises(AssertionError):
+            model.block_until_unit_count('app', 2.3)
 
     def block_until_service_status_base(self, rou_return):
 

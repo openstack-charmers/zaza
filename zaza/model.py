@@ -1045,6 +1045,36 @@ async def async_block_until_all_units_idle(model_name=None, timeout=2700):
 block_until_all_units_idle = sync_wrapper(async_block_until_all_units_idle)
 
 
+async def async_block_until_unit_count(application, target_count,
+                                       model_name=None, timeout=2700):
+    """Block until the number of units matches target_count.
+
+    An example accessing this function via its sync wrapper::
+
+        block_until_unit_count('keystone', 4)
+
+    :param application_name: Name of application
+    :type application_name: str
+    :param target_count: Number of expected units.
+    :type target_count: int
+    :param model_name: Name of model to interact with.
+    :type model_name: str
+    :param timeout: Time to wait for status to be achieved
+    :type timeout: float
+    """
+    async def _check_unit():
+        model_status = await async_get_status()
+        unit_count = len(model_status.applications[application]['units'])
+        return unit_count == target_count
+
+    assert target_count == int(target_count), "target_count not an int"
+    async with run_in_model(model_name):
+        await async_block_until(_check_unit, timeout=timeout)
+
+block_until_unit_count = sync_wrapper(
+    async_block_until_unit_count)
+
+
 async def async_block_until_service_status(unit_name, services, target_status,
                                            model_name=None, timeout=2700,
                                            pgrep_full=False):
@@ -1591,7 +1621,8 @@ async def async_remove_relation(application_name, local_relation,
 remove_relation = sync_wrapper(async_remove_relation)
 
 
-async def async_add_unit(application_name, count=1, to=None, model_name=None):
+async def async_add_unit(application_name, count=1, to=None, model_name=None,
+                         wait_appear=False):
     """
     Add unit(s) to an application.
 
@@ -1603,15 +1634,25 @@ async def async_add_unit(application_name, count=1, to=None, model_name=None):
     :type to: str
     :param model_name: Name of model to operate on.
     :type model_name: str
+    :param wait_appear: Whether to wait for the unit to appear in juju status
+    :type wait_appear: bool
     """
     async with run_in_model(model_name) as model:
         app = model.applications[application_name]
+        current_unit_count = len(app.units)
         await app.add_unit(count=count, to=to)
+        if wait_appear:
+            target_count = current_unit_count + count
+            await async_block_until_unit_count(
+                application_name,
+                target_count,
+                model_name=model_name)
 
 add_unit = sync_wrapper(async_add_unit)
 
 
-async def async_destroy_unit(application_name, *unit_names, model_name=None):
+async def async_destroy_unit(application_name, *unit_names, model_name=None,
+                             wait_disappear=False):
     """
     Remove unit(s) of an application.
 
@@ -1621,10 +1662,20 @@ async def async_destroy_unit(application_name, *unit_names, model_name=None):
     :type unit_name: str(s)
     :param model_name: Name of model to operate on.
     :type model_name: str
+    :param wait_disappear: Whether to wait for the unit to disappear from juju
+                           status
+    :type wait_disappear: bool
     """
     async with run_in_model(model_name) as model:
         app = model.applications[application_name]
+        current_unit_count = len(app.units)
         await app.destroy_unit(*unit_names)
+        if wait_disappear:
+            target_count = current_unit_count - len(unit_names)
+            await async_block_until_unit_count(
+                application_name,
+                target_count,
+                model_name=model_name)
 
 destroy_unit = sync_wrapper(async_destroy_unit)
 
