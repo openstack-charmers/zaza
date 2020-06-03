@@ -1071,6 +1071,8 @@ class TestModel(ut_utils.BaseTestCase):
         model.block_until_unit_count('app', 2)
         with self.assertRaises(AsyncTimeoutError):
             model.block_until_unit_count('app', 3, timeout=0.1)
+        with self.assertRaises(AssertionError):
+            model.block_until_unit_count('app', 2.3)
 
     def block_until_service_status_base(self, rou_return):
 

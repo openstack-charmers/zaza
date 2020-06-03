@@ -1065,8 +1065,9 @@ async def async_block_until_unit_count(application, target_count,
     async def _check_unit():
         model_status = await async_get_status()
         unit_count = len(model_status.applications[application]['units'])
-        return unit_count == int(target_count)
+        return unit_count == target_count
 
+    assert target_count == int(target_count), "target_count not an int"
     async with run_in_model(model_name):
         await async_block_until(_check_unit, timeout=timeout)
 
