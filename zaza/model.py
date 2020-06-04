@@ -1482,7 +1482,7 @@ async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
         try:
             v = model_status.applications[app]['units'][unit_name][
                 'workload-status']['status']
-        except TypeError:
+        except (TypeError, KeyError):
             # For when the unit is a subordinate we need to get it's
             # leader, and then get the status for the subordinate from its
             # unit
