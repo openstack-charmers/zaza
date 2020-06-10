@@ -1074,6 +1074,27 @@ class TestModel(ut_utils.BaseTestCase):
         with self.assertRaises(AssertionError):
             model.block_until_unit_count('app', 2.3)
 
+    def test_block_until_charm_url(self):
+
+        async def _block_until(f, timeout=None):
+            rc = await f()
+            if not rc:
+                raise AsyncTimeoutError
+
+        async def _get_status():
+            return self.juju_status
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
+        self.patch_object(model, 'async_get_status')
+        self.async_get_status.side_effect = _get_status
+        target_url = 'cs:openstack-charmers-next/app'
+        self.juju_status.applications[self.application]['charm'] = target_url
+        model.block_until_charm_url('app', target_url)
+        with self.assertRaises(AsyncTimeoutError):
+            model.block_until_charm_url('app', 'something wrong', timeout=0.1)
+
     def block_until_service_status_base(self, rou_return):
 
         async def _block_until(f, timeout=None):
