@@ -1075,6 +1075,36 @@ block_until_unit_count = sync_wrapper(
     async_block_until_unit_count)
 
 
+async def async_block_until_charm_url(application, target_url,
+                                      model_name=None, timeout=2700):
+    """Block until the charm url matches target_url.
+
+    An example accessing this function via its sync wrapper::
+
+        block_until_charm_url('cinder', 'cs:openstack-charmers-next/cinder')
+
+    :param application_name: Name of application
+    :type application_name: str
+    :param target_url: Target charm url
+    :type target_url: str
+    :param model_name: Name of model to interact with.
+    :type model_name: str
+    :param timeout: Time to wait for status to be achieved
+    :type timeout: float
+    """
+    async def _check_charm_url():
+        model_status = await async_get_status()
+        charm_url = model_status.applications[application]['charm']
+        return charm_url == target_url
+
+    async with run_in_model(model_name):
+        await async_block_until(_check_charm_url, timeout=timeout)
+
+
+block_until_charm_url = sync_wrapper(
+    async_block_until_charm_url)
+
+
 async def async_block_until_service_status(unit_name, services, target_status,
                                            model_name=None, timeout=2700,
                                            pgrep_full=False):
