@@ -1672,6 +1672,17 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             revision=None,
             switch='cs:~me/new-charm-45')
 
+    def test_get_latest_charm_url(self):
+        async def _entity(charm_url, channel=None):
+            return {'Id': 'cs:something-23'}
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.Model_mock.charmstore.entity.side_effect = _entity
+        self.assertEqual(
+            model.get_latest_charm_url('cs:something'),
+            'cs:something-23')
+
     def test_prepare_series_upgrade(self):
         self.patch_object(model, 'subprocess')
         self.patch_object(model, 'get_juju_model',

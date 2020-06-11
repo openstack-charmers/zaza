@@ -1774,6 +1774,26 @@ async def async_upgrade_charm(application_name, channel=None,
 upgrade_charm = sync_wrapper(async_upgrade_charm)
 
 
+async def async_get_latest_charm_url(charm_url, channel=None, model_name=None):
+    """Get charm url, including revision number, for latest charm version.
+
+    :param charm_url: Charm url without revision number
+    :type charm_url: str
+    :param channel: Channel to use when getting the charm from the charm store,
+                    e.g. 'development'
+    :type channel: str
+    :param model_name: Name of model to operate on
+    :type model_name: str
+    """
+    async with run_in_model(model_name) as model:
+        charmstore_entity = await model.charmstore.entity(
+            charm_url,
+            channel=channel)
+        return charmstore_entity['Id']
+
+get_latest_charm_url = sync_wrapper(async_get_latest_charm_url)
+
+
 class UnitNotFound(Exception):
     """Unit was not found in model."""
 
