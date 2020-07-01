@@ -32,12 +32,10 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.key_data = "machine-uuid"
 
         self.machine1 = "1"
-        self.machine1_data = {self.key: self.key_data}
         self.machine1_mock = MachineMock()
         self.machine1_mock[self.key] = self.key_data
 
         self.machine2 = "2"
-        self.machine2_data = {self.key: self.key_data}
         self.machine2_mock = MachineMock()
         self.machine2_mock[self.key] = self.key_data
 
@@ -195,7 +193,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         # All machine data
         self.assertEqual(
             juju_utils.get_machine_status(self.machine1),
-            self.machine1_data)
+            {self.key: self.key_data})
         self.get_full_juju_status.assert_called_once()
 
         # Request a specific key
@@ -210,7 +208,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.assertEqual(
             list(juju_utils.get_machine_uuids_for_application(
                 self.application)),
-            [self.machine1_data.get("instance-id")])
+            [self.key_data])
         self.get_machines_for_application.assert_called_once_with(
             self.application,
             model_name=None)
