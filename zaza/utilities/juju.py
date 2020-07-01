@@ -130,19 +130,18 @@ def get_machines_for_application(application, model_name=None):
     :rtype: list
     """
     status = get_application_status(application, model_name=model_name)
+    if not status:
+        return
 
     # libjuju juju status no longer has units for subordinate charms
     # Use the application it is subordinate-to to find machines
     if is_subordinate_application(application, model_name=model_name):
-        return get_machines_for_application(
+        yield from get_machines_for_application(
             status.get("subordinate-to")[0],
             model_name=model_name)
-
-    machines = []
-    for unit in status.get("units").keys():
-        machines.append(
-            status.get("units").get(unit).get("machine"))
-    return machines
+    else:
+        for unit in status.get("units").keys():
+            yield status.get("units").get(unit).get("machine")
 
 
 def get_unit_name_from_host_name(host_name, application, model_name=None):
@@ -270,14 +269,10 @@ def get_machine_uuids_for_application(application, model_name=None):
     :returns: List of machine uuuids for an application
     :rtype: list
     """
-    uuids = []
     for machine in get_machines_for_application(application,
                                                 model_name=model_name):
-        uuids.append(get_machine_status(
-            machine,
-            key="instance-id",
-            model_name=model_name))
-    return uuids
+        yield get_machine_status(machine, key="instance-id",
+                                 model_name=model_name)
 
 
 def get_provider_type():
@@ -413,3 +408,76 @@ def leader_get(application, key='', model_name=None):
         return yaml.safe_load(result.get('Stdout'))
     else:
         raise model.CommandRunFailed(cmd, result)
+
+
+def get_subordinate_units(unit_list, charm_name=None, status=None,
+                          model_name=None):
+    """Get a list of all subordinate units associated with units in unit_list.
+
+    Get a list of all subordinate units associated with units in unit_list.
+    Subordinate can be filtered by using 'charm_name' which will only return
+    subordinate units which have 'charm_name' in the name of the charm e.g.
+
+        get_subordinate_units(
+            ['cinder/1']) would return ['cinder-hacluster/1',
+                                        'cinder-ceph/2'])
+    where as
+
+        get_subordinate_units(
+            ['cinder/1'], charm_name='hac') would return ['cinder-hacluster/1']
+
+    NOTE: The charm_name match is against the name of the charm not the
+          application name.
+
+    :param charm_name: List of unit names
+    :type unit_list: []
+    :param charm_name: charm_name to match against, can be a sub-string.
+    :type charm_name: str
+    :param status: Juju status to query against,
+    :type status: juju.client._definitions.FullStatus
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :returns: List of matching unit names.
+    :rtype: []
+    """
+    if not status:
+        status = model.get_status(model_name=model_name)
+    sub_units = []
+    for unit_name in unit_list:
+        app_name = unit_name.split('/')[0]
+        subs = status.applications[app_name]['units'][unit_name].get(
+            'subordinates') or {}
+        if charm_name:
+            for unit_name, unit_data in subs.items():
+                if charm_name in unit_data['charm']:
+                    sub_units.append(unit_name)
+        else:
+            sub_units.extend([n for n in subs.keys()])
+    return sub_units
+
+
+def get_application_ip(application, model_name=None):
+    """Get the application's IP address.
+
+    :param application: Application name
+    :type application: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :returns: Application's IP address
+    :rtype: str
+    """
+    try:
+        app_config = model.get_application_config(
+            application,
+            model_name=model_name)
+    except KeyError:
+        return ''
+    vip = app_config.get("vip", {}).get("value")
+    if vip:
+        ip = vip
+    else:
+        unit = model.get_units(
+            application,
+            model_name=model_name)[0]
+        ip = unit.public_address
+    return ip
