@@ -25,17 +25,19 @@ from zaza import (
 from zaza.utilities import generic as generic_utils
 
 
-def get_application_status(application=None, unit=None):
+def get_application_status(application=None, unit=None, model_name=None):
     """Return the juju status for an application.
 
     :param application: Application name
     :type application: string
     :param unit: Specific unit
     :type unit: string
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: Juju status output for an application
     :rtype: dict
     """
-    status = get_full_juju_status()
+    status = get_full_juju_status(model_name=model_name)
 
     if unit and not application:
         application = unit.split("/")[0]
@@ -66,58 +68,75 @@ def get_cloud_configs(cloud=None):
         return generic_utils.get_yaml_config(cloud_config)
 
 
-def get_full_juju_status():
+def get_full_juju_status(model_name=None):
     """Return the full juju status output.
 
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: Full juju status output
     :rtype: dict
     """
-    status = model.get_status()
+    status = model.get_status(model_name=model_name)
     return status
 
 
-def is_subordinate_application(application_name, application_status=None):
+def is_subordinate_application(application_name, application_status=None,
+                               model_name=None):
     """Is the given application a subordinate application.
 
     :param application_name: Application name
     :type application_name: string
     :param application_status: Juju status dict for application
     :type application_status: dict
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: Whether application_name is a subordinate
     :rtype: bool
     """
-    status = application_status or get_application_status(application_name)
-    return status.get("units") is None and status.get("subordinate-to")
+    status = application_status or get_application_status(
+        application_name,
+        model_name=model_name)
+    # libjuju used to return None but now returns {} for subordinate units.
+    return not status.get("units") and status.get("subordinate-to")
 
 
-def get_principle_applications(application_name, application_status=None):
+def get_principle_applications(application_name, application_status=None,
+                               model_name=None):
     """Get the principle applications that application_name is related to.
 
     :param application_name: Application name
     :type application_name: string
     :param application_status: Juju status dict for application
     :type application_status: dict
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: List of principle applications
     :rtype: list
     """
-    status = application_status or get_application_status(application_name)
+    status = application_status or get_application_status(
+        application_name,
+        model_name=model_name)
     return status.get("subordinate-to")
 
 
-def get_machines_for_application(application):
+def get_machines_for_application(application, model_name=None):
     """Return machines for a given application.
 
     :param application: Application name
     :type application: string
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: List of machines for an application
     :rtype: list
     """
-    status = get_application_status(application)
+    status = get_application_status(application, model_name=model_name)
 
     # libjuju juju status no longer has units for subordinate charms
     # Use the application it is subordinate-to to find machines
-    if is_subordinate_application(application):
-        return get_machines_for_application(status.get("subordinate-to")[0])
+    if is_subordinate_application(application, model_name=model_name):
+        return get_machines_for_application(
+            status.get("subordinate-to")[0],
+            model_name=model_name)
 
     machines = []
     for unit in status.get("units").keys():
@@ -126,39 +145,46 @@ def get_machines_for_application(application):
     return machines
 
 
-def get_unit_name_from_host_name(host_name, application):
+def get_unit_name_from_host_name(host_name, application, model_name=None):
     """Return the juju unit name corresponding to a hostname.
 
     :param host_name: Host name to map to unit name.
     :type host_name: string
     :param application: Application name
     :type application: string
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: The unit name of the application running on host_name.
     :rtype: str or None
     """
     # Assume that a juju managed hostname always ends in the machine number.
     machine_number = host_name.split('-')[-1]
     unit = None
-    app_status = get_application_status(application)
+    app_status = get_application_status(application, model_name=model_name)
     # If the application is not present there cannot be a matching unit.
     if not app_status:
         return unit
-    if is_subordinate_application(application, application_status=app_status):
+    if is_subordinate_application(application, application_status=app_status,
+                                  model_name=model_name):
         # Find the principle services that the subordinate relates to. There
         # may be multiple.
         principle_services = get_principle_applications(
             application,
-            application_status=app_status)
+            application_status=app_status,
+            model_name=model_name)
         for principle_service in principle_services:
             # Find the principle unit name that matches the provided
             # hostname.
             principle_unit = get_unit_name_from_host_name(
                 host_name,
-                principle_service)
+                principle_service,
+                model_name=model_name)
             # If the subordinate has been related to mulitple principles then
             # principle_service may not be running on host_name.
             if principle_unit:
-                unit_status = get_application_status(unit=principle_unit)
+                unit_status = get_application_status(
+                    unit=principle_unit,
+                    model_name=model_name)
                 unit_names = list(unit_status['subordinates'].keys())
                 # The principle may have subordinates related to it other than
                 # the 'application' so search through them looking for a match.
@@ -168,38 +194,45 @@ def get_unit_name_from_host_name(host_name, application):
     else:
         unit_names = [
             u.entity_id
-            for u in model.get_units(application_name=application)
+            for u in model.get_units(
+                application_name=application,
+                model_name=model_name)
             if int(u.data['machine-id']) == int(machine_number)]
         if unit_names:
             unit = unit_names[0]
     return unit
 
 
-def get_unit_name_from_ip_address(ip, application_name):
+def get_unit_name_from_ip_address(ip, application_name, model_name=None):
     """Return the juju unit name corresponding to an IP address.
 
     :param ip: IP address to map to unit name.
     :type ip: string
     :param application_name: Application name
     :type application_name: string
+    :param model_name: Name of model to query.
+    :type model_name: str
     """
-    for unit in model.get_units(application_name=application_name):
+    for unit in model.get_units(application_name=application_name,
+                                model_name=model_name):
         if (unit.data['public-address'] == ip) or (
                 unit.data['private-address'] == ip):
             return unit.data['name']
 
 
-def get_machine_status(machine, key=None):
+def get_machine_status(machine, key=None, model_name=None):
     """Return the juju status for a machine.
 
     :param machine: Machine number
     :type machine: string
     :param key: Key option requested
     :type key: string
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: Juju status output for a machine
     :rtype: dict
     """
-    status = get_full_juju_status()
+    status = get_full_juju_status(model_name=model_name)
     if "lxd" in machine:
         host = machine.split('/')[0]
         status = status.machines.get(host)['containers'][machine]
@@ -210,31 +243,40 @@ def get_machine_status(machine, key=None):
     return status
 
 
-def get_machine_series(machine):
+def get_machine_series(machine, model_name=None):
     """Return the juju series for a machine.
 
     :param machine: Machine number
     :type machine: string
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: Juju series
     :rtype: string
     """
     return get_machine_status(
         machine=machine,
-        key='series'
+        key='series',
+        model_name=model_name
     )
 
 
-def get_machine_uuids_for_application(application):
+def get_machine_uuids_for_application(application, model_name=None):
     """Return machine uuids for a given application.
 
     :param application: Application name
     :type application: string
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: List of machine uuuids for an application
     :rtype: list
     """
     uuids = []
-    for machine in get_machines_for_application(application):
-        uuids.append(get_machine_status(machine, key="instance-id"))
+    for machine in get_machines_for_application(application,
+                                                model_name=model_name):
+        uuids.append(get_machine_status(
+            machine,
+            key="instance-id",
+            model_name=model_name))
     return uuids
 
 
@@ -256,7 +298,7 @@ def get_provider_type():
         return "openstack"
 
 
-def remote_run(unit, remote_cmd, timeout=None, fatal=None):
+def remote_run(unit, remote_cmd, timeout=None, fatal=None, model_name=None):
     """Run command on unit and return the output.
 
     NOTE: This function is pre-deprecated. As soon as libjuju unit.run is able
@@ -268,13 +310,19 @@ def remote_run(unit, remote_cmd, timeout=None, fatal=None):
     :type arg: int
     :param fatal: Command failure condidered fatal or not
     :type fatal: boolean
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: Juju run output
     :rtype: string
     :raises: model.CommandRunFailed
     """
     if fatal is None:
         fatal = True
-    result = model.run_on_unit(unit, remote_cmd, timeout=timeout)
+    result = model.run_on_unit(
+        unit,
+        remote_cmd,
+        model_name=model_name,
+        timeout=timeout)
     if result:
         if int(result.get("Code")) == 0:
             return result.get("Stdout")
@@ -284,7 +332,7 @@ def remote_run(unit, remote_cmd, timeout=None, fatal=None):
             return result.get("Stderr")
 
 
-def _get_unit_names(names):
+def _get_unit_names(names, model_name=None):
     """Resolve given application names to first unit name of said application.
 
     Helper function that resolves application names to first unit name of
@@ -292,6 +340,8 @@ def _get_unit_names(names):
 
     :param names: List of units/applications to translate
     :type names: list(str)
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: List of units
     :rtype: list(str)
     """
@@ -300,11 +350,14 @@ def _get_unit_names(names):
         if '/' in name:
             result.append(name)
         else:
-            result.append(model.get_first_unit_name(name))
+            result.append(model.get_first_unit_name(
+                name,
+                model_name=model_name))
     return result
 
 
-def get_relation_from_unit(entity, remote_entity, remote_interface_name):
+def get_relation_from_unit(entity, remote_entity, remote_interface_name,
+                           model_name=None):
     """Get relation data passed between two units.
 
     Get relation data for relation with `remote_interface_name` between
@@ -321,6 +374,8 @@ def get_relation_from_unit(entity, remote_entity, remote_interface_name):
     :param remote_interface_name: Name of interface to query on remote end of
                                   relation
     :type remote_interface_name: str
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: dict with relation data
     :rtype: dict
     :raises: model.CommandRunFailed
@@ -328,27 +383,32 @@ def get_relation_from_unit(entity, remote_entity, remote_interface_name):
     application = entity.split('/')[0]
     remote_application = remote_entity.split('/')[0]
     rid = model.get_relation_id(application, remote_application,
+                                model_name=model_name,
                                 remote_interface_name=remote_interface_name)
-    (unit, remote_unit) = _get_unit_names([entity, remote_entity])
+    (unit, remote_unit) = _get_unit_names(
+        [entity, remote_entity],
+        model_name=model_name)
     cmd = 'relation-get --format=yaml -r "{}" - "{}"' .format(rid, remote_unit)
-    result = model.run_on_unit(unit, cmd)
+    result = model.run_on_unit(unit, cmd, model_name=model_name)
     if result and int(result.get('Code')) == 0:
         return yaml.safe_load(result.get('Stdout'))
     else:
         raise model.CommandRunFailed(cmd, result)
 
 
-def leader_get(application, key=''):
+def leader_get(application, key='', model_name=None):
     """Get leader settings from leader unit of named application.
 
     :param application: Application to get leader settings from.
     :type application: str
+    :param model_name: Name of model to query.
+    :type model_name: str
     :returns: dict with leader settings
     :rtype: dict
     :raises: model.CommandRunFailed
     """
     cmd = 'leader-get --format=yaml {}'.format(key)
-    result = model.run_on_leader(application, cmd)
+    result = model.run_on_leader(application, cmd, model_name=model_name)
     if result and int(result.get('Code')) == 0:
         return yaml.safe_load(result.get('Stdout'))
     else:
