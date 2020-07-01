@@ -21,6 +21,12 @@ class TemplateConflict(Exception):
     pass
 
 
+class MachineNotFound(Exception):
+    """Exception when machine is not found."""
+
+    pass
+
+
 class MissingOSAthenticationException(Exception):
     """Exception when some data needed to authenticate is missing."""
 

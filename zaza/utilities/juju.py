@@ -23,6 +23,7 @@ from zaza import (
     controller,
 )
 from zaza.utilities import generic as generic_utils
+from zaza.utilities import exceptions as zaza_exceptions
 
 
 def get_application_status(application=None, unit=None, model_name=None):
@@ -157,7 +158,6 @@ def get_unit_name_from_host_name(host_name, application, model_name=None):
     :rtype: str or None
     """
     # Assume that a juju managed hostname always ends in the machine number.
-    machine_number = host_name.split('-')[-1]
     unit = None
     app_status = get_application_status(application, model_name=model_name)
     # If the application is not present there cannot be a matching unit.
@@ -191,12 +191,29 @@ def get_unit_name_from_host_name(host_name, application, model_name=None):
                     if unit_name.split('/')[0] == application:
                         unit = unit_name
     else:
+        # Try and match host_name with machine display name:
+        status = get_full_juju_status(model_name=model_name)
+        machine_number = None
+        # display_name should be present in maas deploys
+        for _no in status.machines.keys():
+            machine = status.machines.get(_no)
+            if machine.display_name.split('.')[0] == host_name.split('.')[0]:
+                machine_number = int(_no)
+        # If no match was found try and extract machine number from host_name.
+        # This is probably a non-maas deploy.
+        if not machine_number:
+            try:
+                machine_number = int(host_name.split('-')[-1])
+            except ValueError:
+                msg = ("Could not derive machine number from "
+                       "hostname {}").format(host_name)
+                raise zaza_exceptions.MachineNotFound(msg)
         unit_names = [
             u.entity_id
             for u in model.get_units(
                 application_name=application,
                 model_name=model_name)
-            if int(u.data['machine-id']) == int(machine_number)]
+            if int(u.data['machine-id']) == machine_number]
         if unit_names:
             unit = unit_names[0]
     return unit

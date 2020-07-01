@@ -22,15 +22,24 @@ class TestJujuUtils(ut_utils.BaseTestCase):
     def setUp(self):
         super(TestJujuUtils, self).setUp()
 
+        class MachineMock(dict):
+
+            def __init__(self, display_name=''):
+                self.display_name = display_name
+
         # Juju Status Object and data
         self.key = "instance-id"
         self.key_data = "machine-uuid"
 
         self.machine1 = "1"
         self.machine1_data = {self.key: self.key_data}
+        self.machine1_mock = MachineMock()
+        self.machine1_mock[self.key] = self.key_data
 
-        self.machine2 = "1"
+        self.machine2 = "2"
         self.machine2_data = {self.key: self.key_data}
+        self.machine2_mock = MachineMock()
+        self.machine2_mock[self.key] = self.key_data
 
         self.unit1 = "app/1"
         self.unit1_data = {"machine": self.machine1}
@@ -59,8 +68,8 @@ class TestJujuUtils(ut_utils.BaseTestCase):
             self.application: self.application_data,
             self.subordinate_application: self.subordinate_application_data}
         self.juju_status.machines = {
-            self.machine1: self.machine1_data,
-            self.machine2: self.machine2_data}
+            self.machine1: self.machine1_mock,
+            self.machine2: self.machine2_mock}
 
         # Model
         self.patch_object(juju_utils, "model")
@@ -143,6 +152,10 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.assertEqual(
             juju_utils.get_unit_name_from_host_name('juju-model-1', 'app'),
             'app/1')
+        self.machine2_mock.display_name = 'node-jaeger.maas'
+        self.assertEqual(
+            juju_utils.get_unit_name_from_host_name('node-jaeger.maas', 'app'),
+            'app/2')
 
     def test_get_unit_name_from_host_name_bad_app(self):
         self.assertIsNone(
