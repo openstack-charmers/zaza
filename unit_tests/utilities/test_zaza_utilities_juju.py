@@ -37,6 +37,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.unit1_mock = mock.MagicMock()
         self.unit1_mock.entity_id = self.unit1
         self.unit1_mock.data = {'machine-id': self.machine1}
+        self.unit1_mock.public_address = '10.0.0.1'
 
         self.unit2 = "app/2"
         self.unit2_data = {"machine": self.machine2}
@@ -130,12 +131,12 @@ class TestJujuUtils(ut_utils.BaseTestCase):
 
         # Machine data
         self.assertEqual(
-            juju_utils.get_machines_for_application(self.application),
+            list(juju_utils.get_machines_for_application(self.application)),
             [self.machine1])
 
         self.assertEqual(
-            juju_utils.get_machines_for_application(
-                self.subordinate_application),
+            list(juju_utils.get_machines_for_application(
+                self.subordinate_application)),
             [self.machine1])
 
     def test_get_unit_name_from_host_name(self):
@@ -194,7 +195,8 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.get_machines_for_application.return_value = [self.machine1]
 
         self.assertEqual(
-            juju_utils.get_machine_uuids_for_application(self.application),
+            list(juju_utils.get_machine_uuids_for_application(
+                self.application)),
             [self.machine1_data.get("instance-id")])
         self.get_machines_for_application.assert_called_once_with(
             self.application,
@@ -319,3 +321,47 @@ class TestJujuUtils(ut_utils.BaseTestCase):
             model_name=None
         )
         self.assertEqual(expected, actual)
+
+    def test_get_subordinate_units(self):
+        juju_status = mock.MagicMock()
+        juju_status.applications = {
+            'nova-compute': {
+                'units': {
+                    'nova-compute/0': {
+                        'subordinates': {
+                            'neutron-openvswitch/2': {
+                                'charm': 'cs:neutron-openvswitch-22'}}}}},
+            'cinder': {
+                'units': {
+                    'cinder/1': {
+                        'subordinates': {
+                            'cinder-hacluster/0': {
+                                'charm': 'cs:hacluster-42'},
+                            'cinder-ceph/3': {
+                                'charm': 'cs:cinder-ceph-2'}}}}},
+        }
+        self.model.get_status.return_Value = juju_status
+        self.assertEqual(
+            sorted(juju_utils.get_subordinate_units(
+                ['nova-compute/0', 'cinder/1'],
+                status=juju_status)),
+            sorted(['neutron-openvswitch/2', 'cinder-hacluster/0',
+                    'cinder-ceph/3']))
+        self.assertEqual(
+            juju_utils.get_subordinate_units(
+                ['nova-compute/0', 'cinder/1'],
+                charm_name='ceph',
+                status=juju_status),
+            ['cinder-ceph/3'])
+
+    def test_get_application_ip(self):
+        self.model.get_application_config.return_value = {
+            'vip': {'value': '10.0.0.10'}}
+        self.model.get_units.return_value = [self.unit1_mock]
+        self.assertEqual(
+            juju_utils.get_application_ip('app'),
+            '10.0.0.10')
+        self.model.get_application_config.return_value = {}
+        self.assertEqual(
+            juju_utils.get_application_ip('app'),
+            '10.0.0.1')
