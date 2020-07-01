@@ -157,7 +157,6 @@ def get_unit_name_from_host_name(host_name, application, model_name=None):
     :returns: The unit name of the application running on host_name.
     :rtype: str or None
     """
-    # Assume that a juju managed hostname always ends in the machine number.
     unit = None
     app_status = get_application_status(application, model_name=model_name)
     # If the application is not present there cannot be a matching unit.
@@ -203,6 +202,8 @@ def get_unit_name_from_host_name(host_name, application, model_name=None):
         # This is probably a non-maas deploy.
         if not machine_number:
             try:
+                # Assume that a juju managed hostname always ends in the
+                # machine number.
                 machine_number = int(host_name.split('-')[-1])
             except ValueError:
                 msg = ("Could not derive machine number from "
