@@ -20,7 +20,7 @@ comment: |
 script:
   - if [ $ENV = 'func' ]; then
        sudo apt remove -y --purge lxd lxd-client;
-       sudo snap install --channel=3.20/stable lxd;
+       sudo snap install --stable lxd;
        sudo snap install --classic juju;
        sudo sh -c 'echo PATH=/snap/bin:$PATH >> /etc/environment';
        sudo lxd waitready;
