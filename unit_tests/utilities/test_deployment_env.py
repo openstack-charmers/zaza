@@ -240,3 +240,14 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
         self.assertEqual(
             deployment_env.get_cloud_region(),
             None)
+
+    def test_get_tmpdir(self):
+        self.patch_object(deployment_env.os, 'mkdir')
+        self.patch_object(deployment_env.os.path, 'exists')
+        self.exists.return_value = False
+        deployment_env.get_tmpdir(model_name='mymodel')
+        self.mkdir.assert_called_once_with('/tmp/mymodel')
+        self.mkdir.reset_mock()
+        self.exists.return_value = True
+        deployment_env.get_tmpdir(model_name='mymodel')
+        self.assertFalse(self.mkdir.called)
