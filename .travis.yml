@@ -21,8 +21,6 @@ script:
   - if [ $ENV = 'func' ]; then
        sudo apt remove -y --purge lxd lxd-client;
        sudo snap install --stable lxd;
-       sudo systemctl status snap.lxd.activate.service;
-       sudo journalctl -xe;
        sudo snap install --classic juju;
        sudo sh -c 'echo PATH=/snap/bin:$PATH >> /etc/environment';
        sudo lxd waitready;
