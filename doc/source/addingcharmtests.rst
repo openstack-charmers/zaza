@@ -172,3 +172,27 @@ In the `tests.yaml` the option is added as a list item:
 In the above case, focal-ussuri will be deployed using the --force parameter.
 i.e. the `tests_options.force_deploy['focal-ussuri']` option applies to the
 `focal-ussuri` bundle whether it appears in any of the bundle sections.
+
+Augmenting behaviour of configure steps
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Individual configuration steps or the library helper they use may define
+configuration step options that you may use to tweak behaviour from tests.yaml.
+
+An example is the Neutron `basic_overcloud_network` configure job which for
+compatibility with existing scenario tests makes use of `juju_wait` when
+configuring the deployed cloud.
+
+This does not work well if the model you are testing has applications with
+non-standard workload status messaging.
+
+To replace the use of `juju_wait` with Zaza's configurable wait code:
+
+    charm_name: neutron-openvswitch
+    smoke_bundles:
+    - focal-ussuri-dvr-snat-migrate-ovn
+
+    ...
+
+    configure_options:
+      configure_gateway_ext_port_use_juju_wait: false
