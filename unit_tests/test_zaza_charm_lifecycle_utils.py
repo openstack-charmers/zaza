@@ -88,6 +88,17 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
                     {'model_alias2': 'bundle2'}]}),
             lc_utils.MUTLI_ORDERED)
 
+    def test_get_config_options(self):
+        self.patch_object(lc_utils, 'get_charm_config')
+        self.get_charm_config.return_value = {
+            'configure_options': {
+                'a.module.function.path.key': 'aValue',
+            }
+        }
+        self.assertEqual(
+            lc_utils.get_config_options(),
+            {'a.module.function.path.key': 'aValue'})
+
     def test_get_config_steps(self):
         self.patch_object(lc_utils, "get_charm_config")
         self.get_charm_config.return_value = {

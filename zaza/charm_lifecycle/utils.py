@@ -234,6 +234,17 @@ def get_environment_deploys(bundle_key, deployment_name=None):
     return environment_deploys
 
 
+def get_config_options():
+    """Get configuration step options.
+
+    Get a map of configure step options and their values.
+
+    :returns: A dict with configure option name and values
+    :rtype: Dict[str, any]
+    """
+    return get_charm_config().get('configure_options', {})
+
+
 def get_config_steps():
     """Get configuration steps and their associated model aliases.
 
