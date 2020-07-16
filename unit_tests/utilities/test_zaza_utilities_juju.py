@@ -146,7 +146,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
                 self.subordinate_application)),
             [self.machine1])
 
-    def test_get_unit_name_from_host_name(self):
+    def test_get_unit_name_from_host_name_maas(self):
         self.assertEqual(
             juju_utils.get_unit_name_from_host_name('juju-model-1', 'app'),
             'app/1')
@@ -154,6 +154,20 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.assertEqual(
             juju_utils.get_unit_name_from_host_name('node-jaeger.maas', 'app'),
             'app/2')
+
+    def test_get_unit_name_from_host_name(self):
+        self.patch_object(juju_utils, "get_application_status")
+        self.get_application_status.side_effect = self._get_application_status
+        self.assertEqual(
+            juju_utils.get_unit_name_from_host_name(
+                'juju-model-1',
+                self.application),
+            'app/1')
+        self.assertEqual(
+            juju_utils.get_unit_name_from_host_name(
+                'juju-model-1.project.serverstack',
+                self.application),
+            'app/1')
 
     def test_get_unit_name_from_host_name_bad_app(self):
         self.assertIsNone(

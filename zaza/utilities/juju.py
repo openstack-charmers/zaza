@@ -202,6 +202,8 @@ def get_unit_name_from_host_name(host_name, application, model_name=None):
         # This is probably a non-maas deploy.
         if not machine_number:
             try:
+                # Remove domain name if it is present.
+                host_name = host_name.split('.')[0]
                 # Assume that a juju managed hostname always ends in the
                 # machine number.
                 machine_number = int(host_name.split('-')[-1])
