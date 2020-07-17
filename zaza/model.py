@@ -536,6 +536,24 @@ async def async_get_application_config(application_name, model_name=None):
 get_application_config = sync_wrapper(async_get_application_config)
 
 
+async def async_reset_application_config(application_name, config_keys,
+                                         model_name=None):
+    """Reset application configuration to default values.
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    :param config_keys: List of configuration keys to reset to their defaults.
+    :type config_keys: List[str]
+    """
+    async with run_in_model(model_name) as model:
+        return await (model.applications[application_name]
+                      .reset_config(config_keys))
+
+reset_application_config = sync_wrapper(async_reset_application_config)
+
+
 async def async_set_application_config(application_name, configuration,
                                        model_name=None):
     """Set application configuration.
