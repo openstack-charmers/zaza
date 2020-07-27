@@ -591,10 +591,17 @@ class ActionFailed(Exception):
 
     def __init__(self, action):
         """Set information about action failure in message and raise."""
-        params = {key: getattr(action, key, "<not-set>")
-                  for key in ['name', 'parameters', 'receiver',
-                              'message', 'id', 'status',
-                              'enqueued', 'started', 'completed']}
+        # Bug: #314  -- unfortunately, libjuju goes bang even if getattr(x,y,
+        # default) is used, which means we physically have to check for
+        # KeyError.
+        params = {}
+        for key in ['name', 'parameters', 'receiver', 'message', 'id',
+                    'status', 'enqueued', 'started', 'completed']:
+            try:
+                params[key] = getattr(action, key, "<not-set>")
+            except KeyError:
+                # code around libjuju in its getattr code.
+                params[key] = "<not-set>"
         message = ('Run of action "{name}" with parameters "{parameters}" on '
                    '"{receiver}" failed with "{message}" (id={id} '
                    'status={status} enqueued={enqueued} started={started} '
