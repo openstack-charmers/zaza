@@ -31,6 +31,10 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.key = "instance-id"
         self.key_data = "machine-uuid"
 
+        self.machine0 = "0"
+        self.machine0_mock = MachineMock()
+        self.machine0_mock[self.key] = self.key_data
+
         self.machine1 = "1"
         self.machine1_mock = MachineMock()
         self.machine1_mock[self.key] = self.key_data
@@ -38,6 +42,13 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.machine2 = "2"
         self.machine2_mock = MachineMock()
         self.machine2_mock[self.key] = self.key_data
+
+        self.unit0 = "app/0"
+        self.unit0_data = {"machine": self.machine0}
+        self.unit0_mock = mock.MagicMock()
+        self.unit0_mock.entity_id = self.unit0
+        self.unit0_mock.data = {'machine-id': self.machine0}
+        self.unit0_mock.public_address = '10.0.0.11'
 
         self.unit1 = "app/1"
         self.unit1_data = {"machine": self.machine1}
@@ -66,6 +77,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
             self.application: self.application_data,
             self.subordinate_application: self.subordinate_application_data}
         self.juju_status.machines = {
+            self.machine0: self.machine0_mock,
             self.machine1: self.machine1_mock,
             self.machine2: self.machine2_mock}
 
@@ -77,7 +89,10 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.run_output = {"Code": "0", "Stderr": "", "Stdout": "RESULT"}
         self.error_run_output = {"Code": "1", "Stderr": "ERROR", "Stdout": ""}
         self.model.run_on_unit.return_value = self.run_output
-        self.model.get_units.return_value = [self.unit1_mock, self.unit2_mock]
+        self.model.get_units.return_value = [
+            self.unit0_mock,
+            self.unit1_mock,
+            self.unit2_mock]
 
         # Clouds
         self.cloud_name = "FakeCloudName"
@@ -154,6 +169,10 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.assertEqual(
             juju_utils.get_unit_name_from_host_name('node-jaeger.maas', 'app'),
             'app/2')
+        self.machine0_mock.display_name = 'node-bob.maas'
+        self.assertEqual(
+            juju_utils.get_unit_name_from_host_name('node-bob.maas', 'app'),
+            'app/0')
 
     def test_get_unit_name_from_host_name(self):
         self.patch_object(juju_utils, "get_application_status")
