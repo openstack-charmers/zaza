@@ -200,7 +200,7 @@ def get_unit_name_from_host_name(host_name, application, model_name=None):
                 machine_number = int(_no)
         # If no match was found try and extract machine number from host_name.
         # This is probably a non-maas deploy.
-        if not machine_number:
+        if machine_number is None:
             try:
                 # Remove domain name if it is present.
                 host_name = host_name.split('.')[0]
