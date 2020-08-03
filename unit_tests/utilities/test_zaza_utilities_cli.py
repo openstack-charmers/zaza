@@ -123,3 +123,15 @@ class TestCLIUtils(ut_utils.BaseTestCase):
             {
                 'modalias1': 'model1',
                 'modalias2': 'model2'})
+
+    def test_add_test_directory_argument(self):
+        parser = argparse.ArgumentParser()
+        cli_utils.add_test_directory_argument(parser)
+        result = parser.parse_args(['--test-directory', 'my/test-dir'])
+        self.assertEqual(
+            result.test_directory,
+            'my/test-dir')
+        parser = argparse.ArgumentParser()
+        cli_utils.add_test_directory_argument(parser)
+        result = parser.parse_args([])
+        self.assertIsNone(result.test_directory)

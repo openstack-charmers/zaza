@@ -345,7 +345,8 @@ def deploy_bundle(bundle, model, model_ctxt=None, force=False):
         utils.check_output_logging(cmd)
 
 
-def deploy(bundle, model, wait=True, model_ctxt=None, force=False):
+def deploy(bundle, model, wait=True, model_ctxt=None, force=False,
+           test_directory=None):
     """Run all steps to complete deployment.
 
     :param bundle: Path to bundle file
@@ -359,7 +360,10 @@ def deploy(bundle, model, wait=True, model_ctxt=None, force=False):
     :type model_ctxt: {}
     :param force: Pass the force parameter if True
     :type force: Boolean
+    :param test_directory: Set the directory containing tests.yaml and bundles.
+    :type test_directory: str
     """
+    utils.set_base_test_dir(test_dir=test_directory)
     run_report.register_event_start('Deploy Bundle')
     deploy_bundle(bundle, model, model_ctxt=model_ctxt, force=force)
     run_report.register_event_finish('Deploy Bundle')
@@ -402,6 +406,7 @@ def parse_args(args):
                         action='store_false')
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
+    cli_utils.add_test_directory_argument(parser)
     parser.set_defaults(wait=True, loglevel='INFO')
     return parser.parse_args(args)
 
@@ -413,5 +418,10 @@ def main():
     if args.force:
         logging.warn("Using the --force argument for 'juju deploy'. Note "
                      "that this disables juju checks for compatibility.")
-    deploy(args.bundle, args.model, wait=args.wait, force=args.force)
+    deploy(
+        args.bundle,
+        args.model,
+        wait=args.wait,
+        force=args.force,
+        test_directory=args.test_directory)
     run_report.output_event_report()

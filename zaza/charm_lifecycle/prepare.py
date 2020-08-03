@@ -27,12 +27,15 @@ import zaza.utilities.deployment_env as deployment_env
 
 
 @run_report.register_event_wrapper('Prepare Environment')
-def prepare(model_name):
+def prepare(model_name, test_directory=None):
     """Run all steps to prepare the environment before a functional test run.
 
     :param model: Name of model to add
     :type bundle: str
+    :param test_directory: Set the directory containing tests.yaml and bundles.
+    :type test_directory: str
     """
+    utils.set_base_test_dir(test_dir=test_directory)
     zaza.controller.add_model(
         model_name,
         config=deployment_env.get_model_settings(),
@@ -54,6 +57,7 @@ def parse_args(args):
     parser.add_argument('-m', '--model-name', help='Name of model to add')
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
+    cli_utils.add_test_directory_argument(parser)
     parser.set_defaults(loglevel='INFO')
     parser.set_defaults(model_name=utils.generate_model_name())
     return parser.parse_args(args)
@@ -64,5 +68,5 @@ def main():
     args = parse_args(sys.argv[1:])
     cli_utils.setup_logging(log_level=args.loglevel.upper())
     logging.info('model_name: {}'.format(args.model_name))
-    prepare(args.model_name)
+    prepare(args.model_name, test_directory=args.test_directory)
     run_report.output_event_report()

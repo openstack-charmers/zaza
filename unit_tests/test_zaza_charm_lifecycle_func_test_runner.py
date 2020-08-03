@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import mock
+import os
 
 import zaza.charm_lifecycle.func_test_runner as lc_func_test_runner
 import unit_tests.utils as ut_utils
@@ -70,29 +71,34 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                 'zaza.charm_tests.mycharm.tests.ComplexTest']}
         lc_func_test_runner.func_test_runner(force=True)
         prepare_calls = [
-            mock.call('newmodel'),
-            mock.call('newmodel')]
+            mock.call('newmodel', test_directory=None),
+            mock.call('newmodel', test_directory=None)]
+        cwd = os.getcwd()
         deploy_calls = [
-            mock.call('./tests/bundles/bundle1.yaml', 'newmodel',
+            mock.call(cwd + '/tests/bundles/bundle1.yaml', 'newmodel',
                       model_ctxt={'default_alias': 'newmodel'},
-                      force=True),
-            mock.call('./tests/bundles/bundle2.yaml', 'newmodel',
+                      force=True, test_directory=None),
+            mock.call(cwd + '/tests/bundles/bundle2.yaml', 'newmodel',
                       model_ctxt={'default_alias': 'newmodel'},
-                      force=True)]
+                      force=True, test_directory=None)]
         configure_calls = [
             mock.call('newmodel', [
                 'zaza.charm_tests.mycharm.setup.basic_setup'
-                'zaza.charm_tests.othercharm.setup.setup']),
+                'zaza.charm_tests.othercharm.setup.setup'],
+                test_directory=None),
             mock.call('newmodel', [
                 'zaza.charm_tests.mycharm.setup.basic_setup'
-                'zaza.charm_tests.othercharm.setup.setup'])]
+                'zaza.charm_tests.othercharm.setup.setup'],
+                test_directory=None)]
         test_calls = [
             mock.call('newmodel', [
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
-                'zaza.charm_tests.mycharm.tests.ComplexTest']),
+                'zaza.charm_tests.mycharm.tests.ComplexTest'],
+                test_directory=None),
             mock.call('newmodel', [
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
-                'zaza.charm_tests.mycharm.tests.ComplexTest'])]
+                'zaza.charm_tests.mycharm.tests.ComplexTest'],
+                test_directory=None)]
         destroy_calls = [
             mock.call('newmodel'),
             mock.call('newmodel')]
@@ -141,49 +147,59 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                      'zaza.charm_tests.ks.test.project_create2']}]}
         lc_func_test_runner.func_test_runner()
         prepare_calls = [
-            mock.call('m1'),
-            mock.call('m2'),
-            mock.call('m3'),
-            mock.call('m4')]
+            mock.call('m1', test_directory=None),
+            mock.call('m2', test_directory=None),
+            mock.call('m3', test_directory=None),
+            mock.call('m4', test_directory=None)]
+        cwd = os.getcwd()
         deploy_calls = [
-            mock.call('./tests/bundles/bundle1.yaml', 'm1',
-                      model_ctxt={'default_alias': 'm1'}, force=False),
-            mock.call('./tests/bundles/bundle2.yaml', 'm2',
-                      model_ctxt={'default_alias': 'm2'}, force=False),
+            mock.call(cwd + '/tests/bundles/bundle1.yaml', 'm1',
+                      model_ctxt={'default_alias': 'm1'}, force=False,
+                      test_directory=None),
+            mock.call(cwd + '/tests/bundles/bundle2.yaml', 'm2',
+                      model_ctxt={'default_alias': 'm2'}, force=False,
+                      test_directory=None),
             mock.call(
-                './tests/bundles/bundle5.yaml',
+                cwd + '/tests/bundles/bundle5.yaml',
                 'm3',
                 model_ctxt={'model_alias_5': 'm3', 'model_alias_6': 'm4'},
-                force=False),
+                force=False, test_directory=None),
             mock.call(
-                './tests/bundles/bundle6.yaml',
+                cwd + '/tests/bundles/bundle6.yaml',
                 'm4',
                 model_ctxt={'model_alias_5': 'm3', 'model_alias_6': 'm4'},
-                force=False)]
+                force=False, test_directory=None)]
         configure_calls = [
             mock.call('m1', [
                 'zaza.charm_tests.mycharm.setup.basic_setup',
-                'zaza.charm_tests.othercharm.setup.setup']),
+                'zaza.charm_tests.othercharm.setup.setup'],
+                test_directory=None),
             mock.call('m2', [
                 'zaza.charm_tests.mycharm.setup.basic_setup',
-                'zaza.charm_tests.othercharm.setup.setup']),
+                'zaza.charm_tests.othercharm.setup.setup'],
+                test_directory=None),
             mock.call('m3', [
                 'zaza.charm_tests.vault.setup.basic_setup1',
-                'zaza.charm_tests.vault.setup.basic_setup2']),
+                'zaza.charm_tests.vault.setup.basic_setup2'],
+                test_directory=None),
             mock.call('m4', [
-                'zaza.charm_tests.ks.setup.user_setup'])]
+                'zaza.charm_tests.ks.setup.user_setup'],
+                test_directory=None)]
         test_calls = [
             mock.call('m1', [
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
-                'zaza.charm_tests.mycharm.tests.ComplexTest']),
+                'zaza.charm_tests.mycharm.tests.ComplexTest'],
+                test_directory=None),
             mock.call('m2', [
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
-                'zaza.charm_tests.mycharm.tests.ComplexTest']),
+                'zaza.charm_tests.mycharm.tests.ComplexTest'],
+                test_directory=None),
             mock.call('m3', [
-                'zaza.charm_tests.vault.test.decrpy']),
+                'zaza.charm_tests.vault.test.decrpy'], test_directory=None),
             mock.call('m4', [
                 'zaza.charm_tests.ks.test.project_create1',
-                'zaza.charm_tests.ks.test.project_create2'])]
+                'zaza.charm_tests.ks.test.project_create2'],
+                test_directory=None)]
         destroy_calls = [
             mock.call('m1'),
             mock.call('m2'),
@@ -220,28 +236,35 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
                 'zaza.charm_tests.mycharm.tests.ComplexTest']}
         lc_func_test_runner.func_test_runner()
+        cwd = os.getcwd()
         prepare_calls = [
-            mock.call('newmodel'),
-            mock.call('newmodel')]
+            mock.call('newmodel', test_directory=None),
+            mock.call('newmodel', test_directory=None)]
         deploy_calls = [
-            mock.call('./tests/bundles/bundle1.yaml', 'newmodel',
-                      model_ctxt={'default_alias': 'newmodel'}, force=False),
-            mock.call('./tests/bundles/bundle2.yaml', 'newmodel',
-                      model_ctxt={'default_alias': 'newmodel'}, force=False)]
+            mock.call(cwd + '/tests/bundles/bundle1.yaml', 'newmodel',
+                      model_ctxt={'default_alias': 'newmodel'}, force=False,
+                      test_directory=None),
+            mock.call(cwd + '/tests/bundles/bundle2.yaml', 'newmodel',
+                      model_ctxt={'default_alias': 'newmodel'}, force=False,
+                      test_directory=None)]
         before_deploy_calls = [
             mock.call('newmodel', [
                 'zaza.charm_tests.prepare.first',
-                'zaza.charm_tests.prepare.second']),
+                'zaza.charm_tests.prepare.second'],
+                test_directory=None),
             mock.call('newmodel', [
                 'zaza.charm_tests.prepare.first',
-                'zaza.charm_tests.prepare.second'])]
+                'zaza.charm_tests.prepare.second'],
+                test_directory=None)]
         test_calls = [
             mock.call('newmodel', [
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
-                'zaza.charm_tests.mycharm.tests.ComplexTest']),
+                'zaza.charm_tests.mycharm.tests.ComplexTest'],
+                test_directory=None),
             mock.call('newmodel', [
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
-                'zaza.charm_tests.mycharm.tests.ComplexTest'])]
+                'zaza.charm_tests.mycharm.tests.ComplexTest'],
+                test_directory=None)]
         destroy_calls = [
             mock.call('newmodel'),
             mock.call('newmodel')]
@@ -276,10 +299,12 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
                 'zaza.charm_tests.mycharm.tests.ComplexTest']}
         lc_func_test_runner.func_test_runner(smoke=True)
+        cwd = os.getcwd()
         deploy_calls = [
-            mock.call('./tests/bundles/bundle2.yaml', 'newmodel',
+            mock.call(cwd + '/tests/bundles/bundle2.yaml', 'newmodel',
                       model_ctxt={'default_alias': 'newmodel'},
-                      force=False)]
+                      force=False,
+                      test_directory=None)]
         self.deploy.assert_has_calls(deploy_calls)
 
     def test_func_test_runner_dev(self):
@@ -307,11 +332,14 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
                 'zaza.charm_tests.mycharm.tests.ComplexTest']}
         lc_func_test_runner.func_test_runner(dev=True)
+        cwd = os.getcwd()
         deploy_calls = [
-            mock.call('./tests/bundles/bundle3.yaml', 'newmodel',
-                      model_ctxt={'default_alias': 'newmodel'}, force=False),
-            mock.call('./tests/bundles/bundle4.yaml', 'newmodel',
-                      model_ctxt={'default_alias': 'newmodel'}, force=False)]
+            mock.call(cwd + '/tests/bundles/bundle3.yaml', 'newmodel',
+                      model_ctxt={'default_alias': 'newmodel'}, force=False,
+                      test_directory=None),
+            mock.call(cwd + '/tests/bundles/bundle4.yaml', 'newmodel',
+                      model_ctxt={'default_alias': 'newmodel'}, force=False,
+                      test_directory=None)]
         self.deploy.assert_has_calls(deploy_calls)
 
     def test_func_test_runner_specify_bundle(self):
@@ -339,12 +367,14 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
                 'zaza.charm_tests.mycharm.tests.ComplexTest']}
         lc_func_test_runner.func_test_runner(bundle='maveric-filebeat')
+        cwd = os.getcwd()
         deploy_calls = [
             mock.call(
-                './tests/bundles/maveric-filebeat.yaml',
+                cwd + '/tests/bundles/maveric-filebeat.yaml',
                 'newmodel',
                 model_ctxt={'default_alias': 'newmodel'},
-                force=False)]
+                force=False,
+                test_directory=None)]
         self.deploy.assert_has_calls(deploy_calls)
 
     def test_func_test_runner_specify_bundle_with_alias(self):
@@ -372,12 +402,14 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
                 'zaza.charm_tests.mycharm.tests.ComplexTest']}
         lc_func_test_runner.func_test_runner(bundle='alias:maveric-filebeat')
+        cwd = os.getcwd()
         deploy_calls = [
             mock.call(
-                './tests/bundles/maveric-filebeat.yaml',
+                cwd + '/tests/bundles/maveric-filebeat.yaml',
                 'newmodel',
                 model_ctxt={'alias': 'newmodel'},
-                force=False)]
+                force=False,
+                test_directory=None)]
         self.deploy.assert_has_calls(deploy_calls)
 
     def test_main_smoke_dev_ambiguous(self):

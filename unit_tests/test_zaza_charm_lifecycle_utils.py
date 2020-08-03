@@ -14,6 +14,7 @@
 
 import io
 import mock
+import os
 import subprocess
 
 import zaza.charm_lifecycle.utils as lc_utils
@@ -250,3 +251,31 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         self.Popen.return_value = popen_mock
         with self.assertRaises(subprocess.CalledProcessError):
             lc_utils.check_output_logging(['cmd', 'arg1', 'arg2'])
+
+    def test_manipulate_base_test_dir(self):
+        lc_utils.set_base_test_dir()
+        cwd = os.getcwd()
+        self.assertEqual(
+            lc_utils.get_base_test_dir(),
+            cwd + '/tests')
+        lc_utils.unset_base_test_dir()
+        # Test supplying relative path
+        lc_utils.set_base_test_dir('special-tests')
+        self.assertEqual(
+            lc_utils.get_base_test_dir(),
+            cwd + '/special-tests')
+        lc_utils.unset_base_test_dir()
+        # Test supplying an absolute path
+        lc_utils.set_base_test_dir('/my-test-dir/special-tests')
+        self.assertEqual(
+            lc_utils.get_base_test_dir(),
+            '/my-test-dir/special-tests')
+        lc_utils.unset_base_test_dir()
+
+    def test_get_bundle_dir(self):
+        lc_utils.set_base_test_dir()
+        cwd = os.getcwd()
+        self.assertEqual(
+            lc_utils.get_bundle_dir(),
+            cwd + '/tests/bundles')
+        lc_utils.unset_base_test_dir()

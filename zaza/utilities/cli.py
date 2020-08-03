@@ -95,3 +95,15 @@ def add_model_parser(parser):
                         help='Model to deploy to',
                         action=StoreModelMapping,
                         required=True)
+
+
+def add_test_directory_argument(parser):
+    """Add parser for location of test directory.
+
+    :param parser: argparse parser
+    :type parser: argparse.ArgumentParser
+    """
+    parser.add_argument('--test-directory', dest='test_directory',
+                        help=('Set the directory containing the test config '
+                              '(test.yaml etc).'),
+                        required=False)

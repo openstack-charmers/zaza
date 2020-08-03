@@ -111,8 +111,13 @@ def run_test_list(tests):
         get_test_runners()[runner](testcase, _testcase)
 
 
-def test(model_name, tests):
-    """Run all steps to execute tests against the model."""
+def test(model_name, tests, test_directory=None):
+    """Run all steps to execute tests against the model.
+
+    :param test_directory: Set the directory containing tests.yaml and bundles.
+    :type test_directory: str
+    """
+    utils.set_base_test_dir(test_dir=test_directory)
     zaza.model.set_juju_model(model_name)
     run_test_list(tests)
 
@@ -132,6 +137,7 @@ def parse_args(args):
     cli_utils.add_model_parser(parser)
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
+    cli_utils.add_test_directory_argument(parser)
     parser.set_defaults(loglevel='INFO')
     return parser.parse_args(args)
 
@@ -145,12 +151,16 @@ def main():
     args = parse_args(sys.argv[1:])
     cli_utils.setup_logging(log_level=args.loglevel.upper())
     zaza.model.set_juju_model_aliases(args.model)
+    utils.set_base_test_dir(test_dir=args.test_directory)
     for model_alias, model_name in args.model.items():
         if args.tests:
             tests = args.tests
         else:
             test_steps = utils.get_test_steps()
             tests = test_steps.get(model_alias, [])
-        test(model_name, tests)
+        test(
+            model_name,
+            tests,
+            test_directory=args.test_directory)
     run_report.output_event_report()
     asyncio.get_event_loop().close()

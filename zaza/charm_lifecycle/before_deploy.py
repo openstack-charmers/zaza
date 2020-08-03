@@ -65,6 +65,7 @@ def parse_args(args):
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
     parser.set_defaults(loglevel='INFO')
+    cli_utils.add_test_directory_argument(parser)
     return parser.parse_args(args)
 
 
@@ -77,6 +78,7 @@ def main():
     """
     args = parse_args(sys.argv[1:])
     cli_utils.setup_logging(log_level=args.loglevel.upper())
+    utils.set_base_test_dir(test_dir=args.test_directory)
     funcs = args.configfuncs or utils.get_charm_config()['before_deploy']
     before_deploy(args.model_name, funcs)
     run_report.output_event_report()
