@@ -38,12 +38,15 @@ def run_before_deploy_list(functions):
         run_report.register_event_finish('Before Deploy {}'.format(func))
 
 
-def before_deploy(model_name, functions):
+def before_deploy(model_name, functions, test_directory=None):
     """Run all post-deployment configuration steps.
 
     :param functions: List of pre-deploy functions functions
     :type tests: ['zaza.charms_tests.svc.setup', ...]
+    :param test_directory: Set the directory containing tests.yaml and bundles.
+    :type test_directory: str
     """
+    utils.set_base_test_dir(test_dir=test_directory)
     zaza.model.set_juju_model(model_name)
     run_before_deploy_list(functions)
 
