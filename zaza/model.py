@@ -1285,6 +1285,9 @@ async def async_block_until_file_ready(application_name, remote_file,
         await async_block_until(_check_file, timeout=timeout)
 
 
+block_until_file_ready = sync_wrapper(async_block_until_file_ready)
+
+
 async def async_block_until_file_has_contents(application_name, remote_file,
                                               expected_contents,
                                               model_name=None, timeout=2700):
