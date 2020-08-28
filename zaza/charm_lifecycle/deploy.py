@@ -262,18 +262,15 @@ def should_render_local_overlay(bundle):
     :rtype: bool
     """
     # Is there a local overlay file?
-    if os.path.isfile(
-            os.path.join(
-                DEFAULT_OVERLAY_TEMPLATE_DIR,
-                "{}.j2".format(LOCAL_OVERLAY_TEMPLATE_NAME))):
+    overlay = os.path.join(
+        DEFAULT_OVERLAY_TEMPLATE_DIR,
+        "{}.j2".format(LOCAL_OVERLAY_TEMPLATE_NAME))
+    charm_name = utils.get_charm_config().get('charm_name', None)
+    if os.path.isfile(overlay) or charm_name:
         # Check for an override in the bundle.
         # Note: the default is True if the LOCAL_OVERLAY_ENABLED_KEY
         # is not present.
         return is_local_overlay_enabled_in_bundle(bundle)
-    # Should we render the LOCAL_OVERLAY_TEMPLATE?
-    elif utils.get_charm_config().get('charm_name', None):
-        # Need to convert to boolean
-        return True
     return False
 
 

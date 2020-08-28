@@ -248,6 +248,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         _bundle = "bundle.yaml"
 
         # File exists no bundle override
+        self.get_charm_config.return_value = {}
         self.assertTrue(lc_deploy.should_render_local_overlay(_bundle))
 
         # File exists bundle overrides False
@@ -256,12 +257,20 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
 
         # No file, charm_name present
         self.isfile.return_value = False
+        self.is_local_overlay_enabled_in_bundle.return_value = True
         self.get_charm_config.return_value = {"charm_name": "CHARM"}
         self.assertTrue(lc_deploy.should_render_local_overlay(_bundle))
 
         # No file, charm_name not present
         self.isfile.return_value = False
+        self.is_local_overlay_enabled_in_bundle.return_value = True
         self.get_charm_config.return_value = {}
+        self.assertFalse(lc_deploy.should_render_local_overlay(_bundle))
+
+        # No file, charm_name present, bundle override set to False
+        self.isfile.return_value = False
+        self.get_charm_config.return_value = {"charm_name": "CHARM"}
+        self.is_local_overlay_enabled_in_bundle.return_value = False
         self.assertFalse(lc_deploy.should_render_local_overlay(_bundle))
 
     def test_render_overlays(self):
