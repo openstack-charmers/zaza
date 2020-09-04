@@ -119,9 +119,9 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None,
             utils.EnvironmentDeploy(
                 'default',
                 [utils.ModelDeploy(
-                    model_alias,
+                    model_alias.strip(),
                     utils.generate_model_name(),
-                    bundle)],
+                    bundle.strip())],
                 True)]
     else:
         if smoke:
