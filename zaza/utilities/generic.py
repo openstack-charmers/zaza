@@ -16,6 +16,7 @@
 
 import asyncio
 import logging
+import netaddr
 import os
 import subprocess
 import yaml
@@ -681,3 +682,38 @@ async def check_call(cmd):
             logging.info("STDERR: {} ({})".format(stderr, ' '.join(cmd)))
         if stdout:
             logging.info("STDOUT: {} ({})".format(stdout, ' '.join(cmd)))
+
+
+def is_ipv6(address):
+    """Determine whether provided address is IPv6 or not.
+
+    :param address: Address to format
+    :type address: str
+    :returns: Formatted IPv6 address
+    :rtype: bool
+    """
+    try:
+        address = netaddr.IPAddress(address)
+    except netaddr.AddrFormatError:
+        # probably a hostname - so not an address at all!
+        return False
+
+    return address.version == 6
+
+
+def format_ipv6_addr(address):
+    """Format an IPv6 address with brackets, if it is an IPv6.
+
+    If address is IPv6, wrap it in '[]' otherwise return None.
+    This is required by most configuration files when specifying IPv6
+    addresses.
+
+    :param address: Address to format
+    :type address: str
+    :returns: Formatted IPv6 address
+    :rtype: Union[str, None]
+    """
+    if is_ipv6(address):
+        return "[%s]" % address
+
+    return None

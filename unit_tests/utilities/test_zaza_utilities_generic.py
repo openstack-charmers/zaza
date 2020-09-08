@@ -573,3 +573,19 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         }
         ret = generic_utils.validate_unit_process_ids(expected, actual)
         self.assertTrue(ret)
+
+    def test_is_ipv6(self):
+        self.assertFalse(generic_utils.is_ipv6('myhost'))
+        self.assertFalse(generic_utils.is_ipv6('172.4.5.5'))
+        self.assertTrue(
+            generic_utils.is_ipv6('2a01:348:2f4:0:685e:5748:ae62:209f'))
+
+    def test_format_ipv6_addr(self):
+        DUMMY_ADDRESS = '2001:db8:1:0:f131:fc84:ea37:7d4'
+        self.assertEquals(generic_utils.format_ipv6_addr(DUMMY_ADDRESS),
+                          '[2001:db8:1:0:f131:fc84:ea37:7d4]')
+
+    def test_format_invalid_ipv6_addr(self):
+        INVALID_IPV6_ADDR = 'myhost'
+        self.assertEquals(generic_utils.format_ipv6_addr(INVALID_IPV6_ADDR),
+                          None)
