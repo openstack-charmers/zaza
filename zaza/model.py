@@ -270,6 +270,40 @@ async def async_scp_from_unit(unit_name, source, destination, model_name=None,
 scp_from_unit = sync_wrapper(async_scp_from_unit)
 
 
+def _normalise_action_results(results):
+    """Put action results in a consistent format.
+
+    :param results: Command to execute
+    :type results: Dict[str, str]
+    :returns: {
+        'Code': '',
+        'Stderr': '',
+        'Stdout': '',
+        'stderr': '',
+        'stdout': ''}
+    :rtype: Dict[str, str]
+    """
+    if results:
+        # In Juju 2.7 some keys are dropped from the results if there
+        # value was empty. This breaks some functions downstream, so
+        # ensure the keys are always present.
+        for key in ['Stderr', 'Stdout', 'stderr', 'stdout']:
+            results[key] = results.get(key, '')
+        # Juju has started using a lowercase "stdout" key in new action
+        # commands in recent versions. Ensure the old capatalised keys and
+        # the new lowercase keys are present and point to the same value to
+        # avoid breaking functions downstream.
+        for key in ['stderr', 'stdout']:
+            old_key = key.capitalize()
+            if results.get(key) and not results.get(old_key):
+                results[old_key] = results[key]
+            elif results.get(old_key) and not results.get(key):
+                results[key] = results[old_key]
+        return results
+    else:
+        return {}
+
+
 async def async_run_on_unit(unit_name, command, model_name=None, timeout=None):
     """Juju run on unit.
 
@@ -288,15 +322,7 @@ async def async_run_on_unit(unit_name, command, model_name=None, timeout=None):
         unit = get_unit_from_name(unit_name, model)
         action = await unit.run(command, timeout=timeout)
         results = action.data.get('results')
-        if results:
-            # In Juju 2.7 some keys are dropped from the results if there
-            # value was empty. This breaks some functions downstream, so
-            # ensure the keys are always present.
-            for key in ['Stderr', 'Stdout']:
-                results[key] = results.get(key, '')
-            return results
-        else:
-            return {}
+        return _normalise_action_results(results)
 
 run_on_unit = sync_wrapper(async_run_on_unit)
 
@@ -321,10 +347,8 @@ async def async_run_on_leader(application_name, command, model_name=None,
             is_leader = await unit.is_leader_from_status()
             if is_leader:
                 action = await unit.run(command, timeout=timeout)
-                if action.data.get('results'):
-                    return action.data.get('results')
-                else:
-                    return {}
+                results = action.data.get('results')
+                return _normalise_action_results(results)
 
 run_on_leader = sync_wrapper(async_run_on_leader)
 

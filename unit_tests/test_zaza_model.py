@@ -459,7 +459,33 @@ class TestModel(ut_utils.BaseTestCase):
 
     def test_run_on_unit(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
-        expected = {'Code': '0', 'Stderr': '', 'Stdout': 'RESULT'}
+        expected = {
+            'Code': '0',
+            'Stderr': '',
+            'Stdout': 'RESULT',
+            'stderr': '',
+            'stdout': 'RESULT'}
+        self.cmd = cmd = 'somecommand someargument'
+        self.patch_object(model, 'Model')
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = self.unit1
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.run_on_unit('app/2', cmd),
+                         expected)
+        self.unit1.run.assert_called_once_with(cmd, timeout=None)
+
+    def test_run_on_unit_lc_keys(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.action.data['results'] = {
+            'Code': '0',
+            'stdout': 'RESULT',
+            'stderr': 'some error'}
+        expected = {
+            'Code': '0',
+            'Stderr': 'some error',
+            'Stdout': 'RESULT',
+            'stderr': 'some error',
+            'stdout': 'RESULT'}
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
@@ -471,7 +497,12 @@ class TestModel(ut_utils.BaseTestCase):
 
     def test_run_on_unit_missing_stderr(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
-        expected = {'Code': '0', 'Stderr': '', 'Stdout': 'RESULT'}
+        expected = {
+            'Code': '0',
+            'Stderr': '',
+            'Stdout': 'RESULT',
+            'stderr': '',
+            'stdout': 'RESULT'}
         self.action.data['results'] = {'Code': '0', 'Stdout': 'RESULT'}
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
@@ -484,7 +515,12 @@ class TestModel(ut_utils.BaseTestCase):
 
     def test_run_on_leader(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
-        expected = {'Code': '0', 'Stderr': '', 'Stdout': 'RESULT'}
+        expected = {
+            'Code': '0',
+            'Stderr': '',
+            'Stdout': 'RESULT',
+            'stderr': '',
+            'stdout': 'RESULT'}
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
