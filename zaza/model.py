@@ -273,7 +273,7 @@ scp_from_unit = sync_wrapper(async_scp_from_unit)
 def _normalise_action_results(results):
     """Put action results in a consistent format.
 
-    :param results: Command to execute
+    :param results: Results dictionary to process.
     :type results: Dict[str, str]
     :returns: {
         'Code': '',
