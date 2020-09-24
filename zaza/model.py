@@ -284,7 +284,7 @@ def _normalise_action_results(results):
     :rtype: Dict[str, str]
     """
     if results:
-        # In Juju 2.7 some keys are dropped from the results if there
+        # In Juju 2.7 some keys are dropped from the results if their
         # value was empty. This breaks some functions downstream, so
         # ensure the keys are always present.
         for key in ['Stderr', 'Stdout', 'stderr', 'stdout']:
