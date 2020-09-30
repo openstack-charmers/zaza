@@ -1,4 +1,4 @@
-dist: bionic
+dist: focal
 language: python
 install:
   - pip install tox-travis
@@ -19,16 +19,12 @@ comment: |
   (^^ this is a throw-away CI environment, do not do this at home)
 script:
   - if [ $ENV = 'func' ]; then
-       sudo apt remove -y --purge lxd lxd-client;
-       sudo snap install --stable lxd;
        sudo snap install --classic juju;
-       sudo sh -c 'echo PATH=/snap/bin:$PATH >> /etc/environment';
-       sudo lxd waitready;
        sudo lxd init --auto;
        sudo chmod 666 /var/snap/lxd/common/lxd/unix.socket;
-       juju bootstrap --debug --no-gui localhost;
+       travis_wait 50 juju bootstrap --no-gui localhost;
     fi
-  - tox -c tox.ini -e $ENV
+  - travis_wait 50 tox -c tox.ini -e $ENV
   - if [ $ENV = 'func' ]; then
     juju status -m $(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/);
     fi
