@@ -18,6 +18,7 @@ import asyncio
 import logging
 import os
 import sys
+import yaml
 
 import zaza.charm_lifecycle.before_deploy as before_deploy
 import zaza.charm_lifecycle.configure as configure
@@ -29,6 +30,55 @@ import zaza.charm_lifecycle.test as test
 import zaza.model
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
+
+
+def failure_report(model_aliases, show_juju_status=False):
+    """Report on apps and units in an error state.
+
+    :param model_aliases: Map of aliases to model names.
+    :type model_aliases: Dict
+    :param show_juju_status: Whether include juju status in the summary.
+    :type show_juju_status: bool
+    """
+    logging.error(model_aliases)
+    error_lines = 20
+    for model_alias, model_name in model_aliases.items():
+        logging.error("Model {} ({})".format(model_alias, model_name))
+        status = zaza.model.get_status(model_name=model_name)
+        erred_apps = []
+        for app in status.applications:
+            if status.applications[app].status.status == 'error':
+                erred_apps.append(app)
+        erred_units = []
+        for app in erred_apps:
+            for uname, ustatus in status.applications[app].units.items():
+                if ustatus.workload_status.status == 'error':
+                    erred_units.append(uname)
+        if erred_apps:
+            logging.error("Applications in error state: {}".format(
+                ','.join(erred_apps)))
+        if erred_units:
+            logging.error("Units in error state: {}".format(
+                ','.join(erred_units)))
+        for unit in erred_units:
+            # libjuju has not implemented debug_log yet so get the log
+            # from the unit.
+            # https://github.com/juju/python-libjuju/issues/447
+            unit_log = '/var/log/juju/unit-{}.log'.format(
+                unit.replace('/', '-'))
+            logging.error("Juju log for {}".format(unit))
+            log_output = zaza.model.run_on_unit(
+                unit,
+                'tail -{} {}'.format(error_lines, unit_log),
+                model_name=model_name)['stdout']
+            for line in log_output.split('\n'):
+                logging.error("    " + line)
+        if show_juju_status:
+            logging.error(
+                yaml.dump(
+                    yaml.load(status.to_json()),
+                    default_flow_style=False))
+    logging.error(model_alias, model_name)
 
 
 def run_env_deployment(env_deployment, keep_model=False, force=False):
@@ -62,30 +112,41 @@ def run_env_deployment(env_deployment, keep_model=False, force=False):
             before_deploy_steps.get(deployment.model_alias, [])
         )
 
-    for deployment in env_deployment.model_deploys:
-        deploy.deploy(
-            os.path.join(
-                utils.BUNDLE_DIR, '{}.yaml'.format(deployment.bundle)),
-            deployment.model_name,
-            model_ctxt=model_aliases,
-            force=force)
+    try:
+        for deployment in env_deployment.model_deploys:
+            deploy.deploy(
+                os.path.join(
+                    utils.BUNDLE_DIR, '{}.yaml'.format(deployment.bundle)),
+                deployment.model_name,
+                model_ctxt=model_aliases,
+                force=force)
 
-    # When deploying bundles with cross model relations, hooks may be triggered
-    # in already deployedi models so wait for all models to settle.
-    for deployment in env_deployment.model_deploys:
-        logging.info("Waiting for {} to settle".format(deployment.model_name))
-        zaza.model.block_until_all_units_idle(
-            model_name=deployment.model_name)
+        # When deploying bundles with cross model relations, hooks may be
+        # triggered in already deployedi models so wait for all models to
+        # settle.
+        for deployment in env_deployment.model_deploys:
+            logging.info("Waiting for {} to settle".format(
+                deployment.model_name))
+            zaza.model.block_until_all_units_idle(
+                model_name=deployment.model_name)
 
-    for deployment in env_deployment.model_deploys:
-        configure.configure(
-            deployment.model_name,
-            config_steps.get(deployment.model_alias, []))
+        for deployment in env_deployment.model_deploys:
+            configure.configure(
+                deployment.model_name,
+                config_steps.get(deployment.model_alias, []))
 
-    for deployment in env_deployment.model_deploys:
-        test.test(
-            deployment.model_name,
-            test_steps.get(deployment.model_alias, []))
+        for deployment in env_deployment.model_deploys:
+            test.test(
+                deployment.model_name,
+                test_steps.get(deployment.model_alias, []))
+
+    except zaza.model.ModelTimeout:
+        failure_report(model_aliases, show_juju_status=True)
+        raise
+
+    except Exception:
+        failure_report(model_aliases)
+        raise
 
     # Destroy
     # Keep the model from the last run if keep_model is true, this is to
