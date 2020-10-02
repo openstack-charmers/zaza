@@ -63,6 +63,7 @@ def failure_report(model_aliases, show_juju_status=False):
         for unit in erred_units:
             # libjuju has not implemented debug_log yet so get the log
             # from the unit.
+            # https://github.com/juju/python-libjuju/issues/447
             unit_log = '/var/log/juju/unit-{}.log'.format(
                 unit.replace('/', '-'))
             logging.error("Juju log for {}".format(unit))
