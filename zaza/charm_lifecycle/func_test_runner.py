@@ -78,7 +78,6 @@ def failure_report(model_aliases, show_juju_status=False):
                 yaml.dump(
                     yaml.load(status.to_json()),
                     default_flow_style=False))
-    logging.error(model_alias, model_name)
 
 
 def run_env_deployment(env_deployment, keep_model=False, force=False):
