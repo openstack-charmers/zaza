@@ -111,15 +111,23 @@ async def async_get_juju_model():
 get_juju_model = sync_wrapper(async_get_juju_model)
 
 
-async def deployed():
-    """List deployed applications."""
+async def deployed(model_name=None):
+    """List deployed applications.
+
+    :param model_name: Name of the model to list applications from
+    :type model_name: string
+    """
     # Create a Model instance. We need to connect our Model to a Juju api
     # server before we can use it.
     model = Model()
-    # Connect to the currently active Juju model
-    await model.connect_current()
+    if not model_name:
+        # Connect to the currently active Juju model
+        await model.connect_current()
+    else:
+        await model.connect_model(model_name)
+
     try:
-        # list currently deploeyd services
+        # list currently deployed services
         return list(model.applications.keys())
     finally:
         # Disconnect from the api server and cleanup.
