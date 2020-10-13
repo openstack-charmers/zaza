@@ -21,6 +21,7 @@ mostly via libjuju. Async function also provice a non-async alternative via
 
 import asyncio
 from async_generator import async_generator, yield_, asynccontextmanager
+import collections
 import logging
 import os
 import re
@@ -29,6 +30,7 @@ import tempfile
 import yaml
 from oslo_config import cfg
 import concurrent
+import time
 
 from juju.errors import JujuError
 from juju.model import Model
@@ -615,16 +617,65 @@ async def async_set_application_config(application_name, configuration,
 set_application_config = sync_wrapper(async_set_application_config)
 
 
-async def async_get_status(model_name=None):
-    """Return full status.
+# A map of model names <-> last time get_status was called, and the result of
+# that call.
+_GET_STATUS_TIMES = {}
+StatusResult = collections.namedtuple("StatusResult", ["time", "result"])
+
+
+async def async_get_status(model_name=None, interval=4.0, refresh=True):
+    """Return the full status, but share calls between different asyncs.
+
+    Return the full status for the model_name (current model is None), but no
+    faster than interval time, which is a default of 4 seconds.  If refresh is
+    True, then this function waits until the interval is exceeded, and then
+    returns the refreshed status.  This is the default.  If refresh is False,
+    then the function immediately returns with the cached information.
+
+    This is to enable multiple co-routines to access the status information
+    without making multiple calls to Juju which all essentially will return
+    identical information.
+
+    Note that this is NOT thread-safe, but is async safe.  i.e. multiple
+    different co-operating async futures can call this (in the same thread) and
+    all access the same status.
 
     :param model_name: Name of model to query.
     :type model_name: str
+    :param interval: The minimum time between calls to get_status
+    :type interval: float
+    :param refresh: Force a refresh; do not used cached results
+    :type refresh: boolean
     :returns: dictionary of juju status
     :rtype: dict
     """
-    async with run_in_model(model_name) as model:
-        return await model.get_status()
+    key = str(model_name)
+
+    async def _update_status_result(key):
+        async with run_in_model(model_name) as model:
+            status = StatusResult(time.time(), await model.get_status())
+            _GET_STATUS_TIMES[key] = status
+            return status.result
+
+    try:
+        last = _GET_STATUS_TIMES[key]
+    except KeyError:
+        return await _update_status_result(key)
+    now = time.time()
+    if last.time + interval <= now:
+        # we need to refresh the status time, so let's do that.
+        return await _update_status_result(key)
+    # otherwise, if we need a refreshed version, then we have to wait;
+    if refresh:
+        # wait until the min interval is exceeded, and then grab a copy.
+        await asyncio.sleep((last.time + interval) - now)
+        # now get the status.
+        # By passing refresh=False, this WILL return a cached status if another
+        # co-routine has already refreshed it.
+        return await async_get_status(model_name, interval, refresh=False)
+    # Not refreshing, so return the cached version
+    return last.result
+
 
 get_status = sync_wrapper(async_get_status)
 
@@ -1348,6 +1399,48 @@ def file_contents(unit_name, path, timeout=None):
     return result.get("Stdout")
 
 
+async def async_block_until_machine_status_is(
+    machine, status, model_name=None, invert_check=False, timeout=600,
+    interval=4.0, refresh=True
+):
+    """Block until the agent status for a machine (doesn't) match status.
+
+    Block until the agent status of a machine does (or doesn't with the param
+    `invert_status=True`) match the passed string (in param `status`).  If the
+    timeout is exceeded then the function raises an Exception.
+
+    :param machine: the machine to watch, as provided from the get_status()
+    :type machine: str
+    :param status: the string to match the machine's agent status to.
+    :type status: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param invert_check: whether to invert the check (default False)
+    :type invert_check: boolean
+    :param timeout: the time to wait for the status (or inverse of) (default
+        600 seconds).
+    :type timeout: int
+    :raises: asyncio.TimeoutError if the timeout is exceeded.
+    :param interval: The minimum time between calls to get_status
+    :type interval: float
+    :param refresh: Force a refresh; do not used cached results
+    :type refresh: boolean
+    """
+    async def _check_machine_status():
+        _status = await async_get_status(model_name=model_name,
+                                         interval=interval,
+                                         refresh=refresh)
+        equals = _status["machines"][machine].agent_status["status"] == status
+        return not(equals) if invert_check else equals
+
+    async with run_in_model(model_name):
+        await async_block_until(_check_machine_status, timeout=timeout)
+
+
+block_until_machine_status_is = sync_wrapper(
+    async_block_until_machine_status_is)
+
+
 async def async_block_until_file_ready(application_name, remote_file,
                                        check_function, model_name=None,
                                        timeout=2700):
@@ -1521,7 +1614,100 @@ async def async_block_until_file_missing(
         await async_block_until(lambda: _check_for_file(model),
                                 timeout=timeout)
 
+
 block_until_file_missing = sync_wrapper(async_block_until_file_missing)
+
+
+async def async_block_until_file_missing_on_machine(
+        machine, path, model_name=None, timeout=2700):
+    """Block until the file at 'path' is not present for a machine.
+
+    An example accessing this function via its sync wrapper::
+
+        block_until_file_missing_on_machine(
+            '0',
+            '/some/path/name')
+
+
+    :param machine: the machine
+    :type machine: str
+    :param path: the file name to check for.
+    :type path: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param timeout: Time to wait for contents to appear in file
+    :type timeout: float
+    """
+    async def _check_for_file(model):
+        try:
+            # output = await unit.run('test -e "{}"; echo $?'.format(path))
+            output = await async_run_on_machine(
+                machine, 'test -e "{}"; echo $?'.format(path),
+                model_name)
+            # contents = output.data.get('results')['Stdout']
+            contents = output.get('Stdout', "")
+            return "1" in contents
+        # libjuju throws a generic error for connection failure. So we
+        # cannot differentiate between a connectivity issue and a
+        # target file not existing error. For now just assume the
+        # latter.
+        except JujuError:
+            pass
+        return False
+
+    async with run_in_model(model_name) as model:
+        await async_block_until(lambda: _check_for_file(model),
+                                timeout=timeout)
+
+
+block_until_file_missing_on_machine = sync_wrapper(
+    async_block_until_file_missing_on_machine)
+
+
+async def async_block_until_units_on_machine_are_idle(
+        machine, model_name=None, timeout=2700):
+    """Block until all the units on a machine are idle.
+
+    :param machine: the machine
+    :type machine: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param timeout: Time to wait for contents to appear in file
+    :type timeout: float
+    """
+    async def _ready():
+        _status = await async_get_status()
+        apps = set()
+        units = []
+        statuses = []
+        # collect the apps on the machine (and thus the unit's status)
+        for app, app_data in _status["applications"].items():
+            # we get the subordinates afterwards
+            if app_data["subordinate-to"]:
+                continue
+            for unit, unit_data in app_data["units"].items():
+                if unit_data["machine"] == machine:
+                    apps.add(app)
+                    units.append(unit)
+                    statuses.append(
+                        unit_data['agent-status']['status'] == 'idle')
+        # now collect the subordinates for each of the apps
+        for app in apps:
+            for u_name, u_bag in _status.applications[app]['units'].items():
+                if u_name in units:
+                    subordinates = u_bag.get('subordinates', [])
+                    statuses.extend([
+                        unit['agent-status']['status'] == 'idle'
+                        for unit in subordinates.values()])
+        # return ready if all the statuses were idle
+        return all(statuses)
+
+    async with run_in_model(model_name):
+        await async_block_until(_ready, timeout=timeout)
+
+
+block_until_units_on_machine_are_idle = sync_wrapper(
+    async_block_until_units_on_machine_are_idle)
 
 
 async def async_block_until_oslo_config_entries_match(application_name,
@@ -2170,7 +2356,7 @@ async def async_run_on_machine(
         cmd.append('--timeout={}'.format(timeout))
     cmd.append(command)
     logging.info("About to call '{}'".format(cmd))
-    await generic_utils.check_call(cmd)
+    return await generic_utils.check_output(cmd)
 
 
 run_on_machine = sync_wrapper(async_run_on_machine)
@@ -2235,7 +2421,7 @@ get_agent_status = sync_wrapper(async_get_agent_status)
 
 
 async def async_check_if_subordinates_idle(app, unit_name):
-    """Check if the specified unit's subordinatesare idle.
+    """Check if the specified unit's subordinates are idle.
 
     :param app: The name of the Juju application, ex: mysql
     :type app: str
