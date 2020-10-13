@@ -664,6 +664,22 @@ async def check_call(cmd):
     :type cmd: List[str]
     :returns: None
     :rtype: None
+    :raises: subprocess.CalledProcessError if returncode !=0
+    """
+    await check_output(cmd)
+
+
+async def check_output(cmd):
+    """Asynchronous function to run a subprocess and get the output.
+
+    Note, as the code raises an Exception on returncode != 0, 'Code' in the
+    dictionary will always be '0'.  This is included for compatability reasons.
+
+    :param cmd: Command to execute
+    :type cmd: List[str]
+    :returns: {'Code': '', 'Stderr': '', 'Stdout': ''}
+    :rtype: dict
+    :raises: subprocess.CalledProcessError if returncode !=0
     """
     proc = await asyncio.create_subprocess_exec(
         *cmd,
@@ -681,3 +697,8 @@ async def check_call(cmd):
             logging.info("STDERR: {} ({})".format(stderr, ' '.join(cmd)))
         if stdout:
             logging.info("STDOUT: {} ({})".format(stdout, ' '.join(cmd)))
+    return {
+        'Code': str(proc.returncode),
+        'Stderr': stderr,
+        'Stdout': stdout,
+    }
