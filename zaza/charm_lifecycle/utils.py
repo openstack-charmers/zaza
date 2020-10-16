@@ -19,6 +19,7 @@ import logging
 import os
 import subprocess
 import uuid
+import time
 import sys
 import yaml
 
@@ -438,6 +439,7 @@ def check_output_logging(cmd):
             break
         logging.info(line.strip())
     popen.stdout.close()
-    return_code = popen.poll()
-    if return_code:
-        raise subprocess.CalledProcessError(return_code, cmd)
+    while popen.poll() is None:
+        time.sleep(0.5)
+    if popen.returncode:
+        raise subprocess.CalledProcessError(popen.returncode, cmd)
