@@ -777,6 +777,16 @@ class TestModel(ut_utils.BaseTestCase):
         units = model.units_with_wl_status_state(self.Model_mock, 'active')
         self.assertTrue(len(units) == 0)
 
+    def test_machines_in_state(self):
+        self.assertEqual(
+            model.machines_in_state(self.Model_mock, ['provisioning error']),
+            [])
+        machine_error_mock = mock.MagicMock(status='provisioning error')
+        self.unit1.machine = machine_error_mock
+        self.assertEqual(
+            model.machines_in_state(self.Model_mock, ['provisioning error']),
+            [machine_error_mock])
+
     def test_check_model_for_hard_errors(self):
         self.patch_object(model, 'units_with_wl_status_state')
         self.units_with_wl_status_state.return_value = []
