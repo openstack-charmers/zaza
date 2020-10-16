@@ -896,7 +896,7 @@ def machines_in_state(model, states):
     machines = []
     for application_name in model.applications.keys():
         for unit in model.applications[application_name].units:
-            if unit.machine.status in states:
+            if unit.machine and unit.machine.status in states:
                 machines.append(unit.machine)
     return machines
 
