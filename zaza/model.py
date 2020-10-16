@@ -792,6 +792,16 @@ class UnitError(Exception):
         super(UnitError, self).__init__(message)
 
 
+class MachineError(Exception):
+    """Exception raised for units in error state."""
+
+    def __init__(self, units):
+        """Log machines in error state in message and raise."""
+        message = "Machines {} in error state".format(
+            ','.join([u.entity_id for u in units]))
+        super(MachineError, self).__init__(message)
+
+
 class ServiceNotRunning(Exception):
     """Exception raised when service not running."""
 
@@ -873,17 +883,39 @@ async def async_resolve_units(application_name=None, wait=True, timeout=60,
 resolve_units = sync_wrapper(async_resolve_units)
 
 
+def machines_in_state(model, states):
+    """Check model for machines whose state is in the list 'states'.
+
+    :param model: Model object to check
+    :type model: juju.Model
+    :param states: List of states to check for
+    :type states: List
+    :returns: List of machines
+    :rtype: List[juju.machine.Machine]
+    """
+    machines = []
+    for application_name in model.applications.keys():
+        for unit in model.applications[application_name].units:
+            if unit.machine.status in states:
+                machines.append(unit.machine)
+    return machines
+
+
 def check_model_for_hard_errors(model):
     """Check model for any hard errors that should halt a deployment.
 
-       The only check currently implemented is checking for units in an
+       The check for units or machines in an
        error state
 
-    :raises: UnitError
+    :raises: Union[UnitError, MachineError]
     """
+    MACHINE_ERRORS = ['provisioning error']
     errored_units = units_with_wl_status_state(model, 'error')
     if errored_units:
         raise UnitError(errored_units)
+    errored_machines = machines_in_state(model, MACHINE_ERRORS)
+    if errored_machines:
+        raise MachineError(errored_machines)
 
 
 def check_unit_workload_status(model, unit, states):
@@ -1013,15 +1045,12 @@ async def async_wait_for_application_states(model_name=None, states=None,
         logging.info("Waiting for all units to be idle")
         try:
             await model.block_until(
-                lambda: units_with_wl_status_state(
-                    model, 'error') or model.all_units_idle(),
+                lambda: check_model_for_hard_errors(
+                    model) or model.all_units_idle(),
                 timeout=timeout)
         except concurrent.futures._base.TimeoutError:
             raise ModelTimeout("Zaza has timed out waiting on the model to "
                                "reach idle state.")
-        errored_units = units_with_wl_status_state(model, 'error')
-        if errored_units:
-            raise UnitError(errored_units)
 
         timeout_msg = (
             "Timed out waiting for '{unit_name}'. The {gate_attr} "

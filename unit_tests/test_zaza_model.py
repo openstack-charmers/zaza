@@ -156,16 +156,18 @@ class TestModel(ut_utils.BaseTestCase):
             'started': '2018-04-11T23:13:42Z',
             'completed': '2018-04-11T23:13:43Z'}
 
+        self.machine3 = mock.MagicMock(status='active')
+        self.machine7 = mock.MagicMock(status='active')
         self.unit1 = mock.MagicMock()
         self.unit1.public_address = 'ip1'
         self.unit1.name = 'app/2'
         self.unit1.entity_id = 'app/2'
-        self.unit1.machine = 'machine3'
+        self.unit1.machine = self.machine3
         self.unit2 = mock.MagicMock()
         self.unit2.public_address = 'ip2'
         self.unit2.name = 'app/4'
         self.unit2.entity_id = 'app/4'
-        self.unit2.machine = 'machine7'
+        self.unit2.machine = self.machine7
         self.unit2.run.side_effect = _run
         self.unit1.run.side_effect = _run
         self.unit1.scp_to.side_effect = _scp_to
@@ -394,7 +396,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model.return_value = self.Model_mock
         self.assertEqual(
             model.get_machines('app'),
-            ['machine3', 'machine7'])
+            [self.machine3, self.machine7])
 
     def test_get_first_unit_name(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
