@@ -57,7 +57,7 @@ EnvironmentDeploy = collections.namedtuple(
 
 default_deploy_number = 0
 
-BASE_TEST_DIR = None
+base_test_dir = None
 
 
 def set_base_test_dir(test_dir=None):
@@ -66,9 +66,9 @@ def set_base_test_dir(test_dir=None):
     :param model_name: Model to point environment at
     :type model_name: str
     """
-    global BASE_TEST_DIR
+    global base_test_dir
     test_dir = test_dir or DEFAULT_TEST_DIR
-    BASE_TEST_DIR = os.path.abspath(test_dir)
+    base_test_dir = os.path.abspath(test_dir)
 
 
 def unset_base_test_dir():
@@ -82,8 +82,8 @@ def get_base_test_dir():
     :returns: Path to test dir.
     :rtype: str
     """
-    global BASE_TEST_DIR
-    return BASE_TEST_DIR
+    global base_test_dir
+    return base_test_dir
 
 
 def get_bundle_dir():

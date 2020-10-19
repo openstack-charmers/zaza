@@ -116,12 +116,12 @@ def run_env_deployment(env_deployment, keep_model=False, force=False,
             before_deploy_steps.get(deployment.model_alias, []),
             test_directory=test_directory)
 
-
     try:
         for deployment in env_deployment.model_deploys:
             deploy.deploy(
                 os.path.join(
-                    utils.BUNDLE_DIR, '{}.yaml'.format(deployment.bundle)),
+                    utils.get_bundle_dir(),
+                    '{}.yaml'.format(deployment.bundle)),
                 deployment.model_name,
                 model_ctxt=model_aliases,
                 force=force,
@@ -211,7 +211,6 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None,
             preserve_model = True
         run_env_deployment(env_deployment, keep_model=preserve_model,
                            force=force, test_directory=test_directory)
-    utils.unset_base_test_dir()
 
 
 def parse_args(args):

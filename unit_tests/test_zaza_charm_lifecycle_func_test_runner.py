@@ -69,7 +69,8 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             'tests': [
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
                 'zaza.charm_tests.mycharm.tests.ComplexTest']}
-        lc_func_test_runner.func_test_runner(force=True)
+        lc_func_test_runner.func_test_runner(
+            force=True)
         prepare_calls = [
             mock.call('newmodel', test_directory=None),
             mock.call('newmodel', test_directory=None)]

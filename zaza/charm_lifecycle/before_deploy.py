@@ -81,8 +81,7 @@ def main():
     """
     args = parse_args(sys.argv[1:])
     cli_utils.setup_logging(log_level=args.loglevel.upper())
-    utils.set_base_test_dir(test_dir=args.test_directory)
     funcs = args.configfuncs or utils.get_charm_config()['before_deploy']
-    before_deploy(args.model_name, funcs)
+    before_deploy(args.model_name, funcs, test_directory=args.test_directory)
     run_report.output_event_report()
     asyncio.get_event_loop().close()
