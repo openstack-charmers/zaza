@@ -232,6 +232,7 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         popen_mock.stdout = io.StringIO("logline1\nlogline2\nlogline3\n")
         poll_output = [0, 0, None, None, None]
         popen_mock.poll.side_effect = poll_output.pop
+        popen_mock.returncode = 0
         self.Popen.return_value = popen_mock
         lc_utils.check_output_logging(['cmd', 'arg1', 'arg2'])
         log_calls = [
@@ -245,8 +246,9 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         self.patch_object(lc_utils.subprocess, 'Popen')
         popen_mock = mock.MagicMock()
         popen_mock.stdout = io.StringIO("logline1\n")
-        poll_output = [1, 1, None]
+        poll_output = [0, 0, None]
         popen_mock.poll.side_effect = poll_output.pop
+        popen_mock.returncode = 1
         self.Popen.return_value = popen_mock
         with self.assertRaises(subprocess.CalledProcessError):
             lc_utils.check_output_logging(['cmd', 'arg1', 'arg2'])
