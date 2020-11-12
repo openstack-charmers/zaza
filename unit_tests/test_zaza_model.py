@@ -1617,7 +1617,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             'dont-match-me',
             negate_match=True)
 
-    def test_block_until_unit_wl_status_info(self):
+    def test_block_until_unit_wl_message_match(self):
         async def _block_until(f, timeout=None):
             rc = await f()
             if not rc:
@@ -1639,11 +1639,11 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.async_get_status.side_effect = _get_status
         self.patch_object(model, 'async_block_until')
         self.async_block_until.side_effect = _block_until
-        model.block_until_unit_wl_status_info(
+        model.block_until_unit_wl_message_match(
             'app/1',
             '(m|p)atch-me.*')
 
-    def test_block_until_unit_wl_status_info_negative(self):
+    def test_block_until_unit_wl_message_match_negative(self):
         async def _block_until(f, timeout=None):
             rc = await f()
             if not rc:
@@ -1665,7 +1665,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.async_get_status.side_effect = _get_status
         self.patch_object(model, 'async_block_until')
         self.async_block_until.side_effect = _block_until
-        model.block_until_unit_wl_status_info(
+        model.block_until_unit_wl_message_match(
             'app/1',
             '(w|p)atch-me.*',
             negate_match=True)

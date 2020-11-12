@@ -1641,10 +1641,10 @@ block_until_wl_status_info_starts_with = sync_wrapper(
     async_block_until_wl_status_info_starts_with)
 
 
-async def async_block_until_unit_wl_status_info(
+async def async_block_until_unit_wl_message_match(
         unit, status_pattern, model_name=None, negate_match=False,
         timeout=2700):
-    """Block until the unit has a status message that matches pattern.
+    """Block until the unit has a workload status message that matches pattern.
 
     :param unit: the unit to check against
     :type unit: str
@@ -1682,8 +1682,8 @@ async def async_block_until_unit_wl_status_info(
             timeout=timeout)
 
 
-block_until_unit_wl_status_info = sync_wrapper(
-    async_block_until_unit_wl_status_info)
+block_until_unit_wl_message_match = sync_wrapper(
+    async_block_until_unit_wl_message_match)
 
 
 async def async_get_principle_sub_map(model_name=None):
