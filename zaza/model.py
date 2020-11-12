@@ -23,6 +23,7 @@ import asyncio
 from async_generator import async_generator, yield_, asynccontextmanager
 import logging
 import os
+import re
 import subprocess
 import tempfile
 import yaml
@@ -1638,6 +1639,91 @@ async def async_block_until_wl_status_info_starts_with(
 
 block_until_wl_status_info_starts_with = sync_wrapper(
     async_block_until_wl_status_info_starts_with)
+
+
+async def async_block_until_unit_wl_status_info(
+        unit, status_pattern, model_name=None, negate_match=False,
+        timeout=2700):
+    """Block until the unit has a status message that matches pattern.
+
+    :param unit: the application to check against
+    :type unit: str
+    :param status_pattern: Regex pattern to check status against.
+    :type status_pattern: str
+    :param model_name: Name of model to query.
+    :type model_name: Union[None, str]
+    :param negate_match: Wait until the match is not true; i.e. none match
+    :type negate_match: Union[None, bool]
+    :param timeout: Time to wait for unit to achieved desired status
+    :type timeout: float
+    """
+    principle_unit = await async_get_principle_unit(
+        unit,
+        model_name=model_name)
+
+    async def _unit_status():
+        model_status = await async_get_status()
+        app = unit.split('/')[0]
+        if principle_unit:
+            principle_app = principle_unit.split('/')[0]
+            _unit = model_status.applications[principle_app]['units'][
+                principle_unit]['subordinates'][unit]
+        else:
+            _unit = model_status.applications[app]['units'][unit]
+        status = _unit['workload-status']['info']
+        if negate_match:
+            return not bool(re.match(status_pattern, status))
+        else:
+            return bool(re.match(status_pattern, status))
+
+    async with run_in_model(model_name):
+        await async_block_until(
+            _unit_status,
+            timeout=timeout)
+
+
+block_until_unit_wl_status_info = sync_wrapper(
+    async_block_until_unit_wl_status_info)
+
+
+async def async_get_principle_sub_map(model_name=None):
+    """
+    Get a map of pinciple units to a list subordinates.
+
+    :param model_name: Name of model to operate on
+    :type model_name: str
+    :returns: Name of unit
+    :rtype: Dict[str, [str]]
+    """
+    async with run_in_model(model_name):
+        model_status = await async_get_status()
+        return {
+            unit: list(detail['units'][unit].get('subordinates', {}).keys())
+            for name, detail in model_status.applications.items()
+            for unit in detail.get('units', [])}
+
+get_principle_sub_map = sync_wrapper(
+    async_get_principle_sub_map)
+
+
+async def async_get_principle_unit(unit_name, model_name=None):
+    """
+    Get principle unit name for subordinate.
+
+    :param unit_name: Name of unit
+    :type unit_name: str
+    :param model_name: Name of model to operate on
+    :type model_name: str
+    :returns: Name of unit
+    :rtype: Union[str, None]
+    """
+    sub_map = await async_get_principle_sub_map()
+    for principle, subordinates in sub_map.items():
+        if unit_name in subordinates:
+            return principle
+
+get_principle_unit = sync_wrapper(
+    async_get_principle_unit)
 
 
 async def async_get_relation_id(application_name, remote_application_name,
