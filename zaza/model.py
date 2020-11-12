@@ -1646,7 +1646,7 @@ async def async_block_until_unit_wl_status_info(
         timeout=2700):
     """Block until the unit has a status message that matches pattern.
 
-    :param unit: the application to check against
+    :param unit: the unit to check against
     :type unit: str
     :param status_pattern: Regex pattern to check status against.
     :type status_pattern: str
@@ -1688,7 +1688,7 @@ block_until_unit_wl_status_info = sync_wrapper(
 
 async def async_get_principle_sub_map(model_name=None):
     """
-    Get a map of pinciple units to a list subordinates.
+    Get a map of principle units to a list subordinates.
 
     :param model_name: Name of model to operate on
     :type model_name: str
