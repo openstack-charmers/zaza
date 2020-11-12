@@ -1629,6 +1629,59 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             'dont-match-me',
             negate_match=True)
 
+    def test_block_until_unit_wl_message_match(self):
+        async def _block_until(f, timeout=None):
+            rc = await f()
+            if not rc:
+                raise AsyncTimeoutError
+
+        async def _get_status():
+            return self.juju_status
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'get_unit_from_name')
+        self.patch_object(model, 'async_get_status')
+        self.patch_object(model, 'async_get_principle_unit', return_value=None)
+        self.juju_status.applications['app']['units']['app/1'][
+            'workload-status']['info'] = "match-me if you want"
+        self.juju_status.applications['app']['units']['app/2'][
+            'workload-status']['info'] = "match-me if you want"
+        self.async_get_status.side_effect = _get_status
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
+        model.block_until_unit_wl_message_match(
+            'app/1',
+            '(m|p)atch-me.*')
+
+    def test_block_until_unit_wl_message_match_negative(self):
+        async def _block_until(f, timeout=None):
+            rc = await f()
+            if not rc:
+                raise AsyncTimeoutError
+
+        async def _get_status():
+            return self.juju_status
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'get_unit_from_name')
+        self.patch_object(model, 'async_get_status')
+        self.patch_object(model, 'async_get_principle_unit', return_value=None)
+        self.juju_status.applications['app']['units']['app/1'][
+            'workload-status']['info'] = "match-me if you want"
+        self.juju_status.applications['app']['units']['app/2'][
+            'workload-status']['info'] = "match-me if you want"
+        self.async_get_status.side_effect = _get_status
+        self.patch_object(model, 'async_block_until')
+        self.async_block_until.side_effect = _block_until
+        model.block_until_unit_wl_message_match(
+            'app/1',
+            '(w|p)atch-me.*',
+            negate_match=True)
+
     def resolve_units_mocks(self):
         async def _block_until(f, timeout=None):
             if not f():
@@ -1884,3 +1937,34 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
         ):
             idle = await model.async_check_if_subordinates_idle('app', 'app/0')
         assert(idle)
+
+    async def test_async_get_principle_sub_map(self):
+        model_mock = mock.MagicMock()
+        model_mock.applications = {
+            'app': {
+                'units': FAKE_STATUS['units']}}
+        with mock.patch.object(model, 'run_in_model'):
+            with mock.patch.object(model, 'async_get_status',
+                                   return_value=model_mock):
+                pmap = await model.async_get_principle_sub_map()
+        self.assertEqual(
+            pmap,
+            {
+                'app/0': ['app-hacluster/0'],
+                'app/1': ['app-hacluster/1'],
+                'app/2': ['app-hacluster/2']})
+
+    async def test_async_get_principle_unit(self):
+        model_mock = mock.MagicMock()
+        model_mock.applications = {
+            'app': {
+                'units': FAKE_STATUS['units']},
+            'dsql': {
+                'units': {}}}
+        with mock.patch.object(model, 'run_in_model'):
+            with mock.patch.object(model, 'async_get_status',
+                                   return_value=model_mock):
+                unita = await model.async_get_principle_unit('app-hacluster/0')
+                unitb = await model.async_get_principle_unit('absent-app/0')
+        self.assertEqual(unita, 'app/0')
+        self.assertIsNone(unitb)
