@@ -591,12 +591,16 @@ async def async_set_application_config(application_name, configuration,
                                        model_name=None):
     """Set application configuration.
 
+    NOTE: At the time of this writing python-libjuju requires all values passed
+    to `set_config` to be `str`.
+    https://github.com/juju/python-libjuju/issues/388
+
     :param model_name: Name of model to query.
     :type model_name: str
     :param application_name: Name of application
     :type application_name: str
     :param configuration: Dictionary of configuration setting(s)
-    :type configuration: dict
+    :type configuration: Dict[str,str]
     """
     async with run_in_model(model_name) as model:
         return await (model.applications[application_name]
