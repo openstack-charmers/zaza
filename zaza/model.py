@@ -2354,6 +2354,7 @@ async def async_run_on_machine(
         cmd.append('--model={}'.format(model_name))
     if timeout:
         cmd.append('--timeout={}'.format(timeout))
+    cmd.append('--')
     cmd.append(command)
     logging.info("About to call '{}'".format(cmd))
     return await generic_utils.check_output(cmd)
