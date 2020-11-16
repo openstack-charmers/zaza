@@ -21,6 +21,7 @@ mostly via libjuju. Async function also provice a non-async alternative via
 
 import asyncio
 from async_generator import async_generator, yield_, asynccontextmanager
+import functools
 import logging
 import os
 import re
@@ -968,6 +969,34 @@ def check_unit_workload_status_message(model, unit, message=None,
         return unit.workload_status_message.startswith(tuple(prefixes))
     else:
         raise ValueError("Must be called with message or prefixes")
+
+
+async def aync_get_file_stats(stat_format, unit_name, remote_file,
+                              model_name=None, timeout=2700):
+    """Stat the given file on a unit and return the results.
+
+    :param stat_format: Format for stat command.
+    :type stat_format: str
+    :param unit_name: Name of unit to run action on
+    :type unit_name: str
+    :param remote_file: Remote file to stat.
+    :type remote_file: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param timeout: Time to wait for command to run on remote unit.
+    :type timeout: int
+    """
+    async with run_in_model(model_name) as model:
+        unit = get_unit_from_name(unit_name, model=model)
+        output = await unit.run(
+            'stat --format "{}" {}'.format(stat_format, remote_file))
+    return output.data.get('results')['Stdout'].strip()
+
+get_file_stats = sync_wrapper(aync_get_file_stats)
+
+get_file_mtime = functools.partial(get_file_stats, '%Y')
+
+get_file_ctime = functools.partial(get_file_stats, '%W')
 
 
 async def async_wait_for_agent_status(model_name=None, status='executing',

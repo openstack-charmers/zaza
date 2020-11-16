@@ -1724,6 +1724,15 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         model.resolve_units(erred_hook='foo', wait=False)
         self.assertFalse(self.subprocess.check_output.called)
 
+    def test_get_file_stats(self):
+        self.action.data = {
+            'results': {'Code': '0', 'Stderr': '', 'Stdout': '444'}
+        }
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        mtime = model.get_file_stats('%Y', 'app/2', '/etc/myfile.cnf')
+        self.assertEqual(mtime, '444')
+
     def test_wait_for_agent_status(self):
         async def _block_until(f, timeout=None):
             if not f():
