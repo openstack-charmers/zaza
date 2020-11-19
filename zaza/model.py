@@ -1635,16 +1635,14 @@ async def async_block_until_file_missing_on_machine(
     :type path: str
     :param model_name: Name of model to query.
     :type model_name: str
-    :param timeout: Time to wait for contents to appear in file
+    :param timeout: Time to wait for until file is missing on a machine.
     :type timeout: float
     """
     async def _check_for_file(model):
         try:
-            # output = await unit.run('test -e "{}"; echo $?'.format(path))
             output = await async_run_on_machine(
                 machine, 'test -e "{}"; echo $?'.format(path),
                 model_name)
-            # contents = output.data.get('results')['Stdout']
             contents = output.get('Stdout', "")
             return "1" in contents
         # libjuju throws a generic error for connection failure. So we
@@ -1672,7 +1670,7 @@ async def async_block_until_units_on_machine_are_idle(
     :type machine: str
     :param model_name: Name of model to query.
     :type model_name: str
-    :param timeout: Time to wait for contents to appear in file
+    :param timeout: Time to wait for units on machine to be idle.
     :type timeout: float
     """
     async def _ready():
@@ -1695,7 +1693,7 @@ async def async_block_until_units_on_machine_are_idle(
         for app in apps:
             for u_name, u_bag in _status.applications[app]['units'].items():
                 if u_name in units:
-                    subordinates = u_bag.get('subordinates', [])
+                    subordinates = u_bag.get('subordinates', {})
                     statuses.extend([
                         unit['agent-status']['status'] == 'idle'
                         for unit in subordinates.values()])
