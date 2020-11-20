@@ -960,6 +960,36 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model.return_value = self.Model_mock
         self.assertEqual(model.get_current_model(), self.model_name)
 
+    def test_file_contents_success(self):
+        self.action.data = {
+            'results': {'Code': '0', 'Stderr': '', 'Stdout': 'somestring'}
+        }
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        contents = model.file_contents(
+            'app/2',
+            '/tmp/src/myfile.txt',
+            timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt', timeout=0.1)
+        self.assertEqual('somestring', contents)
+
+    def test_file_contents_fault(self):
+        self.action.data = {
+            'results': {'Code': '0', 'Stderr': 'fault', 'Stdout': ''}
+        }
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        with self.assertRaises(model.RemoteFileError) as ctxtmgr:
+            model.file_contents('app/2', '/tmp/src/myfile.txt', timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt', timeout=0.1)
+        self.assertEqual(ctxtmgr.exception.args, ('fault',))
+
     def test_block_until_file_has_contents(self):
         self.action.data = {
             'results': {'Code': '0', 'Stderr': '', 'Stdout': 'somestring'}
@@ -1048,6 +1078,24 @@ class TestModel(ut_utils.BaseTestCase):
                 'app',
                 '/tmp/src/myfile.txt',
                 timeout=0.1)
+
+    def test_block_until_file_matches_re(self):
+        self.action.data = {
+            'results': {'Code': '0', 'Stderr': '', 'Stdout': 'somestring'}
+        }
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        model.block_until_file_matches_re(
+            'app',
+            '/tmp/src/myfile.txt',
+            's.*string',
+            timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+        self.unit2.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
 
     def test_async_block_until_all_units_idle(self):
 

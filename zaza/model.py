@@ -46,6 +46,12 @@ class ModelTimeout(Exception):
     pass
 
 
+class RemoteFileError(Exception):
+    """Error with a remote file."""
+
+    pass
+
+
 def set_juju_model(model_name):
     """Point environment at the given model.
 
@@ -1316,6 +1322,32 @@ async def async_block_until(*conditions, timeout=None, wait_period=0.5,
 block_until = sync_wrapper(async_block_until)
 
 
+def file_contents(unit_name, path, timeout=None):
+    """Return the contents of a file.
+
+    :param path: File path
+    :param unit_name: Unit name, either appname/N or appname/leader
+    :type unit_name: str
+    :param timeout: Timeout in seconds
+    :type timeout: float
+    :returns: File contents
+    :rtype: str
+    """
+    app, unit_id = unit_name.split("/")
+    if unit_id == "leader":
+        target = app
+        run_func = run_on_leader
+    else:
+        target = unit_name
+        run_func = run_on_unit
+    cmd = "cat {}".format(path)
+    result = run_func(target, cmd, timeout=timeout)
+    err = result.get("Stderr")
+    if err:
+        raise RemoteFileError(err)
+    return result.get("Stdout")
+
+
 async def async_block_until_file_ready(application_name, remote_file,
                                        check_function, model_name=None,
                                        timeout=2700):
@@ -1400,6 +1432,50 @@ async def async_block_until_file_has_contents(application_name, remote_file,
 
 block_until_file_has_contents = sync_wrapper(
     async_block_until_file_has_contents)
+
+
+async def async_block_until_file_matches_re(
+    application_name,
+    remote_file,
+    pattern,
+    re_flags=re.MULTILINE,
+    model_name=None,
+    timeout=2700,
+):
+    """Block until a file matches a pattern.
+
+    Block until the provided regular expression pattern matches the given
+    file on all units of the given application.
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    :param remote_file: Remote path of file to match
+    :type remote_file: str
+    :param pattern: Regular expression
+    :type pattern: str or compiled regex
+    :param re_flags: Regular expression flags if the pattern is a string
+    :type re_flags: re.RegexFlag (int flag constants from the re module)
+    :param timeout: Time to wait for contents to appear in file
+    :type timeout: float
+    """
+    if isinstance(pattern, str):
+        pattern = re.compile(pattern, flags=re_flags)
+
+    def f(x):
+        return pattern.search(x) is not None
+
+    return await async_block_until_file_ready(
+        application_name,
+        remote_file,
+        f,
+        timeout=timeout,
+        model_name=model_name
+    )
+
+
+block_until_file_matches_re = sync_wrapper(async_block_until_file_matches_re)
 
 
 async def async_block_until_file_missing(
