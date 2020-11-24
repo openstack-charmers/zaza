@@ -24,7 +24,9 @@ import sys
 import yaml
 
 BUNDLE_DIR = "./tests/bundles/"
-DEFAULT_TEST_CONFIG = "./tests/tests.yaml"
+DEFAULT_TEST_DIR = "./tests"
+DEFAULT_CONFIG_YAML = "tests.yaml"
+DEFAULT_TEST_CONFIG = "./{}/{}".format(DEFAULT_TEST_DIR, DEFAULT_CONFIG_YAML)
 DEFAULT_MODEL_ALIAS = "default_alias"
 DEFAULT_DEPLOY_NAME = 'default{}'
 
@@ -55,6 +57,47 @@ EnvironmentDeploy = collections.namedtuple(
     'EnvironmentDeploy', ['name', 'model_deploys', 'run_in_series'])
 
 default_deploy_number = 0
+
+base_test_dir = None
+
+
+def set_base_test_dir(test_dir=None):
+    """Use test dir for zaza test run.
+
+    :param model_name: Model to point environment at
+    :type model_name: str
+    """
+    global base_test_dir
+    test_dir = test_dir or DEFAULT_TEST_DIR
+    base_test_dir = os.path.abspath(test_dir)
+
+
+def unset_base_test_dir():
+    """Remove base_test_dir data."""
+    set_base_test_dir(None)
+
+
+def get_base_test_dir():
+    """Return the test dir for test run.
+
+    :returns: Path to test dir.
+    :rtype: str
+    """
+    global base_test_dir
+    return base_test_dir
+
+
+def get_bundle_dir():
+    """Return the directory containing the bundles.
+
+    :returns: Path to test dir.
+    :rtype: str
+    """
+    if get_base_test_dir():
+        bundle_dir = '{}/{}'.format(get_base_test_dir(), 'bundles')
+    else:
+        bundle_dir = BUNDLE_DIR
+    return os.path.abspath(bundle_dir)
 
 
 def _concat_model_alias_maps(data):
@@ -339,7 +382,12 @@ def get_charm_config(yaml_file=None, fatal=True):
     :rtype: dict
     """
     if not yaml_file:
-        yaml_file = DEFAULT_TEST_CONFIG
+        if get_base_test_dir():
+            yaml_file = "{}/{}".format(
+                get_base_test_dir(),
+                DEFAULT_CONFIG_YAML)
+        else:
+            yaml_file = DEFAULT_TEST_CONFIG
     try:
         with open(yaml_file, 'r') as stream:
             return yaml.safe_load(stream)

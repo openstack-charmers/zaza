@@ -80,7 +80,8 @@ def failure_report(model_aliases, show_juju_status=False):
                     default_flow_style=False))
 
 
-def run_env_deployment(env_deployment, keep_model=False, force=False):
+def run_env_deployment(env_deployment, keep_model=False, force=False,
+                       test_directory=None):
     """Run the environment deployment.
 
     :param env_deployment: Environment Deploy to execute.
@@ -89,6 +90,8 @@ def run_env_deployment(env_deployment, keep_model=False, force=False):
     :type keep_model: boolean
     :param force: Pass the force parameter if True
     :type force: Boolean
+    :param test_directory: Set the directory containing tests.yaml and bundles.
+    :type test_directory: str
     """
     config_steps = utils.get_config_steps()
     test_steps = utils.get_test_steps()
@@ -99,7 +102,9 @@ def run_env_deployment(env_deployment, keep_model=False, force=False):
     zaza.model.set_juju_model_aliases(model_aliases)
 
     for deployment in env_deployment.model_deploys:
-        prepare.prepare(deployment.model_name)
+        prepare.prepare(
+            deployment.model_name,
+            test_directory=test_directory)
 
     force = force or utils.is_config_deploy_forced_for_bundle(
         deployment.bundle)
@@ -108,17 +113,19 @@ def run_env_deployment(env_deployment, keep_model=False, force=False):
         # Before deploy
         before_deploy.before_deploy(
             deployment.model_name,
-            before_deploy_steps.get(deployment.model_alias, [])
-        )
+            before_deploy_steps.get(deployment.model_alias, []),
+            test_directory=test_directory)
 
     try:
         for deployment in env_deployment.model_deploys:
             deploy.deploy(
                 os.path.join(
-                    utils.BUNDLE_DIR, '{}.yaml'.format(deployment.bundle)),
+                    utils.get_bundle_dir(),
+                    '{}.yaml'.format(deployment.bundle)),
                 deployment.model_name,
                 model_ctxt=model_aliases,
-                force=force)
+                force=force,
+                test_directory=test_directory)
 
         # When deploying bundles with cross model relations, hooks may be
         # triggered in already deployedi models so wait for all models to
@@ -132,12 +139,14 @@ def run_env_deployment(env_deployment, keep_model=False, force=False):
         for deployment in env_deployment.model_deploys:
             configure.configure(
                 deployment.model_name,
-                config_steps.get(deployment.model_alias, []))
+                config_steps.get(deployment.model_alias, []),
+                test_directory=test_directory)
 
         for deployment in env_deployment.model_deploys:
             test.test(
                 deployment.model_name,
-                test_steps.get(deployment.model_alias, []))
+                test_steps.get(deployment.model_alias, []),
+                test_directory=test_directory)
 
     except zaza.model.ModelTimeout:
         failure_report(model_aliases, show_juju_status=True)
@@ -158,7 +167,7 @@ def run_env_deployment(env_deployment, keep_model=False, force=False):
 
 
 def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None,
-                     force=False):
+                     force=False, test_directory=None):
     """Deploy the bundles and run the tests as defined by the charms tests.yaml.
 
     :param keep_model: Whether to destroy model at end of run
@@ -169,7 +178,10 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None,
     :type dev: boolean
     :param force: Pass the force parameter if True to the juju deploy command
     :type force: Boolean
+    :param test_directory: Set the directory containing tests.yaml and bundles.
+    :type test_directory: str
     """
+    utils.set_base_test_dir(test_dir=test_directory)
     if bundle:
         if ':' in bundle:
             model_alias, bundle = bundle.split(':')
@@ -198,7 +210,7 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None,
         if keep_model and last_test == env_deployment.name:
             preserve_model = True
         run_env_deployment(env_deployment, keep_model=preserve_model,
-                           force=force)
+                           force=force, test_directory=test_directory)
 
 
 def parse_args(args):
@@ -227,6 +239,7 @@ def parse_args(args):
                         action='store_true')
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
+    cli_utils.add_test_directory_argument(parser)
     parser.set_defaults(keep_model=False,
                         smoke=False,
                         dev=False,
@@ -261,6 +274,7 @@ def main():
         smoke=args.smoke,
         dev=args.dev,
         bundle=args.bundle,
-        force=args.force)
+        force=args.force,
+        test_directory=args.test_directory)
     run_report.output_event_report()
     asyncio.get_event_loop().close()
