@@ -1404,20 +1404,20 @@ async def async_block_until_file_has_contents(application_name, remote_file,
     An example accessing this function via its sync wrapper::
 
         block_until_file_has_contents(
-            'modelname'
             'keystone',
             '/etc/apache2/apache2.conf',
-            'KeepAlive On')
+            'KeepAlive On',
+            model_name='modelname')
 
 
-    :param model_name: Name of model to query.
-    :type model_name: str
     :param application_name: Name of application
     :type application_name: str
     :param remote_file: Remote path of file to transfer
     :type remote_file: str
     :param expected_contents: String to look for in file
     :type expected_contents: str
+    :param model_name: Name of model to query.
+    :type model_name: str
     :param timeout: Time to wait for contents to appear in file
     :type timeout: float
     """
@@ -1551,13 +1551,11 @@ async def async_block_until_oslo_config_entries_match(application_name,
                  'default_store': ['file']}}
 
         block_until_oslo_config_entries_match(
-            'modelname',
             'glance',
             '/etc/glance/glance-api.conf',
-            expected_contents)
+            expected_contents,
+            model_name='modelname')
 
-    :param model_name: Name of model to query.
-    :type model_name: str
     :param application_name: Name of application
     :type application_name: str
     :param remote_file: Remote path of file to transfer
@@ -1565,6 +1563,8 @@ async def async_block_until_oslo_config_entries_match(application_name,
     :param expected_contents: The key value pairs in their corresponding
                               sections to be looked for in the remote_file
     :type expected_contents: {}
+    :param model_name: Name of model to query.
+    :type model_name: str
     :param timeout: Time to wait for contents to appear in file
     :type timeout: float
 
@@ -1602,19 +1602,19 @@ async def async_block_until_services_restarted(application_name, mtime,
     For example to check that the glance-api service has been restarted::
 
         block_until_services_restarted(
-            'modelname'
             'glance',
             1528294585,
-            ['glance-api'])
+            ['glance-api'],
+            model_name='modelname')
 
-    :param model_name: Name of model to query.
-    :type model_name: str
     :param application_name: Name of application
     :type application_name: str
     :param mtime: Time in seconds since Epoch to check against
     :type mtime: int
     :param services: Listr of services to check restart time of
     :type services: []
+    :param model_name: Name of model to query.
+    :type model_name: str
     :param timeout: Time to wait for services to be restarted
     :type timeout: float
     :param pgrep_full: Should pgrep be used rather than pidof to identify
@@ -1841,14 +1841,14 @@ async def async_get_relation_id(application_name, remote_application_name,
     """
     Get relation id of relation from model.
 
-    :param model_name: Name of model to operate on
-    :type model_name: str
     :param application_name: Name of application on this side of relation
     :type application_name: str
     :param remote_application_name: Name of application on other side of
                                     relation
     :type remote_application_name: str
     :param remote_interface_name: Name of interface on remote end of relation
+    :param model_name: Name of model to operate on
+    :type model_name: str
     :type remote_interface_name: Optional(str)
     :returns: Relation id of relation if found or None
     :rtype: any
@@ -1972,10 +1972,10 @@ def set_model_constraints(constraints, model_name=None):
     Note: Subprocessing out to 'juju' is a temporary solution until
           https://bit.ly/2ujbVPA lands in libjuju.
 
-    :param model_name: Name of model to operate on
-    :type model_name: str
     :param constraints: Constraints to be applied to model
     :type constraints: dict
+    :param model_name: Name of model to operate on
+    :type model_name: str
 
     """
     if not constraints:
