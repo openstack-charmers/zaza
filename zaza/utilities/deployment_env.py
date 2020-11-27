@@ -19,6 +19,8 @@ import os
 import functools
 import yaml
 
+import zaza.model
+
 ZAZA_SETUP_FILE_LOCATIONS = [
     '{home}/.zaza.yaml']
 
@@ -33,13 +35,8 @@ MODEL_SETTINGS_SECTION = 'model_settings'
 MODEL_CONSTRAINTS_SECTION = 'model_constraints'
 
 VALID_ENVIRONMENT_KEY_PREFIXES = [
-    'FIP_RANGE',
-    'GATEWAY',
-    'NAME_SERVER',
-    'NET_ID',
     'OS_',
-    'VIP_RANGE',
-    'AMULET_',
+    'TEST_',
     'MOJO_',
     'JUJU_',
     'CHARM_',
@@ -111,6 +108,15 @@ def get_model_constraints():
     model_constraints.update(
         parse_option_list_string(os.environ.get('MODEL_CONSTRAINTS', '')))
     return model_constraints
+
+
+def get_cloud_region():
+    """Return a configured cloud name to support multi-cloud controllers.
+
+    :returns: A string configured in .zaza.yaml or None
+    :rtype: Union[str, None]
+    """
+    return get_setup_file_contents().get('region')
 
 
 def is_valid_env_key(key):
@@ -188,3 +194,19 @@ def get_deployment_context():
         if is_valid_env_key(k):
             runtime_config[k] = v
     return runtime_config
+
+
+def get_tmpdir(model_name=None):
+    """Return a model specific temp directory.
+
+    Return a model specific temp directory. If the dirctory does not already
+    exist then create it.
+
+    :param model_name: Model name temp dir is associated with.
+    :type model_name: str
+    """
+    model_name = model_name or zaza.model.get_juju_model()
+    tmp_dir = '/tmp/{}'.format(model_name)
+    if not os.path.exists(tmp_dir):
+        os.mkdir(tmp_dir)
+    return tmp_dir

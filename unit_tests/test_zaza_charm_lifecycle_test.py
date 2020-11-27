@@ -21,21 +21,57 @@ import unit_tests.utils as ut_utils
 class TestCharmLifecycleTest(ut_utils.BaseTestCase):
 
     def test_run_test_list(self):
+        self.patch_object(lc_test, 'run_unittest')
+        self.patch_object(lc_test, 'run_direct')
+        self.patch_object(lc_test.utils, 'get_class')
+
+        class TestClassOne():
+
+            def run(self):
+                return
+
+        class TestClassTwo():
+
+            test_runner = 'direct'
+
+            def run(self):
+                return
+
+        test_classes = {
+            'TestClassOne': TestClassOne,
+            'TestClassTwo': TestClassTwo}
+        self.get_class.side_effect = lambda x: test_classes[x]
+        lc_test.run_test_list(['TestClassOne', 'TestClassTwo'])
+        self.run_unittest.assert_called_once_with(
+            TestClassOne,
+            'TestClassOne')
+        self.run_direct.assert_called_once_with(
+            TestClassTwo,
+            'TestClassTwo')
+
+    def test_get_test_runners(self):
+        self.assertEqual(
+            lc_test.get_test_runners(),
+            {
+                'direct': lc_test.run_direct,
+                'unittest': lc_test.run_unittest}),
+
+    def test_run_unittest(self):
         loader_mock = mock.MagicMock()
         runner_mock = mock.MagicMock()
         self.patch_object(lc_test.unittest, 'TestLoader')
         self.patch_object(lc_test.unittest, 'TextTestRunner')
         self.TestLoader.return_value = loader_mock
         self.TextTestRunner.return_value = runner_mock
-        self.patch_object(lc_test.utils, 'get_class')
-        self.get_class.side_effect = lambda x: x
         test_class1_mock = mock.MagicMock()
+        lc_test.run_unittest(test_class1_mock, 'class name')
+        loader_mock.loadTestsFromTestCase.assert_called_once_with(
+            test_class1_mock)
+
+    def test_run_direct(self):
         test_class2_mock = mock.MagicMock()
-        lc_test.run_test_list([test_class1_mock, test_class2_mock])
-        loader_calls = [
-            mock.call(test_class1_mock),
-            mock.call(test_class2_mock)]
-        loader_mock.loadTestsFromTestCase.assert_has_calls(loader_calls)
+        lc_test.run_direct(test_class2_mock, 'class name')
+        test_class2_mock().run.assert_called_once_with()
 
     def test_test(self):
         self.patch_object(lc_test, 'run_test_list')
@@ -49,7 +85,7 @@ class TestCharmLifecycleTest(ut_utils.BaseTestCase):
         self.assertEqual(
             args.tests,
             ['my.test_class1', 'my.test_class2'])
-        self.assertEqual(args.model_name, 'modelname')
+        self.assertEqual(args.model, {'default_alias': 'modelname'})
 
     def test_parser_logging(self):
         # Using defaults

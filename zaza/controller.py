@@ -15,40 +15,30 @@
 """Module for interacting with a juju controller."""
 
 import logging
-import tempfile
-import time
-import yaml
 from juju.controller import Controller
 import subprocess
 from zaza import sync_wrapper
 
 
-async def async_add_model(model_name, config=None):
+async def async_add_model(model_name, config=None, region=None):
     """Add a model to the current controller.
 
     :param model_name: Name to give the new model.
     :type model_name: str
     :param config: Model configuration.
     :type config: dict
+    :param region: Region in which to create the model.
+    :type region: str
     """
-    # Tactical fix until https://github.com/juju/python-libjuju/issues/333
-    # is resolved
-    subprocess.check_call(['juju', 'list-controllers', '--refresh'])
-    model_cmd = ['juju', 'add-model', '--no-switch']
-    if config:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml') as fp:
-            fp.write(yaml.dump(config, default_flow_style=False))
-            model_cmd.extend(['--config', fp.name, model_name])
-            fp.seek(0)
-            subprocess.check_call(model_cmd)
-    else:
-        model_cmd.extend([model_name])
-        subprocess.check_call(model_cmd)
-
-    # XXX Temp sleep workaround due to:
-    # https://github.com/juju/python-libjuju/issues/333
-    # https://github.com/openstack-charmers/zaza/commit/c4f6e244
-    time.sleep(10)
+    controller = Controller()
+    await controller.connect()
+    logging.debug("Adding model {}".format(model_name))
+    model = await controller.add_model(
+        model_name, config=config, region=region)
+    # issue/135 It is necessary to disconnect the model here or async spews
+    # tracebacks even during a successful run.
+    await model.disconnect()
+    await controller.disconnect()
 
 add_model = sync_wrapper(async_add_model)
 
@@ -66,6 +56,37 @@ async def async_destroy_model(model_name):
     await controller.disconnect()
 
 destroy_model = sync_wrapper(async_destroy_model)
+
+
+async def async_cloud(name=None):
+    """Return information about cloud.
+
+    :param name: Cloud name. If not specified, the cloud where
+                 the controller lives on is returned.
+    :type name: Optional[str]
+    :returns: Information on all clouds in the controller.
+    :rtype: CloudResult
+    """
+    controller = Controller()
+    await controller.connect()
+    cloud = await controller.cloud(name=name)
+    await controller.disconnect()
+    return cloud
+
+cloud = sync_wrapper(async_cloud)
+
+
+def get_cloud_type(name=None):
+    """Return type of cloud.
+
+    :param name: Cloud name. If not specified, the cloud where
+                 the controller lives on is returned.
+    :type name: Optional[str]
+    :returns: Type of cloud
+    :rtype: str
+    """
+    _cloud = cloud(name=name)
+    return _cloud.cloud.type_
 
 
 async def async_get_cloud():

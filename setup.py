@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright 2018 Canonical Ltd.
+# Copyright 2020 Canonical Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ from setuptools.command.test import test as TestCommand
 
 version = "0.0.1.dev1"
 install_require = [
+    'oslo.config<6.12.0',  # pin at stable/train to retain Py3.5 support
     'async_generator',
     'cryptography',
     'hvac<0.7.0',
@@ -33,14 +34,6 @@ install_require = [
     'juju-wait',
     'PyYAML',
     'tenacity',
-    'oslo.config',
-    'python-glanceclient',
-    'python-keystoneclient',
-    'python-novaclient',
-    'python-neutronclient',
-    'python-octaviaclient',
-    'python-cinderclient',
-    'python-swiftclient',
 ]
 
 tests_require = [
@@ -95,6 +88,7 @@ setup(
     entry_points={
         'console_scripts': [
             'functest-run-suite = zaza.charm_lifecycle.func_test_runner:main',
+            'functest-before-deploy = zaza.charm_lifecycle.before_deploy:main',
             'functest-deploy = zaza.charm_lifecycle.deploy:main',
             'functest-configure = zaza.charm_lifecycle.configure:main',
             'functest-destroy = zaza.charm_lifecycle.destroy:main',

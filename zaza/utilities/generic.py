@@ -14,6 +14,7 @@
 
 """Collection of functions that did not fit anywhere else."""
 
+import asyncio
 import logging
 import os
 import subprocess
@@ -209,7 +210,8 @@ def series_upgrade_non_leaders_first(application, from_series="trusty",
                            origin=None)
             completed_machines.append(machine)
         else:
-            logging.info("Skipping unit: {}. Machine: {} already upgraded. "
+            logging.info("Skipping unit: {}. Machine: {} (Application: {}) "
+                         "already upgraded. "
                          .format(unit, machine, application))
             model.block_until_all_units_idle()
 
@@ -222,7 +224,8 @@ def series_upgrade_non_leaders_first(application, from_series="trusty",
                        origin=None)
         completed_machines.append(machine)
     else:
-        logging.info("Skipping unit: {}. Machine: {} already upgraded."
+        logging.info("Skipping unit: {}. Machine: {} (Application: {}) "
+                     "already upgraded. "
                      .format(unit, machine, application))
         model.block_until_all_units_idle()
 
@@ -652,3 +655,29 @@ def validate_unit_process_ids(expected, actual):
                               '{}'.format(e_unit_name, e_proc_name,
                                           e_pids, a_pids))
     return True
+
+
+async def check_call(cmd):
+    """Asynchronous function to check a subprocess call.
+
+    :param cmd: Command to execute
+    :type cmd: List[str]
+    :returns: None
+    :rtype: None
+    """
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE)
+    stdout, stderr = await proc.communicate()
+    stdout = stdout.decode('utf-8')
+    stderr = stderr.decode('utf-8')
+    if proc.returncode != 0:
+        logging.warn("STDOUT: {}".format(stdout))
+        logging.warn("STDERR: {}".format(stderr))
+        raise subprocess.CalledProcessError(proc.returncode, cmd)
+    else:
+        if stderr:
+            logging.info("STDERR: {} ({})".format(stderr, ' '.join(cmd)))
+        if stdout:
+            logging.info("STDOUT: {} ({})".format(stdout, ' '.join(cmd)))

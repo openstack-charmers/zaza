@@ -21,9 +21,11 @@ import sys
 import tempfile
 import yaml
 
+import zaza.controller
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
+import zaza.utilities.exceptions as zaza_exceptions
 import zaza.utilities.run_report as run_report
 import zaza.utilities.deployment_env as deployment_env
 
@@ -87,15 +89,40 @@ def get_overlay_template_dir():
     return DEFAULT_OVERLAY_TEMPLATE_DIR
 
 
-def get_jinja2_env():
+def get_jinja2_loader(template_dir=None):
+    """Inspect the template directory and set up appropriate loader.
+
+    :param target_dir: Limit template loading to this directory.
+    :type target_dir: str
+    :returns: Jinja2 loader
+    :rtype: jinja2.loaders.BaseLoader
+    """
+    if template_dir:
+        return jinja2.FileSystemLoader(template_dir)
+    else:
+        template_dir = get_overlay_template_dir()
+    provider_template_dir = os.path.join(
+        template_dir, zaza.controller.get_cloud_type())
+    if (os.path.exists(provider_template_dir) and
+            os.path.isdir(provider_template_dir)):
+        return jinja2.ChoiceLoader([
+            jinja2.FileSystemLoader(provider_template_dir),
+            jinja2.FileSystemLoader(template_dir),
+        ])
+    else:
+        return jinja2.FileSystemLoader(template_dir)
+
+
+def get_jinja2_env(template_dir=None):
     """Return a jinja2 environment that can be used to render templates from.
 
+    :param target_dir: Limit template loading to this directory.
+    :type target_dir: str
     :returns: Jinja2 template loader
     :rtype: jinja2.Environment
     """
-    template_dir = get_overlay_template_dir()
     return jinja2.Environment(
-        loader=jinja2.FileSystemLoader(template_dir),
+        loader=get_jinja2_loader(template_dir=template_dir),
         undefined=jinja2.StrictUndefined
     )
 
@@ -114,13 +141,15 @@ def get_template_name(target_file):
     return '{}.j2'.format(os.path.basename(target_file))
 
 
-def get_template(target_file):
+def get_template(target_file, template_dir=None):
     """Return the jinja2 template for the given file.
 
+    :param target_dir: Limit template loading to this directory.
+    :type target_dir: str
     :returns: Template object used to generate target_file
     :rtype: jinja2.Template
     """
-    jinja2_env = get_jinja2_env()
+    jinja2_env = get_jinja2_env(template_dir=template_dir)
     try:
         template = jinja2_env.get_template(get_template_name(target_file))
     except jinja2.exceptions.TemplateNotFound:
@@ -128,18 +157,24 @@ def get_template(target_file):
     return template
 
 
-def render_template(template, target_file):
+def render_template(template, target_file, model_ctxt=None):
     """Render the template to the file supplied.
 
     :param template: Template to be rendered
     :type template: jinja2.Template
     :param target_file: File name for rendered template
     :type target_file: str
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
     """
+    model_ctxt = model_ctxt or {}
     try:
+        overlay_ctxt = get_template_overlay_context()
+        overlay_ctxt.update(model_ctxt)
         with open(target_file, "w") as fh:
             fh.write(
-                template.render(get_template_overlay_context()))
+                template.render(overlay_ctxt))
     except jinja2.exceptions.UndefinedError as e:
         logging.error("Template error. You may be missing"
                       " a mandatory environment variable : {}".format(e))
@@ -148,13 +183,16 @@ def render_template(template, target_file):
                                                               target_file))
 
 
-def render_overlay(overlay_name, target_dir):
+def render_overlay(overlay_name, target_dir, model_ctxt=None):
     """Render the overlay template in the directory supplied.
 
     :param overlay_name: Name of overlay to be rendered
     :type overlay_name: str
     :param target_dir: Directory to render overlay in
     :type overlay_name: str
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
     :returns: Path to rendered overlay
     :rtype: str
     """
@@ -164,15 +202,18 @@ def render_overlay(overlay_name, target_dir):
     rendered_template_file = os.path.join(
         target_dir,
         os.path.basename(overlay_name))
-    render_template(template, rendered_template_file)
+    render_template(template, rendered_template_file, model_ctxt=model_ctxt)
     return rendered_template_file
 
 
-def render_local_overlay(target_dir):
+def render_local_overlay(target_dir, model_ctxt=None):
     """Render the local overlay template in the directory supplied.
 
     :param target_dir: Directory to render overlay in
     :type overlay_name: str
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
     :returns: Path to rendered overlay
     :rtype: str
     """
@@ -183,12 +224,14 @@ def render_local_overlay(target_dir):
     rendered_template_file = os.path.join(
         target_dir,
         os.path.basename(LOCAL_OVERLAY_TEMPLATE_NAME))
-    if utils.get_charm_config().get('charm_name', None):
-        render_template(template, rendered_template_file)
-        return rendered_template_file
+    render_template(
+        template,
+        rendered_template_file,
+        model_ctxt=model_ctxt)
+    return rendered_template_file
 
 
-def is_local_overlay_enabled(bundle):
+def is_local_overlay_enabled_in_bundle(bundle):
     """Check the bundle to see if a local overlay should be applied.
 
     Read the bundle and look for LOCAL_OVERLAY_ENABLED_KEY and return
@@ -198,54 +241,112 @@ def is_local_overlay_enabled(bundle):
 
     :param bundle: Name of bundle being deployed
     :type bundle: str
-    :returns: Whether to enable local overlay
+    :returns: Whether the bundle asserts to enable local overlay
     :rtype: bool
     """
     with open(bundle, 'r') as stream:
         return yaml.safe_load(stream).get(LOCAL_OVERLAY_ENABLED_KEY, True)
 
 
-def render_overlays(bundle, target_dir):
+def should_render_local_overlay(bundle):
+    """Determine if the local overlay should be rendered.
+
+    Check if an overlay file exists, then check if the bundle overrides
+    LOCAL_OVERLAY_ENABLED_KEY with a False value. If no file exists, determine
+    if the LOCAL_OVERLAY_TEMPLATE should be rendered by checking for the
+    charm_name setting in the tests.yaml file.
+
+    :param bundle: Name of bundle being deployed
+    :type bundle: str
+    :returns: Whether to render a local overlay
+    :rtype: bool
+    """
+    # Is there a local overlay file?
+    overlay = os.path.join(
+        DEFAULT_OVERLAY_TEMPLATE_DIR,
+        "{}.j2".format(LOCAL_OVERLAY_TEMPLATE_NAME))
+    charm_name = utils.get_charm_config().get('charm_name', None)
+    if os.path.isfile(overlay) or charm_name:
+        # Check for an override in the bundle.
+        # Note: the default is True if the LOCAL_OVERLAY_ENABLED_KEY
+        # is not present.
+        return is_local_overlay_enabled_in_bundle(bundle)
+    return False
+
+
+def render_overlays(bundle, target_dir, model_ctxt=None):
     """Render the overlays for the given bundle in the directory provided.
 
     :param bundle: Name of bundle being deployed
     :type bundle: str
     :param target_dir: Directory to render overlay in
     :type overlay_name: str
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
     :returns: List of rendered overlays
     :rtype: [str, str,...]
     """
     overlays = []
-    if is_local_overlay_enabled(bundle):
-        local_overlay = render_local_overlay(target_dir)
+    if should_render_local_overlay(bundle):
+        local_overlay = render_local_overlay(target_dir, model_ctxt=model_ctxt)
         if local_overlay:
             overlays.append(local_overlay)
-    rendered_bundle_overlay = render_overlay(bundle, target_dir)
+    rendered_bundle_overlay = render_overlay(bundle, target_dir,
+                                             model_ctxt=model_ctxt)
     if rendered_bundle_overlay:
         overlays.append(rendered_bundle_overlay)
     return overlays
 
 
-def deploy_bundle(bundle, model):
+def deploy_bundle(bundle, model, model_ctxt=None, force=False):
     """Deploy the given bundle file in the specified model.
+
+    The force param is used to enable zaza testing with Juju with charms
+    that would be rejected by juju (e.g. series not supported).
 
     :param bundle: Path to bundle file
     :type bundle: str
     :param model: Name of model to deploy bundle in
     :type model: str
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
+    :param force: Pass the force parameter if True
+    :type force: Boolean
     """
     logging.info("Deploying bundle '{}' on to '{}' model"
                  .format(bundle, model))
-    cmd = ['juju', 'deploy', '-m', model, bundle]
+    cmd = ['juju', 'deploy', '-m', model]
+    if force:
+        cmd.append('--force')
     with tempfile.TemporaryDirectory() as tmpdirname:
-        for overlay in render_overlays(bundle, tmpdirname):
+        bundle_out = '{}/{}'.format(tmpdirname, os.path.basename(bundle))
+        # Bundle templates should only exist in the bundle directory so
+        # explicitly set the Jinja2 load path.
+        bundle_template = get_template(
+            bundle,
+            template_dir=os.path.dirname(bundle))
+        if bundle_template:
+            if os.path.exists(bundle):
+                raise zaza_exceptions.TemplateConflict(
+                    "Found bundle template ({}) and bundle ({})".format(
+                        bundle_template.filename,
+                        bundle))
+            render_template(bundle_template, bundle_out, model_ctxt=model_ctxt)
+            cmd.append(bundle_out)
+        else:
+            cmd.append(bundle)
+        for overlay in render_overlays(bundle, tmpdirname,
+                                       model_ctxt=model_ctxt):
             logging.info("Deploying overlay '{}' on to '{}' model"
                          .format(overlay, model))
             cmd.extend(['--overlay', overlay])
         utils.check_output_logging(cmd)
 
 
-def deploy(bundle, model, wait=True):
+def deploy(bundle, model, wait=True, model_ctxt=None, force=False,
+           test_directory=None):
     """Run all steps to complete deployment.
 
     :param bundle: Path to bundle file
@@ -253,19 +354,32 @@ def deploy(bundle, model, wait=True):
     :param model: Name of model to deploy bundle in
     :type model: str
     :param wait: Whether to wait until deployment completes
-    :type model: bool
+    :type wait: bool
+    :param model_ctxt: Additional context to be used when rendering bundle
+                       templates.
+    :type model_ctxt: {}
+    :param force: Pass the force parameter if True
+    :type force: Boolean
+    :param test_directory: Set the directory containing tests.yaml and bundles.
+    :type test_directory: str
     """
+    utils.set_base_test_dir(test_dir=test_directory)
     run_report.register_event_start('Deploy Bundle')
-    deploy_bundle(bundle, model)
+    deploy_bundle(bundle, model, model_ctxt=model_ctxt, force=force)
     run_report.register_event_finish('Deploy Bundle')
     if wait:
         run_report.register_event_start('Wait for Deployment')
         test_config = utils.get_charm_config()
         logging.info("Waiting for environment to settle")
         zaza.model.set_juju_model(model)
+        deploy_ctxt = deployment_env.get_deployment_context()
+        timeout = int(deploy_ctxt.get('TEST_DEPLOY_TIMEOUT', '3600'))
+        logging.info("Timeout for deployment to settle set to: {}".format(
+            timeout))
         zaza.model.wait_for_application_states(
             model,
-            test_config.get('target_deploy_status', {}))
+            test_config.get('target_deploy_status', {}),
+            timeout=timeout)
         run_report.register_event_finish('Wait for Deployment')
 
 
@@ -284,11 +398,15 @@ def parse_args(args):
     parser.add_argument('-b', '--bundle',
                         help='Bundle name (excluding file ext)',
                         required=True)
+    parser.add_argument('-f', '--force', dest='force',
+                        help='Pass --force to the juju deploy command',
+                        action='store_true')
     parser.add_argument('--no-wait', dest='wait',
                         help='Do not wait for deployment to settle',
                         action='store_false')
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
+    cli_utils.add_test_directory_argument(parser)
     parser.set_defaults(wait=True, loglevel='INFO')
     return parser.parse_args(args)
 
@@ -297,5 +415,13 @@ def main():
     """Deploy bundle."""
     args = parse_args(sys.argv[1:])
     cli_utils.setup_logging(log_level=args.loglevel.upper())
-    deploy(args.bundle, args.model, wait=args.wait)
+    if args.force:
+        logging.warn("Using the --force argument for 'juju deploy'. Note "
+                     "that this disables juju checks for compatibility.")
+    deploy(
+        args.bundle,
+        args.model,
+        wait=args.wait,
+        force=args.force,
+        test_directory=args.test_directory)
     run_report.output_event_report()

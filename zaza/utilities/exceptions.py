@@ -15,6 +15,18 @@
 """Module of exceptions that zaza may raise."""
 
 
+class TemplateConflict(Exception):
+    """Exception when templates are in conflict."""
+
+    pass
+
+
+class MachineNotFound(Exception):
+    """Exception when machine is not found."""
+
+    pass
+
+
 class MissingOSAthenticationException(Exception):
     """Exception when some data needed to authenticate is missing."""
 

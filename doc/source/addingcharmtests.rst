@@ -15,7 +15,7 @@ Add targets to tox.ini should include a target like::
     basepython = python3
     commands =
         functest-run-suite --keep-model
-    
+
     [testenv:func-smoke]
     basepython = python3
     commands =
@@ -45,6 +45,24 @@ variables::
       vault:
         options:
             vip: '{{ OS_VIP00 }}'
+
+It is also possible to provide overlay templates tailored for specific juju
+provider types, this can be useful to do any provider specific morphing of
+a bundle. To use this feature use the following directory layout::
+
+    tests/bundles/overlays/xenial.yaml.j2
+    tests/bundles/overlays/lxd/xenial.yaml.j2
+
+With the above directory layout the overlay template in the lxd sub-directory
+will be used when tests are executed with juju on a LXD provider and the
+overlay template in the top level directory will be used for any other
+provider types.
+
+Bundle templates can be placed in the `tests/bundles` directory. It is usually
+preferable to use overlay templates rather than bundle templates. Overlays
+can be used to neatly capture settings that a user might want to change
+on a per-cloud basis. However, if a bundle template is required place it
+in tests/bundles with a `j2` extension.
 
 Add tests.yaml
 ~~~~~~~~~~~~~~
@@ -123,3 +141,58 @@ look like::
       - base-bionic
     dev_bundles:
       - base-xenial-ha
+
+Deploying bundles using --force
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to allow early testing of new Ubuntu series the `juju deploy` command
+has a `--force` option.  This allows deployment of charms that don't specify
+the series being used, or for a new series that juju doesn't support yet.
+
+Force deploying can be achieved in two ways, either on the command line, or via
+an `tests_options.force_deploy` entry in the `tests.yaml` file.
+
+For the command line a `--force` param is provided:
+
+    functest-run-suite --keep-model --dev --force
+    functest-deploy <other options> --force
+
+In the `tests.yaml` the option is added as a list item:
+
+    charm_name: keystone
+    smoke_bundles:
+    - focal-ussuri
+
+    ...
+
+    tests_options:
+      force_deploy:
+        - focal-ussuri
+
+In the above case, focal-ussuri will be deployed using the --force parameter.
+i.e. the `tests_options.force_deploy['focal-ussuri']` option applies to the
+`focal-ussuri` bundle whether it appears in any of the bundle sections.
+
+Augmenting behaviour of configure steps
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Individual configuration steps or the library helper they use may define
+configuration step options that you may use to tweak behaviour from tests.yaml.
+
+An example is the Neutron `basic_overcloud_network` configure job which for
+compatibility with existing scenario tests makes use of `juju_wait` when
+configuring the deployed cloud.
+
+This does not work well if the model you are testing has applications with
+non-standard workload status messaging.
+
+To replace the use of `juju_wait` with Zaza's configurable wait code:
+
+    charm_name: neutron-openvswitch
+    smoke_bundles:
+    - focal-ussuri-dvr-snat-migrate-ovn
+
+    ...
+
+    configure_options:
+      configure_gateway_ext_port_use_juju_wait: false

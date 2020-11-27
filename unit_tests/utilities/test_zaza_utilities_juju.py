@@ -22,22 +22,64 @@ class TestJujuUtils(ut_utils.BaseTestCase):
     def setUp(self):
         super(TestJujuUtils, self).setUp()
 
+        class MachineMock(dict):
+
+            def __init__(self, display_name=''):
+                self.display_name = display_name
+
         # Juju Status Object and data
         self.key = "instance-id"
         self.key_data = "machine-uuid"
-        self.machine = "1"
-        self.machine_data = {self.key: self.key_data}
-        self.unit = "app/1"
-        self.unit_data = {"machine": self.machine}
+
+        self.machine0 = "0"
+        self.machine0_mock = MachineMock()
+        self.machine0_mock[self.key] = self.key_data
+
+        self.machine1 = "1"
+        self.machine1_mock = MachineMock()
+        self.machine1_mock[self.key] = self.key_data
+
+        self.machine2 = "2"
+        self.machine2_mock = MachineMock()
+        self.machine2_mock[self.key] = self.key_data
+
+        self.unit0 = "app/0"
+        self.unit0_data = {"machine": self.machine0}
+        self.unit0_mock = mock.MagicMock()
+        self.unit0_mock.entity_id = self.unit0
+        self.unit0_mock.data = {'machine-id': self.machine0}
+        self.unit0_mock.public_address = '10.0.0.11'
+
+        self.unit1 = "app/1"
+        self.unit1_data = {"machine": self.machine1}
+        self.unit1_mock = mock.MagicMock()
+        self.unit1_mock.entity_id = self.unit1
+        self.unit1_mock.data = {'machine-id': self.machine1}
+        self.unit1_mock.public_address = '10.0.0.1'
+
+        self.unit2 = "app/2"
+        self.unit2_data = {"machine": self.machine2}
+        self.unit2_mock = mock.MagicMock()
+        self.unit2_mock.entity_id = self.unit2
+        self.unit2_mock.data = {'machine-id': self.machine2}
+
         self.application = "app"
-        self.application_data = {"units": {self.unit: self.unit_data}}
         self.subordinate_application = "subordinate_application"
+        self.subordinate_application_unit = "subordinate_application/0"
         self.subordinate_application_data = {
             "subordinate-to": [self.application]}
+        self.application_data = {
+            "units": {self.unit1: self.unit1_data},
+            "subordinates": {self.subordinate_application_unit: {}}}
         self.juju_status = mock.MagicMock()
         self.juju_status.name = "juju_status_object"
-        self.juju_status.applications.get.return_value = self.application_data
-        self.juju_status.machines.get.return_value = self.machine_data
+        self.juju_status.applications = {
+            self.application: self.application_data,
+            self.subordinate_application: self.subordinate_application_data}
+        self.juju_status.machines = {
+            self.machine0: self.machine0_mock,
+            self.machine1: self.machine1_mock,
+            self.machine2: self.machine2_mock}
 
         # Model
         self.patch_object(juju_utils, "model")
@@ -47,6 +89,10 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.run_output = {"Code": "0", "Stderr": "", "Stdout": "RESULT"}
         self.error_run_output = {"Code": "1", "Stderr": "ERROR", "Stdout": ""}
         self.model.run_on_unit.return_value = self.run_output
+        self.model.get_units.return_value = [
+            self.unit0_mock,
+            self.unit1_mock,
+            self.unit2_mock]
 
         # Clouds
         self.cloud_name = "FakeCloudName"
@@ -59,6 +105,12 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         # Controller
         self.patch_object(juju_utils, "controller")
         self.controller.get_cloud.return_value = self.cloud_name
+
+    def _get_application_status(self, application=None, unit=None,
+                                model_name=None):
+        if unit and not application:
+            application = unit.split("/")[0]
+        return self.juju_status.applications[application]
 
     def test_get_application_status(self):
         self.patch_object(juju_utils, "get_full_juju_status")
@@ -76,8 +128,8 @@ class TestJujuUtils(ut_utils.BaseTestCase):
 
         # Unit no application dictionary return
         self.assertEqual(
-            juju_utils.get_application_status(unit=self.unit),
-            self.unit_data)
+            juju_utils.get_application_status(unit=self.unit1),
+            self.unit1_data)
 
     def test_get_cloud_configs(self):
         self.patch_object(juju_utils.Path, "home")
@@ -93,43 +145,62 @@ class TestJujuUtils(ut_utils.BaseTestCase):
 
     def test_get_full_juju_status(self):
         self.assertEqual(juju_utils.get_full_juju_status(), self.juju_status)
-        self.model.get_status.assert_called_once_with()
+        self.model.get_status.assert_called_once_with(model_name=None)
 
     def test_get_machines_for_application(self):
-        self.patch_object(juju_utils, "get_application_status")
-        self.get_application_status.return_value = self.application_data
+        self.patch_object(juju_utils, "get_full_juju_status")
+        self.get_full_juju_status.return_value = self.juju_status
 
         # Machine data
         self.assertEqual(
-            juju_utils.get_machines_for_application(self.application),
-            [self.machine])
-        self.get_application_status.assert_called_once()
-
-        # Subordinate application has no units
-        def _get_application_status(application):
-            _apps = {
-                self.application: self.application_data,
-                self.subordinate_application:
-                    self.subordinate_application_data}
-            return _apps[application]
-        self.get_application_status.side_effect = _get_application_status
+            list(juju_utils.get_machines_for_application(self.application)),
+            [self.machine1])
 
         self.assertEqual(
-            juju_utils.get_machines_for_application(
-                self.subordinate_application),
-            [self.machine])
+            list(juju_utils.get_machines_for_application(
+                self.subordinate_application)),
+            [self.machine1])
+
+    def test_get_unit_name_from_host_name_maas(self):
+        self.assertEqual(
+            juju_utils.get_unit_name_from_host_name('juju-model-1', 'app'),
+            'app/1')
+        self.machine2_mock.display_name = 'node-jaeger.maas'
+        self.assertEqual(
+            juju_utils.get_unit_name_from_host_name('node-jaeger.maas', 'app'),
+            'app/2')
+        self.machine0_mock.display_name = 'node-bob.maas'
+        self.assertEqual(
+            juju_utils.get_unit_name_from_host_name('node-bob.maas', 'app'),
+            'app/0')
 
     def test_get_unit_name_from_host_name(self):
-        unit_mock1 = mock.MagicMock()
-        unit_mock1.data = {'machine-id': 12}
-        unit_mock1.entity_id = 'myapp/2'
-        unit_mock2 = mock.MagicMock()
-        unit_mock2.data = {'machine-id': 15}
-        unit_mock2.entity_id = 'myapp/5'
-        self.model.get_units.return_value = [unit_mock1, unit_mock2]
+        self.patch_object(juju_utils, "get_application_status")
+        self.get_application_status.side_effect = self._get_application_status
         self.assertEqual(
-            juju_utils.get_unit_name_from_host_name('juju-model-12', 'myapp'),
-            'myapp/2')
+            juju_utils.get_unit_name_from_host_name(
+                'juju-model-1',
+                self.application),
+            'app/1')
+        self.assertEqual(
+            juju_utils.get_unit_name_from_host_name(
+                'juju-model-1.project.serverstack',
+                self.application),
+            'app/1')
+
+    def test_get_unit_name_from_host_name_bad_app(self):
+        self.assertIsNone(
+            juju_utils.get_unit_name_from_host_name('juju-model-12',
+                                                    'madeup-app'))
+
+    def test_get_unit_name_from_host_name_subordinate(self):
+        self.patch_object(juju_utils, "get_application_status")
+        self.get_application_status.side_effect = self._get_application_status
+        self.assertEqual(
+            juju_utils.get_unit_name_from_host_name(
+                'juju-model-1',
+                self.subordinate_application),
+            self.subordinate_application_unit)
 
     def test_get_unit_name_from_ip_address(self):
         unit_mock3 = mock.MagicMock()
@@ -154,24 +225,26 @@ class TestJujuUtils(ut_utils.BaseTestCase):
 
         # All machine data
         self.assertEqual(
-            juju_utils.get_machine_status(self.machine),
-            self.machine_data)
+            juju_utils.get_machine_status(self.machine1),
+            {self.key: self.key_data})
         self.get_full_juju_status.assert_called_once()
 
         # Request a specific key
         self.assertEqual(
-            juju_utils.get_machine_status(self.machine, self.key),
+            juju_utils.get_machine_status(self.machine1, self.key),
             self.key_data)
 
     def test_get_machine_uuids_for_application(self):
         self.patch_object(juju_utils, "get_machines_for_application")
-        self.get_machines_for_application.return_value = [self.machine]
+        self.get_machines_for_application.return_value = [self.machine1]
 
         self.assertEqual(
-            juju_utils.get_machine_uuids_for_application(self.application),
-            [self.machine_data.get("instance-id")])
+            list(juju_utils.get_machine_uuids_for_application(
+                self.application)),
+            [self.key_data])
         self.get_machines_for_application.assert_called_once_with(
-            self.application)
+            self.application,
+            model_name=None)
 
     def test_get_provider_type(self):
         self.patch_object(juju_utils, "get_cloud_configs")
@@ -184,19 +257,19 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         _cmd = "do the thing"
 
         # Success
-        self.assertEqual(juju_utils.remote_run(self.unit, _cmd),
+        self.assertEqual(juju_utils.remote_run(self.unit1, _cmd),
                          self.run_output["Stdout"])
         self.model.run_on_unit.assert_called_once_with(
-            self.unit, _cmd, timeout=None)
+            self.unit1, _cmd, model_name=None, timeout=None)
 
         # Non-fatal failure
         self.model.run_on_unit.return_value = self.error_run_output
-        self.assertEqual(juju_utils.remote_run(self.unit, _cmd, fatal=False),
+        self.assertEqual(juju_utils.remote_run(self.unit1, _cmd, fatal=False),
                          self.error_run_output["Stderr"])
 
         # Fatal failure
         with self.assertRaises(Exception):
-            juju_utils.remote_run(self.unit, _cmd, fatal=True)
+            juju_utils.remote_run(self.unit1, _cmd, fatal=True)
 
     def test_get_unit_names(self):
         self.patch('zaza.model.get_first_unit_name', new_callable=mock.Mock(),
@@ -221,7 +294,8 @@ class TestJujuUtils(ut_utils.BaseTestCase):
                                           'arelation')
         self.model.run_on_unit.assert_called_with(
             'aunit/0',
-            'relation-get --format=yaml -r "42" - "otherunit/0"')
+            'relation-get --format=yaml -r "42" - "otherunit/0"',
+            model_name=None)
         self.yaml.safe_load.assert_called_with(str(data))
 
     def test_get_relation_from_unit_fails(self):
@@ -236,7 +310,8 @@ class TestJujuUtils(ut_utils.BaseTestCase):
                                               'arelation')
         self.model.run_on_unit.assert_called_with(
             'aunit/0',
-            'relation-get --format=yaml -r "42" - "otherunit/0"')
+            'relation-get --format=yaml -r "42" - "otherunit/0"',
+            model_name=None)
         self.assertFalse(self.yaml.safe_load.called)
 
     def test_leader_get(self):
@@ -247,7 +322,8 @@ class TestJujuUtils(ut_utils.BaseTestCase):
             'Code': 0, 'Stdout': str(data)}
         juju_utils.leader_get('application')
         self.model.run_on_leader.assert_called_with(
-            'application', 'leader-get --format=yaml ')
+            'application', 'leader-get --format=yaml ',
+            model_name=None)
         self.yaml.safe_load.assert_called_with(str(data))
 
     def test_leader_get_key(self):
@@ -258,7 +334,8 @@ class TestJujuUtils(ut_utils.BaseTestCase):
             'Code': 0, 'Stdout': data['foo']}
         juju_utils.leader_get('application', 'foo')
         self.model.run_on_leader.assert_called_with(
-            'application', 'leader-get --format=yaml foo')
+            'application', 'leader-get --format=yaml foo',
+            model_name=None)
         self.yaml.safe_load.assert_called_with(data['foo'])
 
     def test_leader_get_fails(self):
@@ -269,7 +346,8 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         with self.assertRaises(Exception):
             juju_utils.leader_get('application')
         self.model.run_on_leader.assert_called_with(
-            'application', 'leader-get --format=yaml ')
+            'application', 'leader-get --format=yaml ',
+            model_name=None)
         self.assertFalse(self.yaml.safe_load.called)
 
     def test_get_machine_series(self):
@@ -283,6 +361,51 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         actual = juju_utils.get_machine_series('6')
         self._get_machine_status.assert_called_with(
             machine='6',
-            key='series'
+            key='series',
+            model_name=None
         )
         self.assertEqual(expected, actual)
+
+    def test_get_subordinate_units(self):
+        juju_status = mock.MagicMock()
+        juju_status.applications = {
+            'nova-compute': {
+                'units': {
+                    'nova-compute/0': {
+                        'subordinates': {
+                            'neutron-openvswitch/2': {
+                                'charm': 'cs:neutron-openvswitch-22'}}}}},
+            'cinder': {
+                'units': {
+                    'cinder/1': {
+                        'subordinates': {
+                            'cinder-hacluster/0': {
+                                'charm': 'cs:hacluster-42'},
+                            'cinder-ceph/3': {
+                                'charm': 'cs:cinder-ceph-2'}}}}},
+        }
+        self.model.get_status.return_Value = juju_status
+        self.assertEqual(
+            sorted(juju_utils.get_subordinate_units(
+                ['nova-compute/0', 'cinder/1'],
+                status=juju_status)),
+            sorted(['neutron-openvswitch/2', 'cinder-hacluster/0',
+                    'cinder-ceph/3']))
+        self.assertEqual(
+            juju_utils.get_subordinate_units(
+                ['nova-compute/0', 'cinder/1'],
+                charm_name='ceph',
+                status=juju_status),
+            ['cinder-ceph/3'])
+
+    def test_get_application_ip(self):
+        self.model.get_application_config.return_value = {
+            'vip': {'value': '10.0.0.10'}}
+        self.model.get_units.return_value = [self.unit1_mock]
+        self.assertEqual(
+            juju_utils.get_application_ip('app'),
+            '10.0.0.10')
+        self.model.get_application_config.return_value = {}
+        self.assertEqual(
+            juju_utils.get_application_ip('app'),
+            '10.0.0.1')

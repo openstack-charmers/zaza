@@ -1,4 +1,4 @@
-# Copyright 2018 Canonical Ltd.
+# Copyright 2020 Canonical Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,51 +23,52 @@ import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
 
 
-def run_configure_list(functions):
-    """Run the configure scripts.
+def run_before_deploy_list(functions):
+    """Run the pre-deploy scripts.
 
-    Run the configure scripts as defined in the list of configuration methods
-    in series.
+    Run the pre-deploy scripts as defined in the list of methods in
+    series.
 
-    :param functions: List of configure functions functions
+    :param functions: List of pre-deploy functions functions
     :type tests: ['zaza.charms_tests.svc.setup', ...]
     """
     for func in functions:
-        run_report.register_event_start('Configure {}'.format(func))
+        run_report.register_event_start('Before Deploy {}'.format(func))
         utils.get_class(func)()
-        run_report.register_event_finish('Configure {}'.format(func))
+        run_report.register_event_finish('Before Deploy {}'.format(func))
 
 
-def configure(model_name, functions, test_directory=None):
+def before_deploy(model_name, functions, test_directory=None):
     """Run all post-deployment configuration steps.
 
-    :param functions: List of configure functions functions
+    :param functions: List of pre-deploy functions functions
     :type tests: ['zaza.charms_tests.svc.setup', ...]
     :param test_directory: Set the directory containing tests.yaml and bundles.
     :type test_directory: str
     """
     utils.set_base_test_dir(test_dir=test_directory)
     zaza.model.set_juju_model(model_name)
-    run_configure_list(functions)
+    run_before_deploy_list(functions)
 
 
 def parse_args(args):
     """Parse command line arguments.
 
-    :param args: List of configure functions functions
+    :param args: List of before_deploy functions functions
     :type list: [str1, str2,...] List of command line arguments
     :returns: Parsed arguments
     :rtype: Namespace
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--configfuncs', nargs='+',
+    parser.add_argument('-c', '--beforefuncs', nargs='+',
                         help='Space separated list of config functions',
                         required=False)
-    cli_utils.add_model_parser(parser)
+    parser.add_argument('-m', '--model-name', help='Name of model to remove',
+                        required=True)
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
-    cli_utils.add_test_directory_argument(parser)
     parser.set_defaults(loglevel='INFO')
+    cli_utils.add_test_directory_argument(parser)
     return parser.parse_args(args)
 
 
@@ -80,12 +81,7 @@ def main():
     """
     args = parse_args(sys.argv[1:])
     cli_utils.setup_logging(log_level=args.loglevel.upper())
-    for model_alias, model_name in args.model.items():
-        if args.configfuncs:
-            funcs = args.configfuncs
-        else:
-            config_steps = utils.get_config_steps()
-            funcs = config_steps.get(model_alias, [])
-        configure(model_name, funcs)
+    funcs = args.configfuncs or utils.get_charm_config()['before_deploy']
+    before_deploy(args.model_name, funcs, test_directory=args.test_directory)
     run_report.output_event_report()
     asyncio.get_event_loop().close()

@@ -34,6 +34,33 @@ semicolon e.g.::
     export MODEL_SETTINGS="no-proxy=jujucharms.com"
     export MODEL_CONSTRAINTS="virt-type=kvm"
 
+In addition to overriding Zaza's configuration via environment variables, some
+configuration can be done via a .zaza.yaml file in your home directory, eg.::
+
+    ---
+    model_settings:
+        default-series: xenial
+        image-stream: daily
+        test-mode: true
+        transmit-vendor-metrics: false
+        enable-os-upgrade: false
+        automatically-retry-hooks: false
+        use-default-secgroup: true
+    model_constraints:
+        mem: '4g'
+    secrets:
+        setting1: value1
+    runtime_config: {}
+
+In addition to the config shown above, some options can only be added
+via a .zaza.yaml file, eg.::
+
+    ---
+    region: my-region-name
+
+The above configuration is required to run Zaza on a multi cloud / region Juju
+controller.
+
 
 1) Prepare
 ~~~~~~~~~~
@@ -52,7 +79,25 @@ To run manually::
                             Name of new model
       --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
-2) Deploy
+2) Before Deploy
+~~~~~~~~~~~~~~~~
+
+Perform pre-deployment tasks, for example: setup a default model configuration
+that is necessary to deploy a bundle.
+
+To run manually::
+
+    $ functest-before-deploy --help
+    usage: functest-before-deploy [-h] [-c BEFOREFUNCS [BEFOREFUNCS ...]] [--log LOGLEVEL]
+
+    optional arguments:
+      -h, --help
+                            show this help message and exit
+      -c BEFOREFUNCS, --beforefuncs BEFOREFUNCS
+                            Space separated list of config functions
+      --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
+
+3) Deploy
 ~~~~~~~~~
 
 Deploy the target bundle and wait for it to complete. **functest-run-suite** 
@@ -88,7 +133,7 @@ To run manually::
       --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
 
-3) Configure
+4) Configure
 ~~~~~~~~~~~~
 
 Post-deployment configuration, for example create network, tenant, image, etc.
@@ -109,7 +154,7 @@ To run manually::
       --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
 
-4) Test
+5) Test
 ~~~~~~~
 
 Run tests. These maybe tests in zaza or a wrapper around another testing
@@ -128,14 +173,14 @@ To run manually::
       --log LOGLEVEL        Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]
 
 
-5) Collect
+6) Collect
 ~~~~~~~~~~
 
 Collect artifacts useful for debugging any failures or useful for trend
 analysis like deprecation warning or deployment time.
 
 
-6) Destroy
+7) Destroy
 ~~~~~~~~~~
 
 Destroy the model::
@@ -203,3 +248,38 @@ Destroy the environment::
 
     $ functest-destroy -m testmodel 
 
+Run tests directly using model maps
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Steps defined in the tests.yaml will often be related to a model alias. For
+example::
+
+    charm_name: ubuntu
+    tests:
+     - bionic_model:
+       - zaza.charm_tests.noop.tests.NoopTestBionic
+     - xenial_model:
+       - zaza.charm_tests.noop.tests.NoopTestXenial
+     - zaza.charm_tests.noop.tests.NoopTest
+    configure:
+     - bionic_model:
+       - zaza.charm_tests.noop.setup.basic_setup_bionic
+     - xenial_model:
+       - zaza.charm_tests.noop.setup.basic_setup_xenial
+     - zaza.charm_tests.noop.setup.basic_setup
+
+In the above setup two model aliases are in use: 'bionic_model' and
+'xenial_model'. To map an existing model to a model alias (and thereby run
+the specific step for the alias) pass in the map to the model command. This is
+done by specifying 'alias:existing_model_name'. For example if there is an
+existing model called 'bio' then to associate that with 'bionic_model' alias
+run::
+
+    $ functest-configure -m bionic_model:bio
+    $ functest-test -m bionic_model:bio
+
+Multiple model aliases can also be passed. To run the tests associated with
+both aliases::
+
+    $ functest-configure -m bionic_model:bio -m xenial_model:xen
+    $ functest-test -m bionic_model:bio -m xenial_model:xen

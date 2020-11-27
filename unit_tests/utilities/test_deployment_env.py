@@ -123,13 +123,12 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
             expect_config)
 
     def test_is_valid_env_key(self):
-        self.assertTrue(deployment_env.is_valid_env_key('OS_VIP04'))
-        self.assertTrue(deployment_env.is_valid_env_key('FIP_RANGE'))
-        self.assertTrue(deployment_env.is_valid_env_key('GATEWAY'))
-        self.assertTrue(deployment_env.is_valid_env_key('NAME_SERVER'))
-        self.assertTrue(deployment_env.is_valid_env_key('NET_ID'))
-        self.assertTrue(deployment_env.is_valid_env_key('VIP_RANGE'))
-        self.assertTrue(deployment_env.is_valid_env_key('AMULET_OS_VIP'))
+        self.assertTrue(deployment_env.is_valid_env_key('TEST_VIP04'))
+        self.assertTrue(deployment_env.is_valid_env_key('TEST_FIP_RANGE'))
+        self.assertTrue(deployment_env.is_valid_env_key('TEST_GATEWAY'))
+        self.assertTrue(deployment_env.is_valid_env_key('TEST_NAME_SERVER'))
+        self.assertTrue(deployment_env.is_valid_env_key('TEST_NET_ID'))
+        self.assertTrue(deployment_env.is_valid_env_key('TEST_VIP_RANGE'))
         self.assertFalse(
             deployment_env.is_valid_env_key('ZAZA_TEMPLATE_VIP00'))
         self.assertFalse(deployment_env.is_valid_env_key('PATH'))
@@ -210,14 +209,45 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
                 'OS_SETTING2': 'from-file'}})
         self.environ.items.return_value = [
             ('AMULET_OS_VIP', '10.10.0.2'),
+            ('TEST_VIP', '10.10.0.1'),
             ('OS_SETTING2', 'from-env'),
-            ('OS_VIP04', '10.10.0.2'),
+            ('TEST_VIP04', '10.10.0.4'),
             ('ZAZA_TEMPLATE_VIP00', '20.3.4.5'),
             ('PATH', 'aa')]
         self.assertEqual(
             deployment_env.get_deployment_context(),
-            {'OS_VIP04': '10.10.0.2',
-             'AMULET_OS_VIP': '10.10.0.2',
+            {'TEST_VIP': '10.10.0.1',
+             'TEST_VIP04': '10.10.0.4',
              'OS_SETTING1': 'from-file',
              'OS_SETTING2': 'from-env'}
         )
+
+    def test_get_cloud_region(self):
+        self.patch_object(
+            deployment_env,
+            'get_setup_file_contents',
+            return_value={
+                'region': 'test'})
+        self.assertEqual(
+            deployment_env.get_cloud_region(),
+            'test')
+
+    def test_get_cloud_region_default(self):
+        self.patch_object(
+            deployment_env,
+            'get_setup_file_contents',
+            return_value={})
+        self.assertEqual(
+            deployment_env.get_cloud_region(),
+            None)
+
+    def test_get_tmpdir(self):
+        self.patch_object(deployment_env.os, 'mkdir')
+        self.patch_object(deployment_env.os.path, 'exists')
+        self.exists.return_value = False
+        deployment_env.get_tmpdir(model_name='mymodel')
+        self.mkdir.assert_called_once_with('/tmp/mymodel')
+        self.mkdir.reset_mock()
+        self.exists.return_value = True
+        deployment_env.get_tmpdir(model_name='mymodel')
+        self.assertFalse(self.mkdir.called)
