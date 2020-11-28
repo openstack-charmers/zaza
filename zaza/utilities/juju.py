@@ -145,29 +145,31 @@ def get_machines_for_application(application, model_name=None):
             yield status.get("units").get(unit).get("machine")
 
 
-def get_unit_name_from_host_name(host_name, application, model_name=None):
+def get_unit_name_from_host_name(host_name, application_name, model_name=None):
     """Return the juju unit name corresponding to a hostname.
 
     :param host_name: Host name to map to unit name.
     :type host_name: string
-    :param application: Application name
-    :type application: string
+    :param application_name: Application name
+    :type application_name: string
     :param model_name: Name of model to query.
     :type model_name: str
     :returns: The unit name of the application running on host_name.
     :rtype: str or None
     """
     unit = None
-    app_status = get_application_status(application, model_name=model_name)
+    app_status = get_application_status(application_name,
+                                        model_name=model_name)
     # If the application is not present there cannot be a matching unit.
     if not app_status:
         return unit
-    if is_subordinate_application(application, application_status=app_status,
-                                  model_name=model_name):
+    if is_subordinate_application(
+            application_name, application_status=app_status,
+            model_name=model_name):
         # Find the principle services that the subordinate relates to. There
         # may be multiple.
         principle_services = get_principle_applications(
-            application,
+            application_name,
             application_status=app_status,
             model_name=model_name)
         for principle_service in principle_services:
@@ -185,9 +187,10 @@ def get_unit_name_from_host_name(host_name, application, model_name=None):
                     model_name=model_name)
                 unit_names = list(unit_status['subordinates'].keys())
                 # The principle may have subordinates related to it other than
-                # the 'application' so search through them looking for a match.
+                # the 'application_name' so search through them looking for a
+                # match.
                 for unit_name in unit_names:
-                    if unit_name.split('/')[0] == application:
+                    if unit_name.split('/')[0] == application_name:
                         unit = unit_name
     else:
         # Try and match host_name with machine display name:
@@ -214,7 +217,7 @@ def get_unit_name_from_host_name(host_name, application, model_name=None):
         unit_names = [
             u.entity_id
             for u in model.get_units(
-                application_name=application,
+                application_name=application_name,
                 model_name=model_name)
             if int(u.data['machine-id']) == machine_number]
         if unit_names:
