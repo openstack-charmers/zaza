@@ -19,6 +19,7 @@ import logging
 import os
 import sys
 import tempfile
+import tenacity
 import yaml
 
 import zaza.controller
@@ -342,7 +343,12 @@ def deploy_bundle(bundle, model, model_ctxt=None, force=False):
             logging.info("Deploying overlay '{}' on to '{}' model"
                          .format(overlay, model))
             cmd.extend(['--overlay', overlay])
-        utils.check_output_logging(cmd)
+        for attempt in tenacity.Retrying(
+            stop=tenacity.stop_after_attempt(3),
+            wait=tenacity.wait_exponential(
+                multiplier=1, min=2, max=10)):
+            with attempt:
+                utils.check_output_logging(cmd)
 
 
 def deploy(bundle, model, wait=True, model_ctxt=None, force=False,
