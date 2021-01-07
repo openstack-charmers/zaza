@@ -26,6 +26,21 @@ from maas.client.enum import LinkMode  # noqa
 import zaza
 
 
+def get_maas_client_from_juju_cloud_data(cloud_data):
+    """Get a connected MAAS client from Juju Cloud data.
+
+    :param cloud_data: Juju Cloud and Credential data
+    :type cloud_data: zaza.model.CloudData
+    :returns: Connected MAAS client.
+    :rtpye: maas.client.facade.Client object.
+    :raises: AssertionError
+    """
+    assert cloud_data.cloud.type_ == 'maas', "cloud_data not for MAAS cloud."
+    maas_url = cloud_data.cloud['endpoint']
+    apikey = cloud_data.credential['attrs']['maas-oauth']
+    return get_maas_client(maas_url, apikey)
+
+
 async def async_get_maas_client(maas_url, apikey):
     """Get a connected MAAS client.
 

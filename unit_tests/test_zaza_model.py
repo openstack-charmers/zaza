@@ -2016,3 +2016,16 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
                 unitb = await model.async_get_principle_unit('absent-app/0')
         self.assertEqual(unita, 'app/0')
         self.assertIsNone(unitb)
+
+    async def test_async_get_cloud_data(self):
+        with mock.patch.object(model, 'run_in_model'):
+            with mock.patch.object(
+                    model.juju.client.jujudata, 'FileJujuData') as juju_data:
+                juju_data().load_credential.return_value = (
+                    'fake-cred-name', 'fake-cred')
+                result = await model.async_get_cloud_data()
+                self.assertIsInstance(result, model.CloudData)
+                self.assertEquals(result.cloud_name, mock.ANY)
+                self.assertEquals(result.cloud, mock.ANY)
+                self.assertEquals(result.credential_name, 'fake-cred-name')
+                self.assertEquals(result.credential, 'fake-cred')
