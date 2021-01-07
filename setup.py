@@ -34,6 +34,7 @@ install_require = [
     'juju-wait',
     'PyYAML',
     'tenacity',
+    'python-libmaas',
 ]
 
 tests_require = [
