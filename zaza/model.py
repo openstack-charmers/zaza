@@ -32,6 +32,7 @@ from oslo_config import cfg
 import concurrent
 import time
 
+import juju.client
 from juju.errors import JujuError
 from juju.model import Model
 
@@ -2438,3 +2439,43 @@ async def async_check_if_subordinates_idle(app, unit_name):
         unit['agent-status']['status']
         for name, unit in subordinates.items()]
     return len(set(statuses)) == 1 and statuses[0] == 'idle'
+
+
+CloudData = collections.namedtuple(
+    'CloudData', [
+        'cloud_name',
+        'cloud',
+        'credential_name',
+        'credential'])
+
+
+async def async_get_cloud_data(credential_name=None, model_name=None):
+    """Get connection details and credentials for cloud supporting given model.
+
+    :param credential_name: Name of credential to retrieve.
+    :type credential_name: Optional[str]
+    :param model_name: Model name to operate on.
+    :type model_name: Optional[str]
+    :returns: Credential Name, Juju Cloud Credential object
+    :rtype: CloudData[str, Cloud, str, CloudCredential]
+    :raises: AssertionError
+    """
+    async with run_in_model(model_name) as model:
+        # Get new connection to Controller for model
+        controller = await model.get_controller()
+        # Get cloud name for controller
+        cloud_name = await controller.get_cloud()
+        clouds = await controller.clouds()
+        cloud_data = clouds['clouds'].get('cloud-{}'.format(cloud_name))
+        await controller.disconnect()
+        # Retrieve credentials for controller from local disk
+        juju_data = juju.client.jujudata.FileJujuData()
+        credential = juju_data.load_credential(
+            cloud_name, name=credential_name)
+        return CloudData(
+            cloud_name,
+            cloud_data,
+            credential[0],
+            credential[1])
+
+get_cloud_data = sync_wrapper(async_get_cloud_data)
