@@ -72,7 +72,7 @@ class TestUtilitiesMaas(ut_utils.BaseTestCase):
 
     def test_get_machine_interfaces(self):
         async def af():
-            async for machine, interface in maas.get_machine_interfaces(
+            async for machine, interface in maas.async_get_machine_interfaces(
                     self.maas_client):
                 if machine == self.machine1:
                     self.assertIn(

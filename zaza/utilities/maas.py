@@ -15,9 +15,10 @@
 
 import collections
 
+from async_generator import async_generator, yield_
+
 import maas.client
 import maas.client.enum
-import maas.client.utils.maas_async as maas_async
 
 # Re-export the LinkMode enum to save our consumers the trouble of figuring out
 # the python-libmaas internal module path to it.
@@ -56,6 +57,7 @@ async def async_get_maas_client(maas_url, apikey):
 get_maas_client = zaza.sync_wrapper(async_get_maas_client)
 
 
+@async_generator
 async def async_get_machine_interfaces(maas_client, machine_id=None,
                                        link_mode=None, cidr=None):
     """Get machine and interface objects, optionally apply filters.
@@ -83,11 +85,7 @@ async def async_get_machine_interfaces(maas_client, machine_id=None,
                     continue
                 if cidr and link.subnet and link.subnet.cidr != cidr:
                     continue
-                yield machine, interface
-
-# The Zaza sync_wrapper is not smart enough to handle async generators yet,
-# let's use MAAS's equivivalent for that.
-get_machine_interfaces = maas_async.asynchronous(async_get_machine_interfaces)
+                await yield_((machine, interface))
 
 
 MachineInterfaceMac = collections.namedtuple(
@@ -113,7 +111,7 @@ async def async_get_macs_from_cidr(maas_client, cidr, machine_id=None,
     # We build a list and return that as async generators are a bit too much to
     # spring on a causal consumer of this module.
     result = []
-    async for machine, interface in get_machine_interfaces(
+    async for machine, interface in async_get_machine_interfaces(
             maas_client, machine_id=machine_id,
             link_mode=link_mode, cidr=cidr):
         for link in interface.links:
