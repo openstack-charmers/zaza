@@ -18,6 +18,7 @@ import logging
 from juju.controller import Controller
 import subprocess
 from zaza import sync_wrapper
+import zaza.utilities.exceptions
 
 
 async def async_add_model(model_name, config=None, region=None):
@@ -52,7 +53,14 @@ async def async_destroy_model(model_name):
     controller = Controller()
     await controller.connect()
     logging.debug("Destroying model {}".format(model_name))
-    await controller.destroy_model(model_name)
+    await controller.destroy_model(model_name, force=True, max_wait=600)
+    # the model ought to be destroyed by now.  Let's make sure, and if not,
+    # raise an error.
+    remaining_models = await controller.list_models()
+    if model_name in remaining_models:
+        raise zaza.utilities.exceptions.DestroyModelFailed(
+            "Destroying model {} failed.".format(model_name))
+    logging.debug("Model {} destroyed.".format(model_name))
     await controller.disconnect()
 
 destroy_model = sync_wrapper(async_destroy_model)
