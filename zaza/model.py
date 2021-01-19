@@ -27,6 +27,8 @@ import os
 import re
 import subprocess
 import tempfile
+import tenacity
+import websockets
 import yaml
 from oslo_config import cfg
 import concurrent
@@ -1129,12 +1131,22 @@ async def async_wait_for_application_states(model_name=None, states=None,
                 logging.info("Checking workload status of {}".format(
                     unit.entity_id))
                 try:
-                    await model.block_until(
-                        lambda: check_unit_workload_status(
-                            model,
-                            unit,
-                            all_approved_statuses),
-                        timeout=timeout)
+                    # we retry this as occasionally libjuju <-> juju just
+                    # disconnects with websockets.ConnectionClosed
+                    # zaza bug:#402
+                    logger = logging.getLogger(__name__)
+                    for attempt in tenacity.Retrying(
+                            stop=tenacity.stop_after_attempt(3),
+                            retry=tenacity.retry_if_exception_type(
+                                websockets.ConnectionClosed),
+                            after=tenacity.after_log(logger, logging.DEBUG)):
+                        with attempt:
+                            await model.block_until(
+                                lambda: check_unit_workload_status(
+                                    model,
+                                    unit,
+                                    all_approved_statuses),
+                                timeout=timeout)
                 except concurrent.futures._base.TimeoutError:
                     raise ModelTimeout(
                         timeout_msg.format(
