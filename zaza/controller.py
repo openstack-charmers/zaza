@@ -17,6 +17,7 @@
 import logging
 from juju.controller import Controller
 import subprocess
+import tenacity
 from zaza import sync_wrapper
 import zaza.utilities.exceptions
 
@@ -54,12 +55,21 @@ async def async_destroy_model(model_name):
     await controller.connect()
     logging.debug("Destroying model {}".format(model_name))
     await controller.destroy_model(model_name, force=True, max_wait=600)
-    # the model ought to be destroyed by now.  Let's make sure, and if not,
-    # raise an error.
-    remaining_models = await controller.list_models()
-    if model_name in remaining_models:
-        raise zaza.utilities.exceptions.DestroyModelFailed(
-            "Destroying model {} failed.".format(model_name))
+    # The model ought to be destroyed by now.  Let's make sure, and if not,
+    # raise an error.  Even if the model has been destroyed, it's still hangs
+    # around in the .list_models() for a little while; retry until it goes
+    # away, or that fails.
+    for attempt in tenacity.Retrying(
+            stop=tenacity.stop_after_attempt(20),
+            wait=tenacity.wait_exponential(
+                multiplier=1, min=2, max=20),
+            retry=tenacity.retry_if_exception_type(
+                zaza.utilities.exceptions.DestroyModelFailed)):
+        with attempt:
+            remaining_models = await controller.list_models()
+            if model_name in remaining_models:
+                raise zaza.utilities.exceptions.DestroyModelFailed(
+                    "Destroying model {} failed.".format(model_name))
     logging.debug("Model {} destroyed.".format(model_name))
     await controller.disconnect()
 
