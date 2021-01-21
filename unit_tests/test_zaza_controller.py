@@ -37,7 +37,9 @@ class TestController(ut_utils.BaseTestCase):
         async def _add_model(model_name, config=None):
             return self.model1
 
-        async def _destroy_model(model_name):
+        async def _destroy_model(model_name, force=False, max_wait=None):
+            if model_name in self.models:
+                self.models.remove(model_name)
             return
 
         async def _get_cloud():
@@ -88,7 +90,7 @@ class TestController(ut_utils.BaseTestCase):
     def test_destroy_model(self):
         controller.destroy_model(self.model1.info.name)
         self.Controller_mock.destroy_model.assert_called_once_with(
-            self.model1.info.name)
+            self.model1.info.name, force=True, max_wait=600)
 
     def test_get_cloud(self):
         self.assertEqual(

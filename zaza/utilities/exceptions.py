@@ -184,3 +184,9 @@ class NovaGuestRestartFailed(Exception):
     """Nova guest restart failed."""
 
     pass
+
+
+class DestroyModelFailed(Exception):
+    """The controller.destroy_model() failed in some interesting way."""
+
+    pass
