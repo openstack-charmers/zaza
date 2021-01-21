@@ -59,7 +59,7 @@ async def async_destroy_model(model_name):
     # raise an error.  Even if the model has been destroyed, it's still hangs
     # around in the .list_models() for a little while; retry until it goes
     # away, or that fails.
-    for attempt in tenacity.Retrying(
+    async for attempt in tenacity.AsyncRetrying(
             stop=tenacity.stop_after_attempt(20),
             wait=tenacity.wait_exponential(
                 multiplier=1, min=2, max=20),
