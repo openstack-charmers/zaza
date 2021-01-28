@@ -267,20 +267,39 @@ def resource_removed(resource,
         msg)
 
 
-def clean_up_instances(model_name):
+def clean_up_instances(model_name, machines):
+    """Clean up any remaining instances that might exist on OpenStack.
+
+    This is used after delete to remove any instances that might exists after
+    destroy model.  It does this by matching the model name to the OpenStack
+    instance name, where the model_name is a part of the name.
+
+    :param model_name: the model to destroy.
+    :type model_name: str
+    :param machines: the value of get_status(model_name)['machines'] prior to
+        model deletion.
+    :type machines: List[???]
     """
-    TODO: fill this out
-    """
+    machine_ids = [d.instance_id for d in machines.values()]
     session = get_undercloud_keystone_session()
     nova_client = get_nova_session_client(session)
-    servers = list(nova_client.servers.list())
+    servers = [s for s in nova_client.servers.list() if s.id in machine_ids]
     if servers:
-        logging.warning("Having to clean-up {} servers after supposed destroy"
+        logging.warning("Possibly having to clean-up {} servers after "
+                        " destroy - due to async they may already be gone."
                         .format(len(servers)))
         for server in servers:
-            if model_name in server.name:
-                logging.info('Removing server {}'.format(server.name))
+            try:
                 delete_resource(
                     nova_client.servers,
                     server.id,
                     msg="server")
+                logging.info("Removed server {} - id:{}"
+                             .format(server.name, server.id))
+            except novaclient_client.exceptions.NotFound:
+                # Due to the async nature of all the bits of technology,
+                # sometimes OpenStack will report the server existing despite
+                # having removed it.  We get this exception if it was going
+                # depite being in the list, so just ignore this error.
+                logging.info("Server {} already removed - race due to async."
+                             " id:{}" .format(server.name, server.id))

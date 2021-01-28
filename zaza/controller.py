@@ -64,8 +64,7 @@ async def async_destroy_model(model_name):
     # away, or that fails.
     for attempt in tenacity.Retrying(
             stop=tenacity.stop_after_attempt(20),
-            wait=tenacity.wait_exponential(
-                multiplier=1, min=2, max=20),
+            wait=tenacity.wait_fixed(10),
             retry=tenacity.retry_if_exception_type(
                 zaza.utilities.exceptions.DestroyModelFailed)):
         with attempt:

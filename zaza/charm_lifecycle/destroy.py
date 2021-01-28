@@ -14,12 +14,12 @@
 
 """Run destroy phase."""
 import argparse
-import logging
 import sys
 
 import zaza.controller
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.juju as juju_utils
+import zaza.model as model
 
 
 def destroy(model_name):
@@ -28,18 +28,19 @@ def destroy(model_name):
     Note: on the OpenStack provider we also verify after the destroy model call
     that the instances associated with the model really are gone.  Reap any
     instances that have the model name in them before returning.
-    Bug: #xxxxxxx
+    Bug: https://bugs.launchpad.net/juju/+bug/1913418
 
     :param model: Name of model to remove
     :type bundle: str
     """
+    machines = model.get_status()["machines"]
     zaza.controller.destroy_model(model_name)
     # get the keystone overcloud
     if juju_utils.get_provider_type() == "openstack":
         # only import openstack_provider if it's needed.  This avoids forcing
         # zaza to have dependencies for providers that the user isn't using.
         import zaza.utilities.openstack_provider as op
-        op.clean_up_instances(model_name)
+        op.clean_up_instances(model_name, machines)
 
 
 def parse_args(args):
