@@ -20,8 +20,28 @@ class TestCharmLifecycleDestroy(ut_utils.BaseTestCase):
 
     def test_destroy(self):
         self.patch_object(lc_destroy.zaza.controller, 'destroy_model')
+        self.patch_object(lc_destroy.model, 'get_status',
+                          return_value={'machines': "the-machines"})
+        self.patch_object(lc_destroy.juju_utils, 'get_provider_type',
+                          return_value="maas")
+        self.patch("zaza.utilities.openstack_provider.clean_up_instances",
+                   name='clean_up_instances')
         lc_destroy.destroy('doomed')
         self.destroy_model.assert_called_once_with('doomed')
+        self.clean_up_instances.assert_not_called()
+
+    def test_destroy_on_openstack_provider(self):
+        self.patch_object(lc_destroy.zaza.controller, 'destroy_model')
+        self.patch_object(lc_destroy.model, 'get_status',
+                          return_value={'machines': "the-machines"})
+        self.patch_object(lc_destroy.juju_utils, 'get_provider_type',
+                          return_value="openstack")
+        self.patch("zaza.utilities.openstack_provider.clean_up_instances",
+                   name='clean_up_instances')
+        lc_destroy.destroy('doomed')
+        self.destroy_model.assert_called_once_with('doomed')
+        self.clean_up_instances.assert_called_once_with(
+            'doomed', 'the-machines')
 
     def test_parser(self):
         args = lc_destroy.parse_args(['-m', 'doomed'])

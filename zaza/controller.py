@@ -54,15 +54,17 @@ async def async_destroy_model(model_name):
     controller = Controller()
     await controller.connect()
     logging.debug("Destroying model {}".format(model_name))
-    await controller.destroy_model(model_name, force=True, max_wait=600)
+    await controller.destroy_model(model_name,
+                                   destroy_storage=True,
+                                   force=True,
+                                   max_wait=600)
     # The model ought to be destroyed by now.  Let's make sure, and if not,
     # raise an error.  Even if the model has been destroyed, it's still hangs
     # around in the .list_models() for a little while; retry until it goes
     # away, or that fails.
     async for attempt in tenacity.AsyncRetrying(
             stop=tenacity.stop_after_attempt(20),
-            wait=tenacity.wait_exponential(
-                multiplier=1, min=2, max=20),
+            wait=tenacity.wait_fixed(10),
             retry=tenacity.retry_if_exception_type(
                 zaza.utilities.exceptions.DestroyModelFailed)):
         with attempt:
