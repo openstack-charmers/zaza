@@ -301,15 +301,24 @@ def get_machine_uuids_for_application(application, model_name=None):
 def get_provider_type():
     """Get the type of the undercloud.
 
+    If it can't work it out (i.e. it might be a localhost lxd install where
+    there is no clouds.yaml) then return None.
+
+    If libjuju doesn't know (i.e. cloud is not truthy) then default to
+    openstack.
+
     :returns: Name of the undercloud type
-    :rtype: string
+    :rtype: Optional[string]
     """
     cloud = controller.get_cloud()
     if cloud:
         # If the controller was deployed from this system with
         # the cloud configured in ~/.local/share/juju/clouds.yaml
         # Determine the cloud type directly
-        return get_cloud_configs(cloud)["type"]
+        try:
+            return get_cloud_configs(cloud)["type"]
+        except Exception:
+            return None
     else:
         # If the controller was deployed elsewhere
         # For now assume openstack
