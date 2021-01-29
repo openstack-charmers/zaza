@@ -33,7 +33,7 @@ class MissingOSAthenticationException(Exception):
 
 
 def get_undercloud_keystone_session(verify=None):
-    """Return Under cloud keystone session.
+    """Return Undercloud keystone session.
 
     :param verify: Control TLS certificate verification behaviour
     :type verify: any
@@ -215,7 +215,7 @@ def delete_resource(resource, resource_id, msg="resource"):
 
 
 def _resource_removed(resource, resource_id, msg="resource"):
-    """Wait for an openstack resource to no longer be present.
+    """Raise AssertError if a resource  is still longer present.
 
     :param resource: pointer to os resource type, ex: heat_client.stacks
     :type resource: str
