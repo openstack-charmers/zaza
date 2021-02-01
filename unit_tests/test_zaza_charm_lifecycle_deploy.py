@@ -28,13 +28,13 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.get_deployment_context.return_value = {
             'OS_VIP04': '10.10.0.2'}
         self.get_charm_config_context.return_value = {
-            'charm_location': '../../.',
+            'charm_location': '../..',
             'charm_name': 'mycharm'}
         self.assertEqual(
             lc_deploy.get_template_overlay_context(),
             {
                 'OS_VIP04': '10.10.0.2',
-                'charm_location': '../../.',
+                'charm_location': '../..',
                 'charm_name': 'mycharm'})
 
     def test_get_charm_config_context(self):
@@ -45,7 +45,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.abspath.return_value = '/some/absolute/path'
         self.assertEqual(
             lc_deploy.get_charm_config_context(),
-            {'charm_location': '/some/absolute/path/../../.',
+            {'charm_location': '/some/absolute/path',
              'charm_name': 'mycharm'})
 
     def test_get_overlay_template_dir(self):
