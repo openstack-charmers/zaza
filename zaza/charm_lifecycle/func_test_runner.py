@@ -64,15 +64,16 @@ def failure_report(model_aliases, show_juju_status=False):
             # libjuju has not implemented debug_log yet so get the log
             # from the unit.
             # https://github.com/juju/python-libjuju/issues/447
-            unit_log = '/var/log/juju/unit-{}.log'.format(
-                unit.replace('/', '-'))
+            unit_log = 'unit-{}.log'.format(unit.replace('/', '-'))
             logging.error("Juju log for {}".format(unit))
             log_output = zaza.model.run_on_unit(
                 unit,
-                'tail -{} {}'.format(error_lines, unit_log),
+                'tail -{} {}'.format(
+                    error_lines,
+                    os.path.join('/var/log/juju', unit_log)),
                 model_name=model_name)['stdout']
             for line in log_output.split('\n'):
-                logging.error("    " + line)
+                logging.error('{}: {}'.format(unit_log, line))
         if show_juju_status:
             logging.error(
                 yaml.dump(
