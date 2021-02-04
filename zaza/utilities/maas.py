@@ -83,7 +83,7 @@ async def async_get_machine_interfaces(maas_client, machine_id=None,
             for link in interface.links:
                 if link_mode and link.mode != link_mode:
                     continue
-                if cidr and link.subnet and link.subnet.cidr != cidr:
+                if cidr and (link.subnet is None or link.subnet.cidr != cidr):
                     continue
                 await yield_((machine, interface))
 
