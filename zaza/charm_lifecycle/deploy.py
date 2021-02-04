@@ -54,9 +54,9 @@ def get_charm_config_context():
     test_config = utils.get_charm_config()
     ctxt = {
         'charm_name': test_config['charm_name'],
-        'charm_location': '{}/../../../{}'
-                          .format(bundle_dir_abspath,
-                                  test_config['charm_name']),
+        'charm_location': os.path.abspath(
+            "{}/../..".format(bundle_dir_abspath)
+        ),
     }
     return ctxt
 
