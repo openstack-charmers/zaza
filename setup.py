@@ -29,7 +29,8 @@ install_require = [
     'async_generator',
 
     # Newer versions require a Rust compiler to build, see
-    # https://mail.python.org/pipermail/cryptography-dev/2021-January/001003.html
+    # * https://github.com/openstack-charmers/zaza/issues/421
+    # * https://mail.python.org/pipermail/cryptography-dev/2021-January/001003.html
     'cryptography<3.4',
 
     'hvac<0.7.0',
