@@ -402,7 +402,8 @@ def parse_args(args):
                         help='Model to deploy to',
                         required=True)
     parser.add_argument('-b', '--bundle',
-                        help='Bundle name (excluding file ext)',
+                        help='Path to bundle file '
+                        '(e.g. ./tests/bundles/groovy-victoria.yaml)',
                         required=True)
     parser.add_argument('-f', '--force', dest='force',
                         help='Pass --force to the juju deploy command',
