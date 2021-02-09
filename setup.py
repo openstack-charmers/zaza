@@ -27,7 +27,12 @@ version = "0.0.1.dev1"
 install_require = [
     'oslo.config<6.12.0',  # pin at stable/train to retain Py3.5 support
     'async_generator',
-    'cryptography',
+
+    # Newer versions require a Rust compiler to build, see
+    # * https://github.com/openstack-charmers/zaza/issues/421
+    # * https://mail.python.org/pipermail/cryptography-dev/2021-January/001003.html
+    'cryptography<3.4',
+
     'hvac<0.7.0',
     'jinja2',
     'juju',
