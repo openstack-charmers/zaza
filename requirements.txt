@@ -22,6 +22,7 @@ oslo.context<3.0.0;python_version < '3.6'  # pin for py3.5 support
 osprofiler<3.0.0;python_version < '3.6'  # pin for py3.5 support
 python-openstackclient>=3.14.0
 aodhclient
+keystoneauth1
 python-designateclient
 python-ceilometerclient
 python-cinderclient
