@@ -1135,8 +1135,8 @@ async def async_wait_for_application_states(model_name=None, states=None,
                     # disconnects with websockets.ConnectionClosed
                     # zaza bug:#402
                     logger = logging.getLogger(__name__)
-                    for attempt in tenacity.Retrying(
-                            stop=tenacity.stop_after_attempt(3),
+                    async for attempt in tenacity.AsyncRetrying(
+                            stop=tenacity.stop_after_attempt(10),
                             retry=tenacity.retry_if_exception_type(
                                 websockets.ConnectionClosed),
                             after=tenacity.after_log(logger, logging.DEBUG)):
