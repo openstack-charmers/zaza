@@ -70,8 +70,15 @@ async def async_destroy_model(model_name):
         with attempt:
             remaining_models = await controller.list_models()
             if model_name in remaining_models:
-                raise zaza.utilities.exceptions.DestroyModelFailed(
-                    "Destroying model {} failed.".format(model_name))
+                error_msg = "Destroying model {} failed.".format(model_name)
+                model_to_destroy = await controller.get_model(model_name)
+                if len(model_to_destroy.applications) > 0:
+                    error_msg += " Remaining apps: {}.".format(
+                        ", ".join(model_to_destroy.applications.keys()))
+                if len(model_to_destroy.machines) > 0:
+                    error_msg += " {} remaining machine(s).".format(
+                        len(model_to_destroy.machines))
+                raise zaza.utilities.exceptions.DestroyModelFailed(error_msg)
     logging.debug("Model {} destroyed.".format(model_name))
     await controller.disconnect()
 
@@ -125,9 +132,9 @@ get_cloud = sync_wrapper(async_get_cloud)
 
 
 async def async_list_models():
-    """Return a list of tha available clouds.
+    """Return a list of the available models.
 
-    :returns: List of clouds
+    :returns: List of models
     :rtype: list
     """
     controller = Controller()
