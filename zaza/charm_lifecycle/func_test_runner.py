@@ -266,11 +266,11 @@ def main():
         raise ValueError('Ambiguous arguments: --smoke and '
                          '--dev cannot be used together')
 
-    if args.dev and args.bundle:
+    if args.dev and args.bundles:
         raise ValueError('Ambiguous arguments: --bundle and '
                          '--dev cannot be used together')
 
-    if args.smoke and args.bundle:
+    if args.smoke and args.bundles:
         raise ValueError('Ambiguous arguments: --bundle and '
                          '--smoke cannot be used together')
 
