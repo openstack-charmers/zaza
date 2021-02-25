@@ -426,7 +426,7 @@ def main():
         logging.warn("Using the --force argument for 'juju deploy'. Note "
                      "that this disables juju checks for compatibility.")
     deploy(
-        args.bundles,
+        args.bundle,
         args.model,
         wait=args.wait,
         force=args.force,
