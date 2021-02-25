@@ -167,7 +167,7 @@ def run_env_deployment(env_deployment, keep_model=False, force=False,
     zaza.model.unset_juju_model_aliases()
 
 
-def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None,
+def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
                      force=False, test_directory=None):
     """Deploy the bundles and run the tests as defined by the charms tests.yaml.
 
@@ -177,25 +177,32 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundle=None,
     :param dev: Whether to just run dev test.
     :type smoke: boolean
     :type dev: boolean
+    :param bundles: Bundles is a list of specific bundles to run, in the format
+                    ['bundle_name', 'model_alias:bundle2_name'].
+    :type bundles: [str1, str2,...]
     :param force: Pass the force parameter if True to the juju deploy command
     :type force: Boolean
     :param test_directory: Set the directory containing tests.yaml and bundles.
     :type test_directory: str
     """
     utils.set_base_test_dir(test_dir=test_directory)
-    if bundle:
-        if ':' in bundle:
-            model_alias, bundle = bundle.split(':')
-        else:
-            model_alias = utils.DEFAULT_MODEL_ALIAS
-        environment_deploys = [
-            utils.EnvironmentDeploy(
-                'default',
-                [utils.ModelDeploy(
-                    model_alias.strip(),
-                    utils.generate_model_name(),
-                    bundle.strip())],
-                True)]
+    if bundles is not None:
+        if not isinstance(bundles, list):
+            bundles = [bundles]
+        environment_deploys = []
+        for bundle in bundles:
+            if ':' in bundle:
+                model_alias, bundle = bundle.split(':')
+            else:
+                model_alias = utils.DEFAULT_MODEL_ALIAS
+            environment_deploys.append(
+                utils.EnvironmentDeploy(
+                    'default',
+                    [utils.ModelDeploy(
+                        model_alias.strip(),
+                        utils.generate_model_name(),
+                        bundle.strip())],
+                    True))
     else:
         if smoke:
             bundle_key = 'smoke_bundles'
@@ -232,9 +239,10 @@ def parse_args(args):
     parser.add_argument('--dev', dest='dev',
                         help='Just run dev test(s)',
                         action='store_true')
-    parser.add_argument('-b', '--bundle', dest='bundle',
-                        help='Override the bundle to be run',
-                        required=False)
+    parser.add_argument('-b', '--bundle', dest='bundles',
+                        help='Override the bundle(s) to be run',
+                        required=False,
+                        nargs='+')
     parser.add_argument('-f', '--force', dest='force',
                         help='Pass --force to the juju deploy command',
                         action='store_true')
@@ -269,12 +277,11 @@ def main():
     if args.force:
         logging.warn("Using the --force argument for 'juju deploy'. Note "
                      "that this disables juju checks for compatibility.")
-
     func_test_runner(
         keep_model=args.keep_model,
         smoke=args.smoke,
         dev=args.dev,
-        bundle=args.bundle,
+        bundles=args.bundles,
         force=args.force,
         test_directory=args.test_directory)
     run_report.output_event_report()

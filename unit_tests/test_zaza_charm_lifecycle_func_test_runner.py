@@ -28,7 +28,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.assertFalse(args.smoke)
         self.assertFalse(args.dev)
         self.assertFalse(args.force)
-        self.assertIsNone(args.bundle)
+        self.assertIsNone(args.bundles)
         # Test flags
         args = lc_func_test_runner.parse_args(['--keep-model'])
         self.assertTrue(args.keep_model)
@@ -36,8 +36,9 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.assertTrue(args.smoke)
         args = lc_func_test_runner.parse_args(['--dev'])
         self.assertTrue(args.dev)
-        args = lc_func_test_runner.parse_args(['--bundle', 'mybundle'])
-        self.assertEqual(args.bundle, 'mybundle')
+        args = lc_func_test_runner.parse_args(
+            ['--bundle', 'mybundle', 'mybundle2'])
+        self.assertEqual(args.bundles, ['mybundle', 'mybundle2'])
         args = lc_func_test_runner.parse_args(['--log', 'DEBUG'])
         self.assertEqual(args.loglevel, 'DEBUG')
         args = lc_func_test_runner.parse_args(['-f'])
@@ -367,7 +368,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             'tests': [
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
                 'zaza.charm_tests.mycharm.tests.ComplexTest']}
-        lc_func_test_runner.func_test_runner(bundle='maveric-filebeat')
+        lc_func_test_runner.func_test_runner(bundles=['maveric-filebeat'])
         cwd = os.getcwd()
         deploy_calls = [
             mock.call(
@@ -402,13 +403,57 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             'tests': [
                 'zaza.charm_tests.mycharm.tests.SmokeTest',
                 'zaza.charm_tests.mycharm.tests.ComplexTest']}
-        lc_func_test_runner.func_test_runner(bundle='alias:maveric-filebeat')
+        lc_func_test_runner.func_test_runner(
+            bundles=['alias:maveric-filebeat'])
         cwd = os.getcwd()
         deploy_calls = [
             mock.call(
                 cwd + '/tests/bundles/maveric-filebeat.yaml',
                 'newmodel',
                 model_ctxt={'alias': 'newmodel'},
+                force=False,
+                test_directory=None)]
+        self.deploy.assert_has_calls(deploy_calls)
+
+    def test_func_test_runner_cmr_specify_bundle_with_alias(self):
+        self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
+        self.patch_object(lc_func_test_runner.utils, 'generate_model_name')
+        self.patch_object(lc_func_test_runner.prepare, 'prepare')
+        self.patch_object(lc_func_test_runner.before_deploy, 'before_deploy')
+        self.patch_object(lc_func_test_runner.deploy, 'deploy')
+        self.patch_object(lc_func_test_runner.configure, 'configure')
+        self.patch_object(lc_func_test_runner.test, 'test')
+        self.patch_object(lc_func_test_runner.destroy, 'destroy')
+        self.patch_object(
+            lc_func_test_runner.zaza.model,
+            'block_until_all_units_idle')
+        self.generate_model_name.side_effect = ['newmodel1', 'newmodel2']
+        self.get_charm_config.return_value = {
+            'charm_name': 'mycharm',
+            'gate_bundles': ['bundle1', 'bundle2'],
+            'smoke_bundles': ['bundle2'],
+            'dev_bundles': ['bundle3', 'bundle4'],
+            'configure': [
+                'zaza.charm_tests.mycharm.setup.basic_setup'
+                'zaza.charm_tests.othercharm.setup.setup'],
+            'tests': [
+                'zaza.charm_tests.mycharm.tests.SmokeTest',
+                'zaza.charm_tests.mycharm.tests.ComplexTest']}
+        lc_func_test_runner.func_test_runner(
+            bundles=['alias:maveric-filebeat',
+                     'another_alias:maverick-things'])
+        cwd = os.getcwd()
+        deploy_calls = [
+            mock.call(
+                cwd + '/tests/bundles/maveric-filebeat.yaml',
+                'newmodel1',
+                model_ctxt={'alias': 'newmodel1'},
+                force=False,
+                test_directory=None),
+            mock.call(
+                cwd + '/tests/bundles/maverick-things.yaml',
+                'newmodel2',
+                model_ctxt={'another_alias': 'newmodel2'},
                 force=False,
                 test_directory=None)]
         self.deploy.assert_has_calls(deploy_calls)
@@ -441,7 +486,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         _args.loglevel = 'DEBUG'
         _args.dev = True
         _args.smoke = False
-        _args.bundle = 'foo.yaml'
+        _args.bundles = ['foo.yaml']
         self.parse_args.return_value = _args
         with self.assertRaises(ValueError) as context:
             lc_func_test_runner.main()
@@ -459,7 +504,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         _args.loglevel = 'DEBUG'
         _args.dev = False
         _args.smoke = True
-        _args.bundle = 'foo.yaml'
+        _args.bundles = ['foo.yaml']
         self.parse_args.return_value = _args
         with self.assertRaises(ValueError) as context:
             lc_func_test_runner.main()
