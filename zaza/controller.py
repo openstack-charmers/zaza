@@ -14,10 +14,13 @@
 
 """Module for interacting with a juju controller."""
 
+import asyncio
 import logging
-from juju.controller import Controller
 import subprocess
-import tenacity
+
+from juju.controller import Controller
+# import tenacity
+
 from zaza import sync_wrapper
 import zaza.utilities.exceptions
 
@@ -54,56 +57,36 @@ async def async_destroy_model(model_name):
     controller = Controller()
     try:
         await controller.connect()
-        logging.debug("Destroying model {}".format(model_name))
+        logging.info("Destroying model {}".format(model_name))
         await controller.destroy_model(model_name,
                                        destroy_storage=True,
                                        force=True,
                                        max_wait=600)
-        print("*-*-*-   after destroy call")
         # The model ought to be destroyed by now.  Let's make sure, and if not,
         # raise an error.  Even if the model has been destroyed, it's still
         # hangs around in the .list_models() for a little while; retry until it
         # goes away, or that fails.
-        async for attempt in tenacity.AsyncRetrying(
-                stop=tenacity.stop_after_attempt(20),
-                wait=tenacity.wait_fixed(10),
-                retry=tenacity.retry_if_exception_type(
-                    zaza.utilities.exceptions.DestroyModelFailed)):
-            with attempt:
-                print("******* Doing an attempt at destroying")
-                print("*** controller.list_models()")
-                remaining_models = await controller.list_models()
-                print("*** after list_models()")
-                if model_name in remaining_models:
-                    error_msg = ("Destroying model {} failed."
-                                 .format(model_name))
-                    # as this is just debug, ignore problems with getting extra
-                    # debug for the log
-                    try:
-                        print("*** controller.get_model()")
-                        model_to_destroy = await controller.get_model(
-                            model_name)
-                        if len(model_to_destroy.applications) > 0:
-                            error_msg += (
-                                " Remaining apps: {}.".format(
-                                ", ".join(
-                                    model_to_destroy.applications.keys())))
-                        if len(model_to_destroy.machines) > 0:
-                            error_msg += " {} remaining machine(s).".format(
-                                len(model_to_destroy.machines))
-                    except Exception:
-                        pass
-                    raise zaza.utilities.exceptions.DestroyModelFailed(
-                        error_msg)
-        logging.debug("Model {} destroyed.".format(model_name))
-    except Exception as e:
-        print("****** caught exception: {}".format(str(e)))
-        raise
+        attempt = 1
+        while True:
+            logging.info("Waiting for model to be fully destroyed: "
+                          "attempt: {}".format(attempt))
+            remaining_models = await controller.list_models()
+            if model_name not in remaining_models:
+                break
+            error_msg = ("Destroying model {} failed."
+                         .format(model_name))
+            await asyncio.sleep(10)
+            attempt += 1
+            if attempt > 20:
+                raise zaza.utilities.exceptions.DestroyModelFailed(
+                    error_msg)
+
+        logging.info("Model {} destroyed.".format(model_name))
     finally:
         try:
             await controller.disconnect()
         except Exception as e:
-            logging.debug("Couldn't disconnect from model: {}".format(str(e)))
+            logging.error("Couldn't disconnect from model: {}".format(str(e)))
 
 destroy_model = sync_wrapper(async_destroy_model)
 

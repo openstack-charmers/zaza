@@ -14,6 +14,7 @@
 
 """Functions to support converting async function to a sync equivalent."""
 import asyncio
+import logging
 from pkgutil import extend_path
 
 
@@ -29,37 +30,36 @@ def run(*steps):
     :returns: The result of the last asyncio.Task
     :rtype: Any
     """
-    print("**** run with steps:", steps)
-    print("traceback:")
-    import traceback
-    traceback.print_stack(limit=5)
     if not steps:
         return
     loop = asyncio.get_event_loop()
 
     for step in steps:
-        print("step: ", step)
         task = loop.create_task(step)
         loop.run_until_complete(asyncio.wait([task], loop=loop))
 
-        # Let's also cancel any remaining running tasks:
-        pending_tasks = asyncio.Task.all_tasks()
-        for pending_task in pending_tasks:
-            # print("Cleaning up pending task: ", pending_task)
-            pending_task.cancel()
-            # Now we should await task to execute it's cancellation.
-            # Cancelled task raises asyncio.CancelledError that we can suppress
-            # with suppress(asyncio.CancelledError):
-            try:
-                loop.run_until_complete(task)
-            except Exception:
-                pass
+        # Let's also cancel any remaining tasks:
+        while True:
+            pending_tasks = [p for p in asyncio.Task.all_tasks()
+                             if not p.done()]
+            if pending_tasks:
+                logging.info(
+                    "async -> sync. cleaning up pending tasks: len: {}"
+                    .format(len(pending_tasks)))
+                for pending_task in pending_tasks:
+                    pending_task.cancel()
+                    try:
+                        loop.run_until_complete(pending_task)
+                    except asyncio.CancelledError:
+                        pass
+                    except Exception as e:
+                        logging.error(
+                            "A pending task caused an exception: {}"
+                            .format(str(e)))
+            else:
+                break
 
-    print("*** done run")
-    result = task.result()
-    print("*** and got task.result()")
-    # return task.result()
-    return result
+    return task.result()
 
 
 def sync_wrapper(f):
