@@ -23,21 +23,50 @@ __path__ = extend_path(__path__, __name__)
 def run(*steps):
     """Run the given steps in an asyncio loop.
 
-    :returns: The result of the asyncio.Task
+    If the tasks spawns other future (tasks) then these are also cleaned up
+    after each step is performed.
+
+    :returns: The result of the last asyncio.Task
     :rtype: Any
     """
+    print("**** run with steps:", steps)
+    print("traceback:")
+    import traceback
+    traceback.print_stack(limit=5)
     if not steps:
         return
     loop = asyncio.get_event_loop()
 
     for step in steps:
+        print("step: ", step)
         task = loop.create_task(step)
         loop.run_until_complete(asyncio.wait([task], loop=loop))
-    return task.result()
+
+        # Let's also cancel any remaining running tasks:
+        pending_tasks = asyncio.Task.all_tasks()
+        for pending_task in pending_tasks:
+            # print("Cleaning up pending task: ", pending_task)
+            pending_task.cancel()
+            # Now we should await task to execute it's cancellation.
+            # Cancelled task raises asyncio.CancelledError that we can suppress
+            # with suppress(asyncio.CancelledError):
+            try:
+                loop.run_until_complete(task)
+            except Exception:
+                pass
+
+    print("*** done run")
+    result = task.result()
+    print("*** and got task.result()")
+    # return task.result()
+    return result
 
 
 def sync_wrapper(f):
     """Convert the given async function into a sync function.
+
+    This is only to be called from sync code and it runs all tasks (and cancels
+    all tasks at the end of each run) for the code that is being given.
 
     :returns: The de-async'd function
     :rtype: function
