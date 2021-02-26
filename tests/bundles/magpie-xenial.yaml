@@ -1,0 +1,5 @@
+series: xenial
+applications:
+  magpie:
+    charm: cs:~openstack-charmers-next/magpie
+    num_units: 5

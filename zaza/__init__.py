@@ -14,6 +14,7 @@
 
 """Functions to support converting async function to a sync equivalent."""
 import asyncio
+import logging
 from pkgutil import extend_path
 
 
@@ -23,7 +24,10 @@ __path__ = extend_path(__path__, __name__)
 def run(*steps):
     """Run the given steps in an asyncio loop.
 
-    :returns: The result of the asyncio.Task
+    If the tasks spawns other future (tasks) then these are also cleaned up
+    after each step is performed.
+
+    :returns: The result of the last asyncio.Task
     :rtype: Any
     """
     if not steps:
@@ -33,11 +37,36 @@ def run(*steps):
     for step in steps:
         task = loop.create_task(step)
         loop.run_until_complete(asyncio.wait([task], loop=loop))
+
+        # Let's also cancel any remaining tasks:
+        while True:
+            pending_tasks = [p for p in asyncio.Task.all_tasks()
+                             if not p.done()]
+            if pending_tasks:
+                logging.info(
+                    "async -> sync. cleaning up pending tasks: len: {}"
+                    .format(len(pending_tasks)))
+                for pending_task in pending_tasks:
+                    pending_task.cancel()
+                    try:
+                        loop.run_until_complete(pending_task)
+                    except asyncio.CancelledError:
+                        pass
+                    except Exception as e:
+                        logging.error(
+                            "A pending task caused an exception: {}"
+                            .format(str(e)))
+            else:
+                break
+
     return task.result()
 
 
 def sync_wrapper(f):
     """Convert the given async function into a sync function.
+
+    This is only to be called from sync code and it runs all tasks (and cancels
+    all tasks at the end of each run) for the code that is being given.
 
     :returns: The de-async'd function
     :rtype: function

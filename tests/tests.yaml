@@ -1,11 +1,17 @@
 charm_name: none
 gate_bundles:
-- magpie
+- magpie-xenial
+- magpie-bionic
+- magpie-focal
+- magpie-groovy
 target_deploy_status:
   magpie:
     workload-status: active
-    workload-status-message: icmp ok, local hostname ok, dns ok
+    workload-status-message: icmp ok, local hostname ok
 configure:
 - zaza.charm_tests.noop.setup.basic_setup
 tests:
 - zaza.charm_tests.noop.tests.NoopTest
+tests_options:
+  force_deploy:
+    magpie-groovy

@@ -1,5 +1,0 @@
-series: bionic
-applications:
-  magpie:
-    charm: cs:~admcleod/magpie
-    num_units: 2
