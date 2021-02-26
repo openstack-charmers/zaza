@@ -73,13 +73,11 @@ async def async_destroy_model(model_name):
             remaining_models = await controller.list_models()
             if model_name not in remaining_models:
                 break
-            error_msg = ("Destroying model {} failed."
-                         .format(model_name))
             await asyncio.sleep(10)
             attempt += 1
             if attempt > 20:
                 raise zaza.utilities.exceptions.DestroyModelFailed(
-                    error_msg)
+                    "Destroying model {} failed." .format(model_name))
 
         logging.info("Model {} destroyed.".format(model_name))
     finally:
