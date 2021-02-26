@@ -189,20 +189,18 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
     if bundles is not None:
         if not isinstance(bundles, list):
             bundles = [bundles]
+        deploy = {}
         environment_deploys = []
         for bundle in bundles:
             if ':' in bundle:
                 model_alias, bundle = bundle.split(':')
             else:
                 model_alias = utils.DEFAULT_MODEL_ALIAS
-            environment_deploys.append(
-                utils.EnvironmentDeploy(
-                    'default',
-                    [utils.ModelDeploy(
-                        model_alias.strip(),
-                        utils.generate_model_name(),
-                        bundle.strip())],
-                    True))
+
+            deploy[model_alias] = bundle
+        environment_deploys.append(
+            utils.get_environment_deploy(deploy)
+        )
     else:
         if smoke:
             bundle_key = 'smoke_bundles'
@@ -212,7 +210,6 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
             bundle_key = 'gate_bundles'
         environment_deploys = utils.get_environment_deploys(bundle_key)
     last_test = environment_deploys[-1].name
-
     for env_deployment in environment_deploys:
         preserve_model = False
         if keep_model and last_test == env_deployment.name:

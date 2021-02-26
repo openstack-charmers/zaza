@@ -447,13 +447,15 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             mock.call(
                 cwd + '/tests/bundles/maveric-filebeat.yaml',
                 'newmodel1',
-                model_ctxt={'alias': 'newmodel1'},
+                model_ctxt={'alias': 'newmodel1',
+                            'another_alias': 'newmodel2'},
                 force=False,
                 test_directory=None),
             mock.call(
                 cwd + '/tests/bundles/maverick-things.yaml',
                 'newmodel2',
-                model_ctxt={'another_alias': 'newmodel2'},
+                model_ctxt={'alias': 'newmodel1',
+                            'another_alias': 'newmodel2'},
                 force=False,
                 test_directory=None)]
         self.deploy.assert_has_calls(deploy_calls)
