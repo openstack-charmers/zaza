@@ -69,7 +69,7 @@ async def async_destroy_model(model_name):
         attempt = 1
         while True:
             logging.info("Waiting for model to be fully destroyed: "
-                          "attempt: {}".format(attempt))
+                         "attempt: {}".format(attempt))
             remaining_models = await controller.list_models()
             if model_name not in remaining_models:
                 break
