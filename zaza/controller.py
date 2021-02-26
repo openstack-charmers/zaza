@@ -19,7 +19,6 @@ import logging
 import subprocess
 
 from juju.controller import Controller
-# import tenacity
 
 from zaza import sync_wrapper
 import zaza.utilities.exceptions
