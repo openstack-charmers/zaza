@@ -178,7 +178,13 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
     :type smoke: boolean
     :type dev: boolean
     :param bundles: Bundles is a list of specific bundles to run, in the format
-                    ['bundle_name', 'model_alias:bundle2_name'].
+                    ['bundle_name', 'model_alias:bundle2_name']. If a model
+                    alias isn't provided for a bundle, this will attempt to
+                    infer the correct model alias by reading through the
+                    tests.yaml config file for a matching bundle name. If, and
+                    only if, it finds a single matching bundle name, it will
+                    use that alias as the model alias, otherwise it will fall
+                    back to the default model alias.
     :type bundles: [str1, str2,...]
     :param force: Pass the force parameter if True to the juju deploy command
     :type force: Boolean
@@ -187,6 +193,7 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
     """
     utils.set_base_test_dir(test_dir=test_directory)
     if bundles is not None:
+        all_bundles = None
         if not isinstance(bundles, list):
             bundles = [bundles]
         deploy = {}
@@ -195,8 +202,24 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
             if ':' in bundle:
                 model_alias, bundle = bundle.split(':')
             else:
-                model_alias = utils.DEFAULT_MODEL_ALIAS
-
+                if all_bundles is None:
+                    all_bundles = {}
+                    for name, values in utils.get_charm_config().items():
+                        if '_bundles' in name:
+                            all_bundles[name] = values
+                matching_bundles = set()
+                for _name, bundles in all_bundles.items():
+                    for tests_bundle in bundles:
+                        if isinstance(tests_bundle, dict):
+                            for alias, tests_bundle in tests_bundle.items():
+                                if tests_bundle == bundle:
+                                    matching_bundles.add(alias)
+                if len(set(matching_bundles)) == 1:
+                    model_alias = matching_bundles.pop()
+                else:
+                    logging.info('Could not determine correct model alias'
+                                 'from tests.yaml, using default')
+                    model_alias = utils.DEFAULT_MODEL_ALIAS
             deploy[model_alias] = bundle
         environment_deploys.append(
             utils.get_environment_deploy(deploy)
@@ -237,7 +260,13 @@ def parse_args(args):
                         help='Just run dev test(s)',
                         action='store_true')
     parser.add_argument('-b', '--bundle', dest='bundles',
-                        help='Override the bundle(s) to be run',
+                        help='Override the bundle(s) to be run. If a specific'
+                             ' model alias is desired, it can be added to the'
+                             ' bundle argument in the format'
+                             ' alias:bundle-name. Additionally, if a model'
+                             ' alias is not explicitly chosen, then Zaza will'
+                             ' attempt to match the bundle name with a single'
+                             ' bundle name in the tests.yaml',
                         required=False,
                         nargs='+')
     parser.add_argument('-f', '--force', dest='force',
