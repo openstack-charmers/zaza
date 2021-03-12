@@ -209,11 +209,12 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
                             all_bundles[name] = values
                 matching_bundles = set()
                 for _name, bundles in all_bundles.items():
-                    for tests_bundle in bundles:
-                        if isinstance(tests_bundle, dict):
-                            for alias, tests_bundle in tests_bundle.items():
-                                if tests_bundle == bundle:
-                                    matching_bundles.add(alias)
+                    if bundles:
+                        for tests_bundle in bundles:
+                            if isinstance(tests_bundle, dict):
+                                for alias, tests_bundle in tests_bundle.items():
+                                    if tests_bundle == bundle:
+                                        matching_bundles.add(alias)
                 if len(set(matching_bundles)) == 1:
                     model_alias = matching_bundles.pop()
                 else:
