@@ -172,6 +172,7 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
                    new_callable=mock.mock_open(),
                    name="_open")
         self.patch_object(lc_utils, 'yaml')
+        self.patch_object(lc_utils.logging, 'warning')
         _yaml = "testconfig: someconfig"
         _yaml_dict = {'test_config': 'someconfig'}
         self.yaml.safe_load.return_value = _yaml_dict

@@ -450,6 +450,7 @@ class TestModel(ut_utils.BaseTestCase):
             model.get_unit_from_name('app/10', model_name='mname')
 
         # Application does not exist
+        self.patch_object(model.logging, 'error')
         with self.assertRaises(model.UnitNotFound):
             model.get_unit_from_name('bad_name', model_name='mname')
 
