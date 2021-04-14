@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import zaza.model
+import unit_tests.utils as ut_utils
 import zaza.utilities.machine_os as machine_os_utils
 
+import zaza.model
 
-class TestUtils(unittest.TestCase):
+
+class TestUtils(ut_utils.BaseTestCase):
 
     def test_install_modules_extra(self):
         self.patch_object(machine_os_utils.zaza.utilities.juju, 'remote_run')
@@ -35,22 +36,26 @@ class TestUtils(unittest.TestCase):
 
     def test_is_container(self):
         self.patch_object(machine_os_utils.zaza.utilities.juju, 'remote_run')
-        self.remote_run.side_effect = zaza.model.CommandRunFailed('', '')
-        self.assertTrue(
+
+        def _raise_exception(*_, **__):
+            raise zaza.model.CommandRunFailed(
+                '', {'Code': '0', 'Stdout': '', 'Stderr': ''})
+        self.remote_run.side_effect = _raise_exception
+        self.assertFalse(
             machine_os_utils.is_container('unit', model_name='model'))
         self.remote_run.assert_called_once_with(
             'unit', 'systemd-detect-virt --container', model_name='model')
         self.remote_run.side_effect = None
-        self.assertFalse(
+        self.assertTrue(
             machine_os_utils.is_container('unit', model_name='model'))
 
     def test_add_netdevsim(self):
-        self.patch_object(machine_os_utils 'install_modules_extra')
-        self.patch_object(machine_os_utils 'load_kernel_module')
+        self.patch_object(machine_os_utils, 'install_modules_extra')
+        self.patch_object(machine_os_utils, 'load_kernel_module')
         self.patch_object(machine_os_utils.zaza.utilities.juju, 'remote_run')
         result = machine_os_utils.add_netdevsim(
             'unit', 10, 2, model_name='model')
-        self.assertEquals(result, ['eni10np1', 'eni10np2']
+        self.assertEquals(result, ['eni10np1', 'eni10np2'])
         self.install_modules_extra.assert_called_once_with(
             'unit', model_name='model')
         self.load_kernel_module.assert_called_once_with(
@@ -59,4 +64,4 @@ class TestUtils(unittest.TestCase):
             'test -d /sys/devices/netdevsim10 || '
             'echo "10 2" > /sys/bus/netdevsim/new_device')
         self.remote_run.assert_called_once_with(
-            'unit', cmd, model_name=model_name)
+            'unit', cmd, model_name='model')
