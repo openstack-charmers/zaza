@@ -206,6 +206,80 @@ async def run_in_model(model_name):
         await model.disconnect()
 
 
+async def block_until_auto_reconnect_model(*conditions,
+                                           model=None,
+                                           aconditions=None,
+                                           timeout=None,
+                                           wait_period=0.5,
+                                           loop=None):
+    """Async block on the model until conditions met.
+
+    This function doesn't use model.block_until() which unfortunately raises
+    websockets.exceptions.ConnectionClosed if the connections gets closed,
+    which seems to happen quite frequently.  This funtion blocks until the
+    conditions are met or a timeout occurs, and reconnects the model if it
+    becomes disconnected.
+
+    Note that conditions are just passed as an unamed list in the function call
+    to make it work more like the more simple 'block_until' function.
+
+    :param model: the model to use OR None, in which case the model_name is
+        also optionally used.
+    :type model: :class:'juju.Model()'
+    :param conditions: a list of callables that need to evaluate to True.
+    :type conditions: [List[Callable[[:class:'juju.Model()'], bool]]]
+    :param aconditions: an optional list of async callables that need to
+        evaluate to True.
+    :type aconditions:
+        Optional[List[AsyncCallable[[:class:'juju.Model()'], bool]]]
+    :param timeout: the timeout to wait for the block on.
+    :type timeout: float
+    :param wait_period: The time to sleep between checking the conditions.
+    :type wait_period: float
+    :param loop: The event loop to use
+    :type loop: An event loop
+    :raises: TimeoutError if the conditions never match (assuming timeout is
+        not None).
+    """
+    assert model is not None, ("model can't be None in "
+                               "block_until_auto_reconnect_model()")
+    model_name = model.info.name
+
+    def _disconnected():
+        return not (model.is_connected() and model.connection().is_open)
+
+    aconditions = aconditions or []
+
+    def _done():
+        return _disconnected() or all(c() for c in conditions)
+
+    async def _adone():
+        evaluated = []
+        # note Python 3.5 doesn't support async comprehensions; do it the old
+        # fashioned way.
+        for c in aconditions:
+            evaluated.append(await c())
+            if _disconnected():
+                return True
+        return all(evaluated)
+
+    async def _block():
+        while True:
+            # reconnect if disconnected, as the conditions still need to be
+            # checked.
+            if _disconnected():
+                await model.connect_model(model_name)
+            result = _done()
+            aresult = await _adone()
+            if all(not _disconnected(), result, aresult):
+                return
+            else:
+                await asyncio.sleep(wait_period, loop=loop)
+
+    # finally wait for all the conditions to be true
+    await asyncio.wait_for(_block(), timeout, loop=loop)
+
+
 async def async_scp_to_unit(unit_name, source, destination, model_name=None,
                             user='ubuntu', proxy=False, scp_opts=''):
     """Transfer files to unit_name in model_name.
@@ -941,8 +1015,9 @@ async def async_resolve_units(application_name=None, wait=True, timeout=60,
             subprocess.check_output(cmd)
         if wait:
             for unit in erred_units:
-                await model.block_until(
+                await block_until_auto_reconnect_model(
                     lambda: not unit.workload_status == 'error',
+                    model=model,
                     timeout=timeout)
 
 resolve_units = sync_wrapper(async_resolve_units)
@@ -1064,8 +1139,10 @@ async def async_wait_for_agent_status(model_name=None, status='executing',
     async with run_in_model(model_name) as model:
         logging.info('Waiting for at least one unit with agent status "{}"'
                      .format(status))
-        await model.block_until(
-            lambda: one_agent_status(model, status), timeout=timeout)
+        await block_until_auto_reconnect_model(
+            lambda: one_agent_status(model, status),
+            model=model,
+            timeout=timeout)
 
 wait_for_agent_status = sync_wrapper(async_wait_for_agent_status)
 
@@ -1096,6 +1173,10 @@ async def async_wait_for_application_states(model_name=None, states=None,
     :param timeout: Time to wait for status to be achieved
     :type timeout: int
     """
+    # Implementation note: model.block_until() can throw
+    # websockets.exceptions.ConnectionClosed if it detects that the connection
+    # is closed.  What we want to do then, is re-open the connection, and try
+    # again, hence this function uses block_until_auto_reconnect_model
     approved_message_prefixes = ['ready', 'Ready', 'Unit is ready']
     approved_statuses = ['active']
 
@@ -1104,14 +1185,15 @@ async def async_wait_for_application_states(model_name=None, states=None,
     async with run_in_model(model_name) as model:
         check_model_for_hard_errors(model)
         logging.info("Waiting for a unit to appear")
-        await model.block_until(
-            lambda: len(model.units) > 0
-        )
+        await block_until_auto_reconnect_model(
+            lambda: len(model.units) > 0,
+            model=model)
         logging.info("Waiting for all units to be idle")
         try:
-            await model.block_until(
+            await block_until_auto_reconnect_model(
                 lambda: check_model_for_hard_errors(
                     model) or model.all_units_idle(),
+                model=model,
                 timeout=timeout)
         except concurrent.futures._base.TimeoutError:
             raise ModelTimeout("Zaza has timed out waiting on the model to "
@@ -1131,22 +1213,13 @@ async def async_wait_for_application_states(model_name=None, states=None,
                 logging.info("Checking workload status of {}".format(
                     unit.entity_id))
                 try:
-                    # we retry this as occasionally libjuju <-> juju just
-                    # disconnects with websockets.ConnectionClosed
-                    # zaza bug:#402
-                    logger = logging.getLogger(__name__)
-                    async for attempt in tenacity.AsyncRetrying(
-                            stop=tenacity.stop_after_attempt(10),
-                            retry=tenacity.retry_if_exception_type(
-                                websockets.ConnectionClosed),
-                            after=tenacity.after_log(logger, logging.DEBUG)):
-                        with attempt:
-                            await model.block_until(
-                                lambda: check_unit_workload_status(
-                                    model,
-                                    unit,
-                                    all_approved_statuses),
-                                timeout=timeout)
+                    await block_until_auto_reconnect_model(
+                        lambda: check_unit_workload_status(
+                            model,
+                            unit,
+                            all_approved_statuses),
+                        model=model,
+                        timeout=timeout)
                 except concurrent.futures._base.TimeoutError:
                     raise ModelTimeout(
                         timeout_msg.format(
@@ -1164,11 +1237,12 @@ async def async_wait_for_application_states(model_name=None, states=None,
                 else:
                     prefixes = approved_message_prefixes
                 try:
-                    await model.block_until(
+                    await block_until_auto_reconnect_model(
                         lambda: check_unit_workload_status_message(
                             model,
                             unit,
                             prefixes=prefixes),
+                        model=model,
                         timeout=timeout)
                 except concurrent.futures._base.TimeoutError:
                     raise ModelTimeout(
@@ -1195,9 +1269,10 @@ async def async_block_until_all_units_idle(model_name=None, timeout=2700):
     :type timeout: float
     """
     async with run_in_model(model_name) as model:
-        await model.block_until(
+        await block_until_auto_reconnect_model(
             lambda: units_with_wl_status_state(
                 model, 'error') or model.all_units_idle(),
+            model=model,
             timeout=timeout)
         errored_units = units_with_wl_status_state(model, 'error')
         if errored_units:
