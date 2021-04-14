@@ -268,6 +268,13 @@ async def block_until_auto_reconnect_model(*conditions,
             # reconnect if disconnected, as the conditions still need to be
             # checked.
             if _disconnected():
+                try:
+                    await model.disconnect()
+                except Exception:
+                    # pass we don't care if disconnect fails; we're much more
+                    # interested in re-connecting, and this is just to clean up
+                    # anything.
+                    pass
                 await model.connect_model(model_name)
             result = _done()
             aresult = await _adone()
