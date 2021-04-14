@@ -278,7 +278,7 @@ async def block_until_auto_reconnect_model(*conditions,
                 await model.connect_model(model_name)
             result = _done()
             aresult = await _adone()
-            if all(not _disconnected(), result, aresult):
+            if all((not _disconnected(), result, aresult)):
                 return
             else:
                 await asyncio.sleep(wait_period, loop=loop)
