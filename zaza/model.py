@@ -266,6 +266,7 @@ async def block_until_auto_reconnect_model(*conditions,
             # reconnect if disconnected, as the conditions still need to be
             # checked.
             if _disconnected():
+                print("disconnected")
                 logging.warning(
                     "model: %s has disconnected, forcing full disconnection "
                     "and then reconnecting ...", model_name)
