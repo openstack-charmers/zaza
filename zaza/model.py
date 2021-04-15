@@ -221,8 +221,7 @@ async def block_until_auto_reconnect_model(*conditions,
     Note that conditions are just passed as an unamed list in the function call
     to make it work more like the more simple 'block_until' function.
 
-    :param model: the model to use OR None, in which case the model_name is
-        also optionally used.
+    :param model: the model to use
     :type model: :class:'juju.Model()'
     :param conditions: a list of callables that need to evaluate to True.
     :type conditions: [List[Callable[[:class:'juju.Model()'], bool]]]
@@ -258,7 +257,7 @@ async def block_until_auto_reconnect_model(*conditions,
         for c in aconditions:
             evaluated.append(await c())
             if _disconnected():
-                return True
+                return False
         return all(evaluated)
 
     async def _block():
@@ -266,7 +265,6 @@ async def block_until_auto_reconnect_model(*conditions,
             # reconnect if disconnected, as the conditions still need to be
             # checked.
             if _disconnected():
-                print("disconnected")
                 logging.warning(
                     "model: %s has disconnected, forcing full disconnection "
                     "and then reconnecting ...", model_name)
