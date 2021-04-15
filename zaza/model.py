@@ -27,8 +27,6 @@ import os
 import re
 import subprocess
 import tempfile
-import tenacity
-import websockets
 import yaml
 from oslo_config import cfg
 import concurrent
@@ -251,7 +249,7 @@ async def block_until_auto_reconnect_model(*conditions,
     aconditions = aconditions or []
 
     def _done():
-        return _disconnected() or all(c() for c in conditions)
+        return all(c() for c in conditions)
 
     async def _adone():
         evaluated = []
@@ -268,13 +266,19 @@ async def block_until_auto_reconnect_model(*conditions,
             # reconnect if disconnected, as the conditions still need to be
             # checked.
             if _disconnected():
+                logging.warning(
+                    "model: %s has disconnected, forcing full disconnection "
+                    "and then reconnecting ...", model_name)
                 try:
                     await model.disconnect()
                 except Exception:
-                    # pass we don't care if disconnect fails; we're much more
+                    # We don't care if disconnect fails; we're much more
                     # interested in re-connecting, and this is just to clean up
-                    # anything.
+                    # anything that might be left over (i.e.
+                    # model.is_connected() might be true, but
+                    # model.connection().is_open may be false
                     pass
+                logging.warning("Attempting to reconnect model %s", model_name)
                 await model.connect_model(model_name)
             result = _done()
             aresult = await _adone()

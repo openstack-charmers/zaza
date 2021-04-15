@@ -352,6 +352,69 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model_mock.connect_model.assert_called_once_with('modelname')
         self.Model_mock.disconnect.assert_called_once_with()
 
+    def _mocks_for_block_until_auto_reconnect_model(
+            self, is_connected=True, is_open=True):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.Model_mock.is_connected.return_value = is_connected
+        mock_connected = mock.MagicMock()
+        mock_connected.is_open = is_open
+        self.Model_mock.connected.return_value = mock_connected
+        self.patch('asyncio.sleep', name='mock_sleep', new=mock.AsyncMock())
+
+    def _wrapper_block_until_auto_reconnect_model(
+            self, *conditions, aconditions=None, timeout=None, wait_period=0.5,
+            loop=None):
+
+        async def _wrapper():
+            async with model.run_in_model('modelname') as mymodel:
+                await model.block_until_auto_reconnect_model(
+                    *conditions,
+                    aconditions=aconditions,
+                    timeout=timeout,
+                    wait_period=wait_period,
+                    model=mymodel,
+                    loop=loop)
+
+        self._wrapper = _wrapper
+
+    def test_block_until_auto_reconnect_model(self):
+        self._mocks_for_block_until_auto_reconnect_model(True, True)
+        self._wrapper_block_until_auto_reconnect_model(
+            lambda: True)
+        loop.run(self._wrapper())
+
+    def test_block_until_auto_reconnect_model_disconnected_sync(self):
+        self._mocks_for_block_until_auto_reconnect_model([False, True], True)
+        self._wrapper_block_until_auto_reconnect_model(
+            lambda: True)
+        loop.run(self._wrapper())
+        # model.disconnect and model.connect should've been called.
+        self.Model_mock.disconnect.assert_called_once_with()
+        self.Model_mock.connect_model.assert_called_once_with('modelname')
+
+    def test_block_until_auto_reconnect_model_disconnected_async(self):
+        self._mocks_for_block_until_auto_reconnect_model(
+            [False, True, True], True)
+
+        async def _async_true():
+            return True
+        self._wrapper_block_until_auto_reconnect_model(
+            aconditions=[_async_true])
+        loop.run(self._wrapper())
+        # model.disconnect and model.connect should've been called.
+        self.Model_mock.disconnect.assert_called_once_with()
+        self.Model_mock.connect_model.assert_called_once_with('modelname')
+
+    def test_block_until_auto_reconnect_model_blocks_till_true(self):
+        self._mocks_for_block_until_auto_reconnect_model(True, True)
+        condition = mock.Mock()
+        condition.side_effect = [False, True]
+        self._wrapper_block_until_auto_reconnect_model(
+            condition, wait_period=1.5, loop='myloop')
+        loop.run(self._wrapper())
+        self.mock_sleep.assert_awaited_with(1.5, loop='myloop')
+
     def test_scp_to_unit(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
@@ -736,7 +799,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.system_ready = True
         self._block_until_calls = 0
 
-        async def _block_until(f, timeout=0):
+        async def _block_until(f, timeout=0, model=None):
             # Mimic timeouts
             timeout = timeout + self._block_until_calls
             self._block_until_calls += 1
@@ -749,7 +812,8 @@ class TestModel(ut_utils.BaseTestCase):
 
         async def _all_units_idle():
             return units_idle
-        self.Model_mock.block_until.side_effect = _block_until
+        self.patch_object(model, 'block_until_auto_reconnect_model')
+        self.block_until_auto_reconnect_model.side_effect = _block_until
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.Model_mock.all_units_idle.return_value = _all_units_idle
@@ -1100,22 +1164,23 @@ class TestModel(ut_utils.BaseTestCase):
 
     def test_async_block_until_all_units_idle(self):
 
-        async def _block_until(f, timeout=None):
+        async def _block_until(f, timeout=None, model=None):
             if not f():
                 raise AsyncTimeoutError
 
         def _all_units_idle():
             return True
         self.patch_object(model, 'Model')
+        self.patch_object(model, 'block_until_auto_reconnect_model')
         self.Model.return_value = self.Model_mock
         self.Model_mock.all_units_idle.side_effect = _all_units_idle
-        self.Model_mock.block_until.side_effect = _block_until
+        self.block_until_auto_reconnect_model.side_effect = _block_until
         # Check exception is not raised:
         model.block_until_all_units_idle('modelname')
 
     def test_async_block_until_all_units_idle_false(self):
 
-        async def _block_until(f, timeout=None):
+        async def _block_until(f, timeout=None, model=None):
             if not f():
                 raise AsyncTimeoutError
 
@@ -1123,28 +1188,30 @@ class TestModel(ut_utils.BaseTestCase):
             return False
         self.Model_mock.all_units_idle.side_effect = _all_units_idle
         self.patch_object(model, 'Model')
+        self.patch_object(model, 'block_until_auto_reconnect_model')
         self.Model.return_value = self.Model_mock
-        self.Model_mock.block_until.side_effect = _block_until
+        self.block_until_auto_reconnect_model.side_effect = _block_until
         # Confirm exception is raised:
         with self.assertRaises(AsyncTimeoutError):
             model.block_until_all_units_idle('modelname')
 
     def test_async_block_until_all_units_idle_errored_unit(self):
 
-        async def _block_until(f, timeout=None):
+        async def _block_until(f, timeout=None, model=None):
             if not f():
                 raise AsyncTimeoutError
 
         def _all_units_idle():
             return True
         self.patch_object(model, 'Model')
+        self.patch_object(model, 'block_until_auto_reconnect_model')
         self.Model.return_value = self.Model_mock
         self.Model_mock.all_units_idle.side_effect = _all_units_idle
         self.patch_object(model, 'units_with_wl_status_state')
         unit = mock.MagicMock()
         unit.entity_id = 'aerroredunit/0'
         self.units_with_wl_status_state.return_value = [unit]
-        self.Model_mock.block_until.side_effect = _block_until
+        self.block_until_auto_reconnect_model.side_effect = _block_until
         with self.assertRaises(model.UnitError):
             model.block_until_all_units_idle('modelname')
 
@@ -1732,16 +1799,17 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             negate_match=True)
 
     def resolve_units_mocks(self):
-        async def _block_until(f, timeout=None):
+        async def _block_until(f, timeout=None, model=None):
             if not f():
                 raise AsyncTimeoutError
         self.patch_object(model, 'Model')
+        self.patch_object(model, 'block_until_auto_reconnect_model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'units_with_wl_status_state')
         self.unit1.workload_status_message = 'hook failed: "update-status"'
         self.units_with_wl_status_state.return_value = [self.unit1]
         self.patch_object(model, 'subprocess')
-        self.Model_mock.block_until.side_effect = _block_until
+        self.block_until_auto_reconnect_model.side_effect = _block_until
 
     def test_resolve_units(self):
         self.resolve_units_mocks()
@@ -1774,25 +1842,27 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.assertFalse(self.subprocess.check_output.called)
 
     def test_wait_for_agent_status(self):
-        async def _block_until(f, timeout=None):
+        async def _block_until(f, timeout=None, model=None):
             if not f():
                 raise AsyncTimeoutError
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
+        self.patch_object(model, 'block_until_auto_reconnect_model')
         self.unit1.data = {'agent-status': {'current': 'idle'}}
         self.unit2.data = {'agent-status': {'current': 'executing'}}
         self.Model.return_value = self.Model_mock
-        self.Model_mock.block_until.side_effect = _block_until
+        self.block_until_auto_reconnect_model.side_effect = _block_until
         model.wait_for_agent_status(timeout=0.1)
 
     def test_wait_for_agent_status_timeout(self):
-        async def _block_until(f, timeout=None):
+        async def _block_until(f, timeout=None, model=None):
             if not f():
                 raise AsyncTimeoutError
         self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'block_until_auto_reconnect_model')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        self.Model_mock.block_until.side_effect = _block_until
+        self.block_until_auto_reconnect_model.side_effect = _block_until
         with self.assertRaises(AsyncTimeoutError):
             model.wait_for_agent_status(timeout=0.1)
 
