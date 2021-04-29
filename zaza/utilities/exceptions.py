@@ -15,6 +15,12 @@
 """Module of exceptions that zaza may raise."""
 
 
+class JujuError(Exception):
+    """Exception when libjuju does something unexpected."""
+
+    pass
+
+
 class TemplateConflict(Exception):
     """Exception when templates are in conflict."""
 

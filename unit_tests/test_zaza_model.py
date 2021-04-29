@@ -481,6 +481,16 @@ class TestModel(ut_utils.BaseTestCase):
             model.get_first_unit_name('model', 'app'),
             'app/2')
 
+    def test_get_lead_unit(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'get_units')
+        self.get_units.return_value = self.units
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        # unit2 is the leader
+        self.assertEqual(
+            model.get_lead_unit('app', 'model'), self.unit2)
+
     def test_get_lead_unit_name(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'get_units')
