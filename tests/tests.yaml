@@ -4,14 +4,19 @@ gate_bundles:
 - magpie-bionic
 - magpie-focal
 - magpie-groovy
+dev_bundles:
+# magpie isn't hirsute ready yet.
+- magpie-hirsute
 target_deploy_status:
   magpie:
     workload-status: active
-    workload-status-message: icmp ok, local hostname ok
+    workload-status-message-prefix: icmp ok, local hostname ok
+  ubuntu:
+    workload-status-message-regex: "^$"
 configure:
 - zaza.charm_tests.noop.setup.basic_setup
 tests:
 - zaza.charm_tests.noop.tests.NoopTest
 tests_options:
   force_deploy:
-    magpie-groovy
+    magpie-hirsute
