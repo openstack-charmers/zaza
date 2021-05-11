@@ -1139,7 +1139,6 @@ def check_unit_workload_status_message(model,
     if message is not None:
         return unit.workload_status_message == message
     elif regex is not None:
-        print(unit.workload_status_message, message, prefixes, regex)
         # Note: search is used so that pattern doesn't have to use a ".*" at
         # the beginning of the string to match. To match the start use a "^".
         return re.search(regex, unit.workload_status_message) is not None
@@ -1279,7 +1278,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
             if (states
                     .get(application, {})
                     .get('workload-status-message', None) is not None):
-                logging.info(
+                logging.warning(
                     "DEPRECATION: Application %s uses "
                     "'workload-status-message'; please use "
                     "'workload-status-message-prefix' instead.", application)
@@ -1287,9 +1286,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
         logging.info("Now checking workload status and status messages")
         while True:
             await ensure_model_connected(model)
-            now = time.time()
-            # timed_out = int(time.time() - start) > timeout
-            timed_out = int(now - start) > timeout
+            timed_out = int(time.time() - start) > timeout
             issues = []
             for application in applications_left.copy():
                 app_data = model.applications.get(application, None)
