@@ -204,6 +204,43 @@ async def run_in_model(model_name):
         await model.disconnect()
 
 
+def is_model_disconnected(model):
+    """Return True if the model is disconnected.
+
+    :param model: the model to check
+    :type model: :class:'juju.Model'
+    :returns: True if disconnected
+    :rtype: bool
+    """
+    return not (model.is_connected() and model.connection().is_open)
+
+
+async def ensure_model_connected(model):
+    """Ensure that the model is connected.
+
+    If model is disconnected then reconnect it.
+
+    :param model: the model to check
+    :type model: :class:'juju.Model'
+    """
+    if is_model_disconnected(model):
+        model_name = model.info.name
+        logging.warning(
+            "model: %s has disconnected, forcing full disconnection "
+            "and then reconnecting ...", model_name)
+        try:
+            await model.disconnect()
+        except Exception:
+            # We don't care if disconnect fails; we're much more
+            # interested in re-connecting, and this is just to clean up
+            # anything that might be left over (i.e.
+            # model.is_connected() might be true, but
+            # model.connection().is_open may be false
+            pass
+        logging.warning("Attempting to reconnect model %s", model_name)
+        await model.connect_model(model_name)
+
+
 async def block_until_auto_reconnect_model(*conditions,
                                            model=None,
                                            aconditions=None,
@@ -240,11 +277,6 @@ async def block_until_auto_reconnect_model(*conditions,
     """
     assert model is not None, ("model can't be None in "
                                "block_until_auto_reconnect_model()")
-    model_name = model.info.name
-
-    def _disconnected():
-        return not (model.is_connected() and model.connection().is_open)
-
     aconditions = aconditions or []
 
     def _done():
@@ -256,7 +288,7 @@ async def block_until_auto_reconnect_model(*conditions,
         # fashioned way.
         for c in aconditions:
             evaluated.append(await c())
-            if _disconnected():
+            if is_model_disconnected(model):
                 return False
         return all(evaluated)
 
@@ -264,24 +296,10 @@ async def block_until_auto_reconnect_model(*conditions,
         while True:
             # reconnect if disconnected, as the conditions still need to be
             # checked.
-            if _disconnected():
-                logging.warning(
-                    "model: %s has disconnected, forcing full disconnection "
-                    "and then reconnecting ...", model_name)
-                try:
-                    await model.disconnect()
-                except Exception:
-                    # We don't care if disconnect fails; we're much more
-                    # interested in re-connecting, and this is just to clean up
-                    # anything that might be left over (i.e.
-                    # model.is_connected() might be true, but
-                    # model.connection().is_open may be false
-                    pass
-                logging.warning("Attempting to reconnect model %s", model_name)
-                await model.connect_model(model_name)
+            await ensure_model_connected(model)
             result = _done()
             aresult = await _adone()
-            if all((not _disconnected(), result, aresult)):
+            if all((not is_model_disconnected(model), result, aresult)):
                 return
             else:
                 await asyncio.sleep(wait_period, loop=loop)
@@ -1079,7 +1097,7 @@ def check_unit_workload_status(model, unit, states):
     :param unit: Unit to check wl status of
     :type unit: juju.Unit
     :param states: Acceptable unit work load states
-    :type states: list
+    :type states: List[str]
     :raises: UnitError
     :returns: Whether units workload status matches desired state
     :rtype: bool
@@ -1088,24 +1106,31 @@ def check_unit_workload_status(model, unit, states):
     return unit.workload_status in states
 
 
-def check_unit_workload_status_message(model, unit, message=None,
-                                       prefixes=None):
+def check_unit_workload_status_message(model,
+                                       unit,
+                                       message=None,
+                                       prefixes=None,
+                                       regex=None):
     """Check that the units workload status message.
 
-    Check that the units workload status message matches the supplied
-    message or starts with one of the supplied prefixes. Raises an exception
-    if neither prefixes or message is set. This function has the side effect
-    of also checking for *any* units in an error state and aborting if any
-    are found.
+    Check that the units workload status message matches the supplied message,
+    matches a regular expression (regex) or starts with one of the supplied
+    prefixes. Raises an exception if neither prefixes or message is set. This
+    function has the side effect of also checking for *any* units in an error
+    state and aborting if any are found.
+
+    Note that the priority of checking is: message, then regex, then prefixes.
 
     :param model: Model object to check in
     :type model: juju.Model
     :param unit: Unit to check wl status of
     :type unit: juju.Unit
     :param message: Expected message text
-    :type message: str
+    :type message: Optiona[str]
     :param prefixes: Prefixes to match message against
-    :type prefixes: list
+    :type prefixes: Optional[List[str]]
+    :param regex: A regular expression against which to test the message
+    :type regex: Optional[str]
     :raises: ValueError, UnitError
     :returns: Whether message matches desired string
     :rtype: bool
@@ -1113,10 +1138,14 @@ def check_unit_workload_status_message(model, unit, message=None,
     check_model_for_hard_errors(model)
     if message is not None:
         return unit.workload_status_message == message
+    elif regex is not None:
+        # Note: search is used so that pattern doesn't have to use a ".*" at
+        # the beginning of the string to match. To match the start use a "^".
+        return re.search(regex, unit.workload_status_message) is not None
     elif prefixes is not None:
         return unit.workload_status_message.startswith(tuple(prefixes))
     else:
-        raise ValueError("Must be called with message or prefixes")
+        raise ValueError("Must be called with message, prefixes or regex")
 
 
 async def async_wait_for_agent_status(model_name=None, status='executing',
@@ -1157,6 +1186,25 @@ async def async_wait_for_agent_status(model_name=None, status='executing',
 wait_for_agent_status = sync_wrapper(async_wait_for_agent_status)
 
 
+def is_unit_idle(unit):
+    """Return True if the unit is in the idle state.
+
+    Note: the unit only makes progress (in terms of updating it's idle status)
+    if this function is called as part of an asyncio loop as the status is
+    updated in a co-routine/future.
+
+    :param unit: the unit to test
+    :type unit: :class:'juju.unit.Unit'
+    :returns: True if the unit is in the idle state
+    :rtype: bool
+    """
+    try:
+        return unit.data['agent-status']['current'] == 'idle'
+    except (AttributeError, KeyError):
+        pass
+    return False
+
+
 async def async_wait_for_application_states(model_name=None, states=None,
                                             timeout=2700):
     """Wait for model to achieve the desired state.
@@ -1171,10 +1219,23 @@ async def async_wait_for_application_states(model_name=None, states=None,
         states = {
             'app': {
                 'workload-status': 'blocked',
-                'workload-status-message': 'No requests without a prod'}
+                'workload-status-message-prefix': 'No requests without a prod'}
             'anotherapp': {
-                'workload-status-message': 'Unit is super ready'}}
+                'workload-status-message-prefix': 'Unit is super ready'}}
         wait_for_application_states('modelname', states=states)
+
+    The keys that can be used are:
+
+     - "workload-status" - an exact match of the workload-status
+     - "workload-status-message-prefix" - an exact match, that starts with the
+       string passed.
+     - "workload-status-message-regex" - the entire string matches if the regex
+       matches.
+     - "workloaed-status-message" - DEPRECATED; use
+           "workload-status-message-prefix" instead.
+
+    To match an empty string, use:
+      "workload-status-message-regex": "^$"
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -1183,6 +1244,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
     :param timeout: Time to wait for status to be achieved
     :type timeout: int
     """
+    logging.info("Waiting for application states to reach targeted states.")
     # Implementation note: model.block_until() can throw
     # websockets.exceptions.ConnectionClosed if it detects that the connection
     # is closed.  What we want to do then, is re-open the connection, and try
@@ -1194,73 +1256,117 @@ async def async_wait_for_application_states(model_name=None, states=None,
         states = {}
     async with run_in_model(model_name) as model:
         check_model_for_hard_errors(model)
-        logging.info("Waiting for a unit to appear")
+        logging.info("Waiting for an application to be present")
         await block_until_auto_reconnect_model(
             lambda: len(model.units) > 0,
             model=model)
-        logging.info("Waiting for all units to be idle")
-        try:
-            await block_until_auto_reconnect_model(
-                lambda: check_model_for_hard_errors(
-                    model) or model.all_units_idle(),
-                model=model,
-                timeout=timeout)
-        except concurrent.futures._base.TimeoutError:
-            raise ModelTimeout("Zaza has timed out waiting on the model to "
-                               "reach idle state.")
 
         timeout_msg = (
             "Timed out waiting for '{unit_name}'. The {gate_attr} "
             "is '{unit_state}' which is not one of '{approved_states}'")
-        for application, app_data in model.applications.items():
-            check_info = states.get(application, {})
-            for unit in app_data.units:
-                app_wls = check_info.get('workload-status')
-                if app_wls:
-                    all_approved_statuses = approved_statuses + [app_wls]
-                else:
-                    all_approved_statuses = approved_statuses
-                logging.info("Checking workload status of {}".format(
-                    unit.entity_id))
-                try:
-                    await block_until_auto_reconnect_model(
-                        lambda: check_unit_workload_status(
-                            model,
-                            unit,
-                            all_approved_statuses),
-                        model=model,
-                        timeout=timeout)
-                except concurrent.futures._base.TimeoutError:
-                    raise ModelTimeout(
-                        timeout_msg.format(
-                            unit_name=unit.entity_id,
-                            gate_attr='workload status',
-                            unit_state=unit.workload_status,
-                            approved_states=all_approved_statuses))
+        # Loop checking status every few seconds, waiting on applications to
+        # reach the approved states.  `applications_left` are the applications
+        # still to check.  If the timeout is exceeded we fail.  Note that there
+        # are other async futures in libjuju that make progress when this
+        # future sleeps.  We also need to check if the model has disconnected,
+        # and if so, clean up and reconnect.
+        start = time.time()
+        applications_left = set(model.applications.keys())
 
-                check_msg = check_info.get('workload-status-message')
-                logging.info("Checking workload status message of {}"
-                             .format(unit.entity_id))
-                prefixes = approved_message_prefixes
+        # print deprecation notices for apps that use "workload-status-message"
+        for application in applications_left:
+            if (states
+                    .get(application, {})
+                    .get('workload-status-message', None) is not None):
+                logging.warning(
+                    "DEPRECATION: Application %s uses "
+                    "'workload-status-message'; please use "
+                    "'workload-status-message-prefix' instead.", application)
+
+        logging.info("Now checking workload status and status messages")
+        while True:
+            await ensure_model_connected(model)
+            timed_out = int(time.time() - start) > timeout
+            issues = []
+            for application in applications_left.copy():
+                app_data = model.applications.get(application, None)
+                units = list(app_data.units)
+                if app_data is None or not units:
+                    continue
+                check_info = states.get(application, {})
+
+                check_wl_statuses = approved_statuses.copy()
+                app_wls = check_info.get('workload-status', None)
+                if app_wls is not None:
+                    check_wl_statuses.append(app_wls)
+                # preferentially try the newer -prefix first, before falling
+                # back to the older key without a -prefix
+                check_msg = check_info.get(
+                    'workload-status-message-prefix',
+                    check_info.get('workload-status-message', None))
+                check_regex = check_info.get(
+                    'workload-status-message-regex', None)
+                prefixes = approved_message_prefixes.copy()
                 if check_msg is not None:
-                    prefixes = approved_message_prefixes + [check_msg]
-                else:
-                    prefixes = approved_message_prefixes
-                try:
-                    await block_until_auto_reconnect_model(
-                        lambda: check_unit_workload_status_message(
-                            model,
-                            unit,
-                            prefixes=prefixes),
-                        model=model,
-                        timeout=timeout)
-                except concurrent.futures._base.TimeoutError:
-                    raise ModelTimeout(
-                        timeout_msg.format(
-                            unit_name=unit.entity_id,
-                            gate_attr='workload status message',
-                            unit_state=unit.workload_status_message,
-                            approved_states=prefixes))
+                    prefixes.append(check_msg)
+
+                # check all the units; any not in status, we continue
+                oks = []
+                for unit in units:
+                    # if a unit isn't idle, then not ready yet.
+                    ok = is_unit_idle(unit)
+                    oks.append(ok)
+                    if not ok and timed_out:
+                        issues.append(
+                            timeout_msg.format(
+                                unit_name=unit.entity_id,
+                                gate_attr="unit status",
+                                unit_state="not idle",
+                                approved_states=["idle"]))
+                        continue
+                    ok = check_unit_workload_status(
+                        model, unit, check_wl_statuses)
+                    oks.append(ok)
+                    if not ok and timed_out:
+                        issues.append(
+                            timeout_msg.format(
+                                unit_name=unit.entity_id,
+                                gate_attr='workload status',
+                                unit_state=unit.workload_status,
+                                approved_states=check_wl_statuses))
+                    ok = check_unit_workload_status_message(
+                        model, unit, prefixes=prefixes, regex=check_regex)
+                    oks.append(ok)
+                    if not ok and timed_out:
+                        issues.append(
+                            timeout_msg.format(
+                                unit_name=unit.entity_id,
+                                gate_attr='workload status message',
+                                unit_state=unit.workload_status_message,
+                                approved_states=prefixes))
+                # if not all states are okay, continue to the next one.
+                if not(all(oks)):
+                    continue
+
+                applications_left.remove(application)
+                logging.info("Applicion %s is ready.", application)
+
+            if not(applications_left):
+                logging.info("All applications reached approved status and "
+                             "workload status message checks.")
+                return
+
+            # check if we've timed-out, if so record the problem charms to the
+            # log and raise a ModelTimeout
+            if timed_out:
+                logging.info("TIMEOUT: Workloads didn't reach acceptable "
+                             "status:")
+                for issue in issues:
+                    logging.info(issue)
+                raise ModelTimeout("Work state not achieved within timeout.")
+
+            # now we sleep to allow progress to be made in the libjuju futures
+            await asyncio.sleep(2)
 
 
 wait_for_application_states = sync_wrapper(async_wait_for_application_states)

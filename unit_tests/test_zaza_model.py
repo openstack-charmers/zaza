@@ -831,12 +831,24 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model_mock.all_units_idle.return_value = _all_units_idle
         p_mock_ws = mock.PropertyMock(
             return_value=setup['workload-status'])
-        p_mock_wsmsg = mock.PropertyMock(
-            return_value=setup['workload-status-message'])
+        wsmsg = setup.get('workload-status-message-prefix',
+                          setup.get('workload-status-message'))
+        p_mock_wsmsg = mock.PropertyMock(return_value=wsmsg)
         type(self.unit1).workload_status = p_mock_ws
         type(self.unit1).workload_status_message = p_mock_wsmsg
         type(self.unit2).workload_status = p_mock_ws
         type(self.unit2).workload_status_message = p_mock_wsmsg
+
+        def mock_time(current=[0.0]):
+            now = current[0]
+            current[0] += 0.1
+            return now
+
+        self.patch("time.time", name="mock_time", side_effect=mock_time)
+        self.patch("asyncio.sleep",
+                   name="mock_asyncio_sleep",
+                   new=mock.AsyncMock())
+        self.patch_object(model.logging, 'info', name="mock_logging_info")
 
     def test_units_with_wl_status_state(self):
         self._application_states_setup({
@@ -935,6 +947,17 @@ class TestModel(ut_utils.BaseTestCase):
                 self.unit1,
                 prefixes=['Readyish', 'Unit is ready']))
 
+    def test_check_unit_workload_status_message_prefix_new(self):
+        self.patch_object(model, 'check_model_for_hard_errors')
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message-prefix': 'Unit is ready (OSD Count 23)'})
+        self.assertTrue(
+            model.check_unit_workload_status_message(
+                self.Model_mock,
+                self.unit1,
+                prefixes=['Readyish', 'Unit is ready']))
+
     def test_check_unit_workload_status_message_prefix_no_match(self):
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
@@ -946,19 +969,23 @@ class TestModel(ut_utils.BaseTestCase):
                 self.unit1,
                 prefixes=['Readyish', 'Unit is ready']))
 
+    def test_check_unit_workload_status_message_regex(self):
+        self.patch_object(model, 'check_model_for_hard_errors')
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'On my holidays'})
+        self.assertTrue(
+            model.check_unit_workload_status_message(
+                self.Model_mock,
+                self.unit1,
+                regex=r"my\sholiday.$"))
+
     def test_wait_for_application_states(self):
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Unit is ready'})
         model.wait_for_application_states('modelname', timeout=1)
         self.assertTrue(self.system_ready)
-
-    def test_wait_for_application_states_not_ready_ws(self):
-        self._application_states_setup({
-            'workload-status': 'blocked',
-            'workload-status-message': 'Unit is ready'})
-        model.wait_for_application_states('modelname', timeout=1)
-        self.assertFalse(self.system_ready)
 
     def test_wait_for_application_states_errored_unit(self):
         self._application_states_setup({
@@ -967,13 +994,6 @@ class TestModel(ut_utils.BaseTestCase):
         with self.assertRaises(model.UnitError):
             model.wait_for_application_states('modelname', timeout=1)
             self.assertFalse(self.system_ready)
-
-    def test_wait_for_application_states_not_ready_wsmsg(self):
-        self._application_states_setup({
-            'workload-status': 'active',
-            'workload-status-message': 'Unit is not ready'})
-        model.wait_for_application_states('modelname', timeout=1)
-        self.assertFalse(self.system_ready)
 
     def test_wait_for_application_states_blocked_ok(self):
         self._application_states_setup({
@@ -1018,7 +1038,7 @@ class TestModel(ut_utils.BaseTestCase):
             model.wait_for_application_states('modelname', timeout=-2)
         self.assertEqual(
             timeout.exception.args[0],
-            "Zaza has timed out waiting on the model to reach idle state.")
+            "Work state not achieved within timeout.")
 
     def test_wait_for_application_states_timeout(self):
         self._application_states_setup({
@@ -1029,8 +1049,11 @@ class TestModel(ut_utils.BaseTestCase):
             model.wait_for_application_states('modelname', timeout=-3)
         self.assertEqual(
             timeout.exception.args[0],
-            ("Timed out waiting for 'app/2'. The workload status is 'blocked' "
-             "which is not one of '['active']'"))
+            "Work state not achieved within timeout.")
+        self.assertIn(mock.call(
+            "Timed out waiting for 'app/2'. The workload status is 'blocked' "
+            "which is not one of '['active']'"),
+            self.mock_logging_info.mock_calls)
 
     def test_get_current_model(self):
         self.patch_object(model, 'Model')
