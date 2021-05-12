@@ -23,6 +23,9 @@ import time
 import sys
 import yaml
 
+import zaza.global_options
+
+
 BUNDLE_DIR = "./tests/bundles/"
 DEFAULT_TEST_DIR = "./tests"
 DEFAULT_CONFIG_YAML = "tests.yaml"
@@ -371,16 +374,27 @@ def get_before_deploy_steps():
         get_charm_config().get('before_deploy', []))
 
 
-def get_charm_config(yaml_file=None, fatal=True):
+_charm_config = {}
+
+
+def get_charm_config(yaml_file=None, fatal=True, cached=True):
     """Read the yaml test config file and return the resulting config.
+
+    Note that this function caches the contents of the yaml_file returned
+    (after reading as YAML) as a performance enhancement.  To defeat the
+    caching, pass the parameter cached as False
 
     :param yaml_file: File to be read
     :type yaml_file: str
     :param fatal: Whether failure to load file should be fatal or not
     :type fatal: bool
+    :param cached: If True, return the cached version, otherwise always read
+        the the yaml file.
+    :type cached: bool
     :returns: Config dictionary
     :rtype: dict
     """
+    global _charm_config
     if not yaml_file:
         if get_base_test_dir():
             yaml_file = "{}/{}".format(
@@ -388,9 +402,16 @@ def get_charm_config(yaml_file=None, fatal=True):
                 DEFAULT_CONFIG_YAML)
         else:
             yaml_file = DEFAULT_TEST_CONFIG
+    if cached and yaml_file in _charm_config:
+        return _charm_config
     try:
         with open(yaml_file, 'r') as stream:
-            return yaml.safe_load(stream)
+            content = yaml.safe_load(stream)
+            _charm_config[yaml_file] = content
+            if "tests_options" in content:
+                zaza.global_options.merge(content["tests_options"],
+                                          override=True)
+            return content
     except OSError:
         if not fatal:
             charm_name = os.path.basename(os.getcwd())

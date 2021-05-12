@@ -16,6 +16,7 @@ import io
 import mock
 import os
 import subprocess
+import yaml
 
 import zaza.charm_lifecycle.utils as lc_utils
 import unit_tests.utils as ut_utils
@@ -172,6 +173,8 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
                    new_callable=mock.mock_open(),
                    name="_open")
         self.patch_object(lc_utils, 'yaml')
+        self.patch_object(lc_utils, '_charm_config', new={})
+        self.patch("zaza.global_options.merge", name="merge_mock")
         self.patch_object(lc_utils.logging, 'warning')
         _yaml = "testconfig: someconfig"
         _yaml_dict = {'test_config': 'someconfig'}
@@ -181,20 +184,47 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         _fileobj.__enter__.return_value = _yaml
         self._open.return_value = _fileobj
 
-        self.assertEqual(lc_utils.get_charm_config(yaml_file=_filename),
-                         _yaml_dict)
+        self.assertEqual(
+            lc_utils.get_charm_config(yaml_file=_filename, cached=False),
+            _yaml_dict)
         self._open.assert_called_once_with(_filename, "r")
         self.yaml.safe_load.assert_called_once_with(_yaml)
         self._open.side_effect = FileNotFoundError
         self.patch_object(lc_utils.os, 'getcwd')
         self.getcwd.return_value = '/absoulte/path/to/fakecwd'
         with self.assertRaises(FileNotFoundError):
-            lc_utils.get_charm_config()
-        self.assertEqual(lc_utils.get_charm_config(fatal=False),
+            lc_utils.get_charm_config(cached=False)
+        self.assertEqual(lc_utils.get_charm_config(fatal=False, cached=False),
                          {'charm_name': 'fakecwd'})
         self.getcwd.return_value = '/absoulte/path/to/charm-fakecwd'
-        self.assertEqual(lc_utils.get_charm_config(fatal=False),
+        self.assertEqual(lc_utils.get_charm_config(fatal=False, cached=False),
                          {'charm_name': 'fakecwd'})
+        # verify caching; note the patch above restores this to whatever it was
+        # before this test_function was called.
+        _bigger_yaml_dict = {
+            "test_config": "someconfig",
+            "tests_options": {
+                "key1": 1,
+                "key2": "two",
+            },
+        }
+        self.yaml.safe_load.return_value = _bigger_yaml_dict
+        _bigger_yaml = yaml.safe_dump(_bigger_yaml_dict)
+        _fileobj.__enter__.return_value = _bigger_yaml
+        self._open.side_effect = None
+        self._open.return_value = _fileobj
+        lc_utils._charm_config = {}
+        self.merge_mock.reset_mock()
+        lc_utils.get_charm_config(yaml_file=_filename)
+        self.assertEqual(lc_utils._charm_config[_filename], _bigger_yaml_dict)
+        self.merge_mock.assert_called_once_with(
+            _bigger_yaml_dict["tests_options"], override=True)
+        self._open.reset_mock()
+        self.merge_mock.reset_mock()
+        lc_utils.get_charm_config(yaml_file=_filename)
+        self.assertEqual(lc_utils._charm_config[_filename], _bigger_yaml_dict)
+        self._open.assert_not_called()
+        self.merge_mock.assert_not_called()
 
     def test_is_config_deploy_forced_for_bundle(self):
         self.patch_object(lc_utils, 'get_charm_config')

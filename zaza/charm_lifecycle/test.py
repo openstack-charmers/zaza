@@ -20,6 +20,7 @@ import unittest
 import sys
 
 import zaza.model
+import zaza.global_options as global_options
 import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
@@ -138,8 +139,27 @@ def parse_args(args):
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
     cli_utils.add_test_directory_argument(parser)
+    parser.add_argument('-c', '--config', nargs='+',
+                        help=('tests_options config item (e.g. '
+                              'openstack-upgrade.detect-charm=octavia - repeat'
+                              ' as needed.'))
     parser.set_defaults(loglevel='INFO')
     return parser.parse_args(args)
+
+
+def add_config_option(config_item):
+    """Add an global config item option.
+
+    This is in the form some.thing.here=value
+
+    :param config_item: the config item to set
+    :type config_item: str
+    """
+    try:
+        option, value = config_item.split('=', 1)
+    except ValueError:
+        raise RuntimeError("Config option {} is not valid".format(config_item))
+    global_options.set_option(option, value)
 
 
 def main():
@@ -152,6 +172,9 @@ def main():
     cli_utils.setup_logging(log_level=args.loglevel.upper())
     zaza.model.set_juju_model_aliases(args.model)
     utils.set_base_test_dir(test_dir=args.test_directory)
+    if args.config:
+        for config_item in args.config:
+            add_config_option(config_item)
     for model_alias, model_name in args.model.items():
         if args.tests:
             tests = args.tests

@@ -38,6 +38,7 @@ from juju.model import Model
 
 from zaza import sync_wrapper
 import zaza.utilities.generic as generic_utils
+import zaza.utilities.exceptions as zaza_exceptions
 
 CURRENT_MODEL = None
 MODEL_ALIASES = {}
@@ -613,6 +614,28 @@ def get_first_unit_name(application_name, model_name=None):
     return get_units(application_name, model_name=model_name)[0].name
 
 
+async def async_get_lead_unit(application_name, model_name=None):
+    """Return the leader unit for a given application.
+
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param application_name: Name of application
+    :type application_name: str
+    :returns: Name of unit with leader status
+    :raises: zaza.utilities.exceptions.JujuError
+    """
+    async with run_in_model(model_name) as model:
+        for unit in model.applications[application_name].units:
+            is_leader = await unit.is_leader_from_status()
+            if is_leader:
+                return unit
+    raise zaza_exceptions.JujuError("No leader found for application {}"
+                                    .format(application_name))
+
+
+get_lead_unit = sync_wrapper(async_get_lead_unit)
+
+
 async def async_get_lead_unit_name(application_name, model_name=None):
     """Return name of unit with leader status for given application.
 
@@ -622,12 +645,10 @@ async def async_get_lead_unit_name(application_name, model_name=None):
     :type application_name: str
     :returns: Name of unit with leader status
     :rtype: str
+    :raises: zaza.utilities.exceptions.JujuError
     """
-    async with run_in_model(model_name) as model:
-        for unit in model.applications[application_name].units:
-            is_leader = await unit.is_leader_from_status()
-            if is_leader:
-                return unit.entity_id
+    return (await async_get_lead_unit(application_name, model_name)).entity_id
+
 
 get_lead_unit_name = sync_wrapper(async_get_lead_unit_name)
 
@@ -655,12 +676,10 @@ async def async_get_lead_unit_ip(application_name, model_name=None):
     :type application_name: str
     :returns: IP of the lead unit
     :rtype: str
+    :raises: zaza.utilities.exceptions.JujuError
     """
-    async with run_in_model(model_name) as model:
-        for unit in model.applications[application_name].units:
-            is_leader = await unit.is_leader_from_status()
-            if is_leader:
-                return unit.public_address
+    return (await async_get_lead_unit(
+        application_name, model_name)).public_address
 
 
 get_lead_unit_ip = sync_wrapper(async_get_lead_unit_ip)
