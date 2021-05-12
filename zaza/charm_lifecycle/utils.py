@@ -403,7 +403,7 @@ def get_charm_config(yaml_file=None, fatal=True, cached=True):
         else:
             yaml_file = DEFAULT_TEST_CONFIG
     if cached and yaml_file in _charm_config:
-        return _charm_config
+        return _charm_config[yaml_file]
     try:
         with open(yaml_file, 'r') as stream:
             content = yaml.safe_load(stream)
