@@ -807,12 +807,12 @@ get_status = sync_wrapper(async_get_status)
 class ActionFailed(Exception):
     """Exception raised when action fails."""
 
-    def __init__(self, action):
+    def __init__(self, action, output=None):
         """Set information about action failure in message and raise."""
         # Bug: #314  -- unfortunately, libjuju goes bang even if getattr(x,y,
         # default) is used, which means we physically have to check for
         # KeyError.
-        params = {}
+        params = {'output': output}
         for key in ['name', 'parameters', 'receiver', 'message', 'id',
                     'status', 'enqueued', 'started', 'completed']:
             try:
@@ -823,7 +823,7 @@ class ActionFailed(Exception):
         message = ('Run of action "{name}" with parameters "{parameters}" on '
                    '"{receiver}" failed with "{message}" (id={id} '
                    'status={status} enqueued={enqueued} started={started} '
-                   'completed={completed})'
+                   'completed={completed} output={output})'
                    .format(**params))
         super(ActionFailed, self).__init__(message)
 
@@ -854,7 +854,11 @@ async def async_run_action(unit_name, action_name, model_name=None,
         action_obj = await unit.run_action(action_name, **action_params)
         await action_obj.wait()
         if raise_on_failure and action_obj.status != 'completed':
-            raise ActionFailed(action_obj)
+            try:
+                output = await model.get_action_output(action_obj.id)
+            except KeyError:
+                output = None
+            raise ActionFailed(action_obj, output=output)
         return action_obj
 
 run_action = sync_wrapper(async_run_action)
@@ -890,7 +894,11 @@ async def async_run_action_on_leader(application_name, action_name,
                                                    **action_params)
                 await action_obj.wait()
                 if raise_on_failure and action_obj.status != 'completed':
-                    raise ActionFailed(action_obj)
+                    try:
+                        output = await model.get_action_output(action_obj.id)
+                    except KeyError:
+                        output = None
+                    raise ActionFailed(action_obj, output=output)
                 return action_obj
 
 run_action_on_leader = sync_wrapper(async_run_action_on_leader)
@@ -940,7 +948,11 @@ async def async_run_action_on_units(units, action_name, action_params=None,
 
         for action_obj in actions:
             if raise_on_failure and action_obj.status != 'completed':
-                raise ActionFailed(action_obj)
+                try:
+                    output = await model.get_action_output(action_obj.id)
+                except KeyError:
+                    output = None
+                raise ActionFailed(action_obj, output=output)
 
 run_action_on_units = sync_wrapper(async_run_action_on_units)
 
