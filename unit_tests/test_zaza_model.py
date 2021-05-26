@@ -692,6 +692,10 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
+
+        async def _fake_get_action_output(_):
+            return {'fake': 'output'}
+        self.Model_mock.get_action_output = _fake_get_action_output
         self.Model.return_value = self.Model_mock
         model.run_action(
             'app/2',
@@ -721,7 +725,8 @@ class TestModel(ut_utils.BaseTestCase):
             '"{\'backup_dir\': \'/non-existent\'}" on '
             '"app/2" failed with "aMessage" '
             '(id=aId status=failed enqueued=aEnqueued '
-            'started=aStarted completed=aCompleted)')
+            'started=aStarted completed=aCompleted '
+            'output={\'fake\': \'output\'})')
 
     def test_get_actions(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -736,6 +741,10 @@ class TestModel(ut_utils.BaseTestCase):
     def test_run_action_on_leader(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
+
+        async def _fake_get_action_output(_):
+            return {'fake': 'output'}
+        self.Model_mock.get_action_output = _fake_get_action_output
         self.Model.return_value = self.Model_mock
         model.run_action_on_leader(
             'app',
@@ -766,7 +775,8 @@ class TestModel(ut_utils.BaseTestCase):
             '"{\'backup_dir\': \'/non-existent\'}" on '
             '"app/2" failed with "aMessage" '
             '(id=aId status=failed enqueued=aEnqueued '
-            'started=aStarted completed=aCompleted)')
+            'started=aStarted completed=aCompleted '
+            'output={\'fake\': \'output\'})')
 
     def test_run_action_on_units(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -806,6 +816,10 @@ class TestModel(ut_utils.BaseTestCase):
     def test_run_action_on_units_fail(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
+
+        async def _fake_get_action_output(_):
+            return {'Code': '1', 'Stderr': 'ERR', 'Stdout': 'OUT'}
+        self.Model_mock.get_action_output = _fake_get_action_output
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
