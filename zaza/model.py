@@ -1380,7 +1380,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
                     continue
 
                 applications_left.remove(application)
-                logging.info("Applicion %s is ready.", application)
+                logging.info("Application %s is ready.", application)
 
             if not(applications_left):
                 logging.info("All applications reached approved status and "
