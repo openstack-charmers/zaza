@@ -403,7 +403,7 @@ def get_charm_config(yaml_file=None, fatal=True, cached=True):
         else:
             yaml_file = DEFAULT_TEST_CONFIG
     if cached and yaml_file in _charm_config:
-        return _charm_config[yaml_file]
+        return _charm_config[yaml_file].copy()
     try:
         with open(yaml_file, 'r') as stream:
             content = yaml.safe_load(stream)
@@ -411,7 +411,7 @@ def get_charm_config(yaml_file=None, fatal=True, cached=True):
             if "tests_options" in content:
                 zaza.global_options.merge(content["tests_options"],
                                           override=True)
-            return content
+            return content.copy()
     except OSError:
         if not fatal:
             charm_name = os.path.basename(os.getcwd())

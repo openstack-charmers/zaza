@@ -873,6 +873,8 @@ class TestModel(ut_utils.BaseTestCase):
                    name="mock_asyncio_sleep",
                    new=mock.AsyncMock())
         self.patch_object(model.logging, 'info', name="mock_logging_info")
+        self.patch_object(
+            model.logging, 'warning', name="mock_logging_warning")
 
     def test_units_with_wl_status_state(self):
         self._application_states_setup({
