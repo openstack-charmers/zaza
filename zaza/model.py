@@ -1322,62 +1322,62 @@ async def async_wait_for_application_states(model_name=None, states=None,
             for application in applications_left.copy():
                 app_data = model.applications.get(application, None)
                 units = list(app_data.units)
-                if app_data is None or not units:
-                    continue
-                check_info = states.get(application, {})
+                # if there are no units the application is 'ready'
+                if len(units) > 0:
+                    check_info = states.get(application, {})
 
-                check_wl_statuses = approved_statuses.copy()
-                app_wls = check_info.get('workload-status', None)
-                if app_wls is not None:
-                    check_wl_statuses.append(app_wls)
-                # preferentially try the newer -prefix first, before falling
-                # back to the older key without a -prefix
-                check_msg = check_info.get(
-                    'workload-status-message-prefix',
-                    check_info.get('workload-status-message', None))
-                check_regex = check_info.get(
-                    'workload-status-message-regex', None)
-                prefixes = approved_message_prefixes.copy()
-                if check_msg is not None:
-                    prefixes.append(check_msg)
+                    check_wl_statuses = approved_statuses.copy()
+                    app_wls = check_info.get('workload-status', None)
+                    if app_wls is not None:
+                        check_wl_statuses.append(app_wls)
+                    # preferentially try the newer -prefix first, before
+                    # falling back to the older key without a -prefix
+                    check_msg = check_info.get(
+                        'workload-status-message-prefix',
+                        check_info.get('workload-status-message', None))
+                    check_regex = check_info.get(
+                        'workload-status-message-regex', None)
+                    prefixes = approved_message_prefixes.copy()
+                    if check_msg is not None:
+                        prefixes.append(check_msg)
 
-                # check all the units; any not in status, we continue
-                oks = []
-                for unit in units:
-                    # if a unit isn't idle, then not ready yet.
-                    ok = is_unit_idle(unit)
-                    oks.append(ok)
-                    if not ok and timed_out:
-                        issues.append(
-                            timeout_msg.format(
-                                unit_name=unit.entity_id,
-                                gate_attr="unit status",
-                                unit_state="not idle",
-                                approved_states=["idle"]))
+                    # check all the units; any not in status, we continue
+                    oks = []
+                    for unit in units:
+                        # if a unit isn't idle, then not ready yet.
+                        ok = is_unit_idle(unit)
+                        oks.append(ok)
+                        if not ok and timed_out:
+                            issues.append(
+                                timeout_msg.format(
+                                    unit_name=unit.entity_id,
+                                    gate_attr="unit status",
+                                    unit_state="not idle",
+                                    approved_states=["idle"]))
+                            continue
+                        ok = check_unit_workload_status(
+                            model, unit, check_wl_statuses)
+                        oks.append(ok)
+                        if not ok and timed_out:
+                            issues.append(
+                                timeout_msg.format(
+                                    unit_name=unit.entity_id,
+                                    gate_attr='workload status',
+                                    unit_state=unit.workload_status,
+                                    approved_states=check_wl_statuses))
+                        ok = check_unit_workload_status_message(
+                            model, unit, prefixes=prefixes, regex=check_regex)
+                        oks.append(ok)
+                        if not ok and timed_out:
+                            issues.append(
+                                timeout_msg.format(
+                                    unit_name=unit.entity_id,
+                                    gate_attr='workload status message',
+                                    unit_state=unit.workload_status_message,
+                                    approved_states=prefixes))
+                    # if not all states are okay, continue to the next one.
+                    if not(all(oks)):
                         continue
-                    ok = check_unit_workload_status(
-                        model, unit, check_wl_statuses)
-                    oks.append(ok)
-                    if not ok and timed_out:
-                        issues.append(
-                            timeout_msg.format(
-                                unit_name=unit.entity_id,
-                                gate_attr='workload status',
-                                unit_state=unit.workload_status,
-                                approved_states=check_wl_statuses))
-                    ok = check_unit_workload_status_message(
-                        model, unit, prefixes=prefixes, regex=check_regex)
-                    oks.append(ok)
-                    if not ok and timed_out:
-                        issues.append(
-                            timeout_msg.format(
-                                unit_name=unit.entity_id,
-                                gate_attr='workload status message',
-                                unit_state=unit.workload_status_message,
-                                approved_states=prefixes))
-                # if not all states are okay, continue to the next one.
-                if not(all(oks)):
-                    continue
 
                 applications_left.remove(application)
                 logging.info("Application %s is ready.", application)
