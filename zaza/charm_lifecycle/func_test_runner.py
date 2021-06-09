@@ -77,7 +77,7 @@ def failure_report(model_aliases, show_juju_status=False):
         if show_juju_status:
             logging.error(
                 yaml.dump(
-                    yaml.load(status.to_json()),
+                    yaml.safe_load(status.to_json()),
                     default_flow_style=False))
 
 
