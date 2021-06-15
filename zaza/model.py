@@ -1250,7 +1250,9 @@ async def async_wait_for_application_states(model_name=None, states=None,
         states = {
             'app': {
                 'workload-status': 'blocked',
-                'workload-status-message-prefix': 'No requests without a prod'}
+                'workload-status-message-prefix': 'No requests without a prod',
+                'num-expected-units': 3,
+            },
             'anotherapp': {
                 'workload-status-message-prefix': 'Unit is super ready'}}
         wait_for_application_states('modelname', states=states)
@@ -1264,9 +1266,17 @@ async def async_wait_for_application_states(model_name=None, states=None,
        matches.
      - "workloaed-status-message" - DEPRECATED; use
            "workload-status-message-prefix" instead.
+    - "num-expected-units' - the number of units to be 'ready'.
 
     To match an empty string, use:
       "workload-status-message-regex": "^$"
+
+    NOTE: all applications that are being waited on are expected to have at
+    least one unit for that application to be ready.  Any subordinate charms
+    which have not be related to their principle by the time this function is
+    called will 'hang' the function; in this case (if this is expected), then
+    the application should b e passed in the :param:states parameter with a
+    'num-expected-units' of 0 for the app in question.
 
     :param model_name: Name of model to query.
     :type model_name: str
@@ -1320,12 +1330,31 @@ async def async_wait_for_application_states(model_name=None, states=None,
             timed_out = int(time.time() - start) > timeout
             issues = []
             for application in applications_left.copy():
+                check_info = states.get(application, {})
                 app_data = model.applications.get(application, None)
                 units = list(app_data.units)
-                # if there are no units the application is 'ready'
-                if len(units) > 0:
-                    check_info = states.get(application, {})
 
+                # all_okay is a Boolean of the current state.  It starts as
+                # True, but if False by the end of the checks, then the
+                # application is not ready.
+                all_okay = True
+
+                # if there are no units then the application may not be ready.
+                # However, if the caller explicitly allows that situation then
+                # we gate on that.
+                num_expected = check_info.get('num-expected-units', None)
+                if num_expected is not None:
+                    if len(units) != num_expected:
+                        print("all_okay is now false")
+                        all_okay = False
+                else:
+                    # num_expected is None, so 0 units means we are still
+                    # waiting
+                    if len(units) == 0:
+                        continue
+
+                # If we are still okay to check
+                if all_okay:
                     check_wl_statuses = approved_statuses.copy()
                     app_wls = check_info.get('workload-status', None)
                     if app_wls is not None:
@@ -1342,11 +1371,10 @@ async def async_wait_for_application_states(model_name=None, states=None,
                         prefixes.append(check_msg)
 
                     # check all the units; any not in status, we continue
-                    oks = []
                     for unit in units:
                         # if a unit isn't idle, then not ready yet.
                         ok = is_unit_idle(unit)
-                        oks.append(ok)
+                        all_okay = all_okay and ok
                         if not ok and timed_out:
                             issues.append(
                                 timeout_msg.format(
@@ -1357,7 +1385,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
                             continue
                         ok = check_unit_workload_status(
                             model, unit, check_wl_statuses)
-                        oks.append(ok)
+                        all_okay = all_okay and ok
                         if not ok and timed_out:
                             issues.append(
                                 timeout_msg.format(
@@ -1367,7 +1395,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
                                     approved_states=check_wl_statuses))
                         ok = check_unit_workload_status_message(
                             model, unit, prefixes=prefixes, regex=check_regex)
-                        oks.append(ok)
+                        all_okay = all_okay and ok
                         if not ok and timed_out:
                             issues.append(
                                 timeout_msg.format(
@@ -1375,16 +1403,17 @@ async def async_wait_for_application_states(model_name=None, states=None,
                                     gate_attr='workload status message',
                                     unit_state=unit.workload_status_message,
                                     approved_states=prefixes))
-                    # if not all states are okay, continue to the next one.
-                    if not(all(oks)):
-                        continue
+                # if not all states are okay, continue to the next one.
+                if not(all_okay):
+                    continue
 
                 applications_left.remove(application)
                 logging.info("Application %s is ready.", application)
 
             if not(applications_left):
-                logging.info("All applications reached approved status and "
-                             "workload status message checks.")
+                logging.info("All applications reached approved status, "
+                             "number of units (where relevant), and workload"
+                             " status message checks.")
                 return
 
             # check if we've timed-out, if so record the problem charms to the
