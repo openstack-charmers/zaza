@@ -1345,7 +1345,6 @@ async def async_wait_for_application_states(model_name=None, states=None,
                 num_expected = check_info.get('num-expected-units', None)
                 if num_expected is not None:
                     if len(units) != num_expected:
-                        print("all_okay is now false")
                         all_okay = False
                 else:
                     # num_expected is None, so 0 units means we are still
