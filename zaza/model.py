@@ -1275,7 +1275,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
     least one unit for that application to be ready.  Any subordinate charms
     which have not be related to their principle by the time this function is
     called will 'hang' the function; in this case (if this is expected), then
-    the application should b e passed in the :param:states parameter with a
+    the application should be passed in the :param:states parameter with a
     'num-expected-units' of 0 for the app in question.
 
     :param model_name: Name of model to query.
@@ -1334,74 +1334,71 @@ async def async_wait_for_application_states(model_name=None, states=None,
                 app_data = model.applications.get(application, None)
                 units = list(app_data.units)
 
-                # all_okay is a Boolean of the current state.  It starts as
-                # True, but if False by the end of the checks, then the
-                # application is not ready.
-                all_okay = True
-
                 # if there are no units then the application may not be ready.
                 # However, if the caller explicitly allows that situation then
                 # we gate on that.
                 num_expected = check_info.get('num-expected-units', None)
                 if num_expected is not None:
                     if len(units) != num_expected:
-                        all_okay = False
+                        continue
                 else:
                     # num_expected is None, so 0 units means we are still
                     # waiting
                     if len(units) == 0:
                         continue
 
-                # If we are still okay to check
-                if all_okay:
-                    check_wl_statuses = approved_statuses.copy()
-                    app_wls = check_info.get('workload-status', None)
-                    if app_wls is not None:
-                        check_wl_statuses.append(app_wls)
-                    # preferentially try the newer -prefix first, before
-                    # falling back to the older key without a -prefix
-                    check_msg = check_info.get(
-                        'workload-status-message-prefix',
-                        check_info.get('workload-status-message', None))
-                    check_regex = check_info.get(
-                        'workload-status-message-regex', None)
-                    prefixes = approved_message_prefixes.copy()
-                    if check_msg is not None:
-                        prefixes.append(check_msg)
+                # all_okay is a Boolean of the current state.  It starts as
+                # True, but if False by the end of the checks, then the
+                # application is not ready.
+                all_okay = True
+                check_wl_statuses = approved_statuses.copy()
+                app_wls = check_info.get('workload-status', None)
+                if app_wls is not None:
+                    check_wl_statuses.append(app_wls)
+                # preferentially try the newer -prefix first, before
+                # falling back to the older key without a -prefix
+                check_msg = check_info.get(
+                    'workload-status-message-prefix',
+                    check_info.get('workload-status-message', None))
+                check_regex = check_info.get(
+                    'workload-status-message-regex', None)
+                prefixes = approved_message_prefixes.copy()
+                if check_msg is not None:
+                    prefixes.append(check_msg)
 
-                    # check all the units; any not in status, we continue
-                    for unit in units:
-                        # if a unit isn't idle, then not ready yet.
-                        ok = is_unit_idle(unit)
-                        all_okay = all_okay and ok
-                        if not ok and timed_out:
-                            issues.append(
-                                timeout_msg.format(
-                                    unit_name=unit.entity_id,
-                                    gate_attr="unit status",
-                                    unit_state="not idle",
-                                    approved_states=["idle"]))
-                            continue
-                        ok = check_unit_workload_status(
-                            model, unit, check_wl_statuses)
-                        all_okay = all_okay and ok
-                        if not ok and timed_out:
-                            issues.append(
-                                timeout_msg.format(
-                                    unit_name=unit.entity_id,
-                                    gate_attr='workload status',
-                                    unit_state=unit.workload_status,
-                                    approved_states=check_wl_statuses))
-                        ok = check_unit_workload_status_message(
-                            model, unit, prefixes=prefixes, regex=check_regex)
-                        all_okay = all_okay and ok
-                        if not ok and timed_out:
-                            issues.append(
-                                timeout_msg.format(
-                                    unit_name=unit.entity_id,
-                                    gate_attr='workload status message',
-                                    unit_state=unit.workload_status_message,
-                                    approved_states=prefixes))
+                # check all the units; any not in status, we continue
+                for unit in units:
+                    # if a unit isn't idle, then not ready yet.
+                    ok = is_unit_idle(unit)
+                    all_okay = all_okay and ok
+                    if not ok and timed_out:
+                        issues.append(
+                            timeout_msg.format(
+                                unit_name=unit.entity_id,
+                                gate_attr="unit status",
+                                unit_state="not idle",
+                                approved_states=["idle"]))
+                        continue
+                    ok = check_unit_workload_status(
+                        model, unit, check_wl_statuses)
+                    all_okay = all_okay and ok
+                    if not ok and timed_out:
+                        issues.append(
+                            timeout_msg.format(
+                                unit_name=unit.entity_id,
+                                gate_attr='workload status',
+                                unit_state=unit.workload_status,
+                                approved_states=check_wl_statuses))
+                    ok = check_unit_workload_status_message(
+                        model, unit, prefixes=prefixes, regex=check_regex)
+                    all_okay = all_okay and ok
+                    if not ok and timed_out:
+                        issues.append(
+                            timeout_msg.format(
+                                unit_name=unit.entity_id,
+                                gate_attr='workload status message',
+                                unit_state=unit.workload_status_message,
+                                approved_states=prefixes))
                 # if not all states are okay, continue to the next one.
                 if not(all_okay):
                     continue
