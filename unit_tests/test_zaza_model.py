@@ -1081,6 +1081,48 @@ class TestModel(ut_utils.BaseTestCase):
             "which is not one of '['active']'"),
             self.mock_logging_info.mock_calls)
 
+    def test_wait_for_application_states_zero_units(self):
+        self._application_states_setup({
+            'workload-status': 'active',
+            'workload-status-message': 'Unit is ready'})
+        # override to zero units
+        self.mymodel.applications['app'].units = []
+        model.wait_for_application_states(
+            'modelname',
+            states={
+                'app': {
+                    'num-expected-units': 0,
+                }
+            },
+            timeout=-1)
+
+    def test_wait_for_application_states_zero_units_expect_one(self):
+        self._application_states_setup({
+            'workload-status': 'active',
+            'workload-status-message': 'Unit is ready'})
+        # override to zero units
+        self.mymodel.applications['app'].units = []
+        with self.assertRaises(model.ModelTimeout):
+            model.wait_for_application_states(
+                'modelname',
+                states={
+                    'app': {
+                        'num-expected-units': 1,
+                    }
+                },
+                timeout=-1)
+
+    def test_wait_for_application_states_zero_units_none_set(self):
+        self._application_states_setup({
+            'workload-status': 'active',
+            'workload-status-message': 'Unit is ready'})
+        # override to zero units
+        self.mymodel.applications['app'].units = []
+        with self.assertRaises(model.ModelTimeout):
+            model.wait_for_application_states(
+                'modelname',
+                timeout=1)
+
     def test_get_current_model(self):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
