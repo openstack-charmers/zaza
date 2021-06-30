@@ -16,6 +16,7 @@
 import asyncio
 import logging
 from pkgutil import extend_path
+from sys import version_info
 
 
 __path__ = extend_path(__path__, __name__)
@@ -40,8 +41,16 @@ def run(*steps):
 
         # Let's also cancel any remaining tasks:
         while True:
-            pending_tasks = [p for p in asyncio.Task.all_tasks()
-                             if not p.done()]
+            # issue #445 - asyncio.Task.all_tasks() deprecated in 3.7
+            if version_info.major == 3 and version_info.minor >= 7:
+                try:
+                    tasklist = asyncio.all_tasks()
+                except RuntimeError:
+                    # no running event loop
+                    break
+            else:
+                tasklist = asyncio.Task.all_tasks()
+            pending_tasks = [p for p in tasklist if not p.done()]
             if pending_tasks:
                 logging.info(
                     "async -> sync. cleaning up pending tasks: len: {}"
