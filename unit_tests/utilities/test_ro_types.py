@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tets for read-only Dictionaries and Lists."""
+"""Unit tests for read-only Dictionaries and Lists."""
 
 import collections
 import unittest

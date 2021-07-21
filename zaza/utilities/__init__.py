@@ -13,3 +13,51 @@
 # limitations under the License.
 
 """Collection of utilities to support zaza tests etc."""
+
+
+import types
+
+
+class ConfigurableMixin:
+    """A helper class that can configure members.
+
+    If a class inherits from this class as a mixin, then it gets a 'configure'
+    function that can configure members of the object.
+
+    e.g.
+
+        class SomeThing(ConfigurableMixin):
+
+            def __init__(self, *args, **kwargs):
+                self.a = None
+                self.b = None
+                self.configure(**kwargs)
+
+
+        x = Something(a=4)
+        x.a => 4
+        x.configure(b=9)
+        x.b => 9
+
+    """
+
+    def configure(self, **kwargs):
+        """Configure the non-private attributes of the object.
+
+        The keyword args can be used to configure the attributes of the object
+        directly.
+        """
+        for k, v in kwargs.items():
+            if k.startswith("_"):
+                raise AttributeError("Key {} is private in {}"
+                                     .format(k, self.__class__.__name__))
+            try:
+                _type = getattr(self.__class__, k, None)
+                if isinstance(_type, (property, types.FunctionType)):
+                    raise AttributeError()
+                getattr(self, k)
+                setattr(self, k, v)
+            except AttributeError:
+                raise AttributeError(
+                    "key {} doesn't belong to {} or is a method/property"
+                    .format(k, self.__class__.__name__))
