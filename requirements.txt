@@ -33,7 +33,6 @@ python-novaclient
 python-octaviaclient
 python-swiftclient
 tenacity
-distro-info
 paramiko
 python-libmaas
 # Documentation requirements
