@@ -49,7 +49,7 @@ def get_network_config(net_topology, ignore_env_vars=False,
     :param net_topology: Network topology name from network.yaml
     :type net_topology: string
     :param ignore_env_vars: Ignore enviroment variables or not
-    :type ignore_env_vars: boolean
+    :type ignore_env_vars: bool
     :returns: Dictionary of network configuration
     :rtype: dict
     """

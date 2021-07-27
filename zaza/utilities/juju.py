@@ -336,7 +336,7 @@ def remote_run(unit, remote_cmd, timeout=None, fatal=None, model_name=None):
     :param timeout: Timeout value for the command
     :type arg: int
     :param fatal: Command failure condidered fatal or not
-    :type fatal: boolean
+    :type fatal: bool
     :param model_name: Name of model to query.
     :type model_name: str
     :returns: Juju run output

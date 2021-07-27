@@ -769,7 +769,7 @@ async def async_get_status(model_name=None, interval=4.0, refresh=True):
     :param interval: The minimum time between calls to get_status
     :type interval: float
     :param refresh: Force a refresh; do not used cached results
-    :type refresh: boolean
+    :type refresh: bool
     :returns: dictionary of juju status
     :rtype: dict
     """
@@ -1676,7 +1676,7 @@ async def async_block_until_machine_status_is(
     :param model_name: Name of model to query.
     :type model_name: str
     :param invert_check: whether to invert the check (default False)
-    :type invert_check: boolean
+    :type invert_check: bool
     :param timeout: the time to wait for the status (or inverse of) (default
         600 seconds).
     :type timeout: int
@@ -1684,7 +1684,7 @@ async def async_block_until_machine_status_is(
     :param interval: The minimum time between calls to get_status
     :type interval: float
     :param refresh: Force a refresh; do not used cached results
-    :type refresh: boolean
+    :type refresh: bool
     """
     async def _check_machine_status():
         _status = await async_get_status(model_name=model_name,
