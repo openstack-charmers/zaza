@@ -25,7 +25,8 @@ import zaza.model
 
 
 def install_module_on_juju_unit(
-        unit, source, destination=".", model=None, install_virtualenv=True):
+        unit, source, destination=".", model=None, install_virtualenv=True,
+        run_user=None):
     """Install the module defined by source on the unit in a venv.
 
     :param unit: the unit to install it on.
@@ -37,7 +38,10 @@ def install_module_on_juju_unit(
     :param model: the (optional) model on which to run the unit on
     :type model: Optional[str]
     :param install_virtualenv: Install the virtualenv on the target if needed.
-    :type install_virtualenv: boolean
+    :type install_virtualenv: bool
+    :param run_user: The user that will run the module (needed for sudo to
+        copy/install files for that user).
+    :type run_user: Optional[str]
     :raises: subprocess.CalledProcessError
     """
     install_module_in_venv(
@@ -45,12 +49,13 @@ def install_module_on_juju_unit(
         destination,
         make_juju_scp_fn(unit, model=model),
         make_juju_ssh_fn(unit, model=model),
-        install_virtualenv=install_virtualenv)
+        install_virtualenv=install_virtualenv,
+        run_user=run_user)
 
 
 def install_module_instance(
         target, source, destination=".", key_file=None, user=None,
-        install_virtualenv=True):
+        install_virtualenv=True, run_user=None):
     """Install the module defined by source on the unit in a venv.
 
     :param target: the target hostname (e.g. 192.168.1.1)
@@ -64,7 +69,10 @@ def install_module_instance(
     :param user: the optional user (for user@hostname:...)
     :type user: Optional[str]
     :param install_virtualenv: Install the virtualenv on the target if needed.
-    :type install_virtualenv: boolean
+    :type install_virtualenv: bool
+    :param run_user: The user that will run the module (needed for sudo to
+        copy/install files for that user).
+    :type run_user: Optional[str]
     :raises: subprocess.CalledProcessError
     """
     install_module_in_venv(
@@ -72,12 +80,13 @@ def install_module_instance(
         destination,
         make_scp_fn(target, key_file=key_file, user=user),
         make_ssh_fn(target, key_file=key_file, user=user),
-        install_virtualenv=install_virtualenv)
+        install_virtualenv=install_virtualenv,
+        run_user=run_user)
 
 
 def install_module_in_venv(
     source, destination, scp_fn, ssh_fn, python='python3', venv_dir='.venv',
-    install_virtualenv=True,
+    install_virtualenv=True, run_user=None,
 ):
     """Install a module at a location using a venv.
 
@@ -124,17 +133,21 @@ def install_module_in_venv(
     :param venv_dir: The name of the virtualenv at the destination path.
     :type venv_dir: str
     :param install_virtualenv: Install the virtualenv on the target if needed.
-    :type install_virtualenv: boolean
+    :type install_virtualenv: bool
+    :param run_user: The user that will run the module (needed for sudo to
+        copy/install files for that user).
+    :type run_user: Optional[str]
     :raises: subprocess.CalledProcessError if any command fails.
     :raises: RuntimeError if a pre-requisit isn't installed.
     """
+    cmd_prefix = ["sudo", "-u", run_user] if run_user else []
     # check the destination is a directory and not a file.
-    ssh_fn("test -d {}".format(destination))
+    ssh_fn(cmd_prefix + ["test", "-d", destination])
     if source.startswith("file:"):
+        # copy the module from local to the destination.
         source = source[len("file:"):]
         extra_path = 'tmp-{}'.format(str(uuid.uuid4())[-12:])
-        dest_source = os.path.join(destination, extra_path)
-        # copy the module from local to the destination.
+        dest_source = os.path.join(user_directory(ssh_fn), extra_path)
         scp_fn(source, dest_source)
         module = dest_source
     else:
@@ -142,7 +155,7 @@ def install_module_in_venv(
     # now check for the virtualenv.
     venv = os.path.join(destination, venv_dir)
     try:
-        ssh_fn("test -d {}".format(venv))
+        ssh_fn(cmd_prefix + ["test", "-d", venv])
     except subprocess.CalledProcessError as e:
         if e.returncode == 1:
             try:
@@ -152,9 +165,10 @@ def install_module_in_venv(
                     ssh_fn("sudo apt install -y virtualenv")
                 else:
                     raise RuntimeError("virtualenv needs to be installed")
-            ssh_fn("virtualenv -p `which {}` {}".format(python, venv))
-    # Now install the module
-    ssh_fn("{}/bin/pip install {}".format(venv, module))
+            ssh_fn(cmd_prefix + ["virtualenv", "-p",
+                                 "`which {}`".format(python), venv])
+    cmd = ["{}/bin/pip".format(venv), "install", module]
+    ssh_fn(cmd_prefix + cmd)
 
 
 def make_juju_ssh_fn(unit, sudo=False, model=None):
@@ -175,7 +189,7 @@ def make_juju_ssh_fn(unit, sudo=False, model=None):
     return _ssh_fn
 
 
-def _run_via_juju_ssh(unit_name, cmd, sudo=None, model=None):
+def _run_via_juju_ssh(unit_name, cmd, sudo=None, model=None, quiet=True):
     """Run command on unit via ssh - local, that understands sudo and models.
 
     For executing commands on units when the juju agent is down.
@@ -186,6 +200,11 @@ def _run_via_juju_ssh(unit_name, cmd, sudo=None, model=None):
     :type cmd: str
     :param sudo: Flag, if True, sets the command to be sudo
     :type sudo: False
+    :param model: optional model to pass in.
+    :type model: Optional[str]
+    :param quiet: If quiet, stop any logging from ssh.  This prevents the
+        "Connection to <ip address> closed." messages appearing in the logs.
+    :type quiet: bool
     :returns: whatever the ssh command returned.
     :rtype: str
     :raises: subprocess.CalledProcessError
@@ -197,7 +216,10 @@ def _run_via_juju_ssh(unit_name, cmd, sudo=None, model=None):
     _cmd = ['juju', 'ssh']
     if model is not None:
         _cmd.append('--model={}'.format(model))
-    _cmd.extend([unit_name, '--'])
+    _cmd.append(unit_name)
+    if quiet:
+        _cmd.extend(['-o', 'LogLevel=QUIET'])
+    _cmd.append('--')
     if isinstance(cmd, str):
         cmd = cmd.split(" ")
     _cmd.extend(cmd)
@@ -224,12 +246,24 @@ def make_juju_scp_fn(unit, user=None, model=None, proxy=False):
     if user is None:
         user = 'ubuntu'
 
-    def _scp_fn(source, destination, recursive=True):
+    def _scp_fn(source, destination, recursive=True, copy_from=False):
         scp_opts = '-r' if recursive else ''
-        logging.debug("Copying %s to %s on %s", source, destination, unit)
-        return zaza.model.scp_to_unit(unit, source, destination,
-                                      model_name=model, user=user, proxy=proxy,
-                                      scp_opts=scp_opts)
+        if copy_from:
+            logging.debug(
+                "Getting remote %s to local %s from %s",
+                source, destination, unit)
+            return zaza.model.scp_from_unit(unit, source, destination,
+                                            model_name=model, user=user,
+                                            proxy=proxy,
+                                            scp_opts=scp_opts)
+        else:
+            logging.debug(
+                "Putting local %s to remote %s on %s",
+                source, destination, unit)
+            return zaza.model.scp_to_unit(unit, source, destination,
+                                          model_name=model, user=user,
+                                          proxy=proxy,
+                                          scp_opts=scp_opts)
 
     return _scp_fn
 
@@ -287,35 +321,110 @@ def make_scp_fn(target, key_file=None, user=None):
     else:
         destination = "{}:".format(target)
 
-    def _scp_fn(source, dest, recursive=True):
+    def _scp_fn(source, dest, recursive=True, copy_from=False):
         _dest = "{}{}".format(destination, dest)
         _cmd = cmd.copy()
         if recursive:
             _cmd.append('-r')
-        _cmd.extend([source, _dest])
-        logging.debug("Copying %s to %s on %s", source, destination, target)
+        if copy_from:
+            _cmd.extend([_dest, source])
+            logging.debug(
+                "Getting remote %s to local %s from %s",
+                source, destination, target)
+        else:
+            _cmd.extend([source, _dest])
+            logging.debug(
+                "Putting local %s to remote %s on %s",
+                source, destination, target)
         subprocess.check_call(_cmd)
 
     return _scp_fn
 
 
-class UserSystemdControl:
-    """Provide a mechanism to control an daemon as a user process.
+def create_user(ssh_fn, name):
+    """Create a user on an instance using the ssh_fn and name.
 
-    The control file will be stored in $HOME/.config/systemd/user/<name>.
+    The ssh_fn is a function that takes a command and runs it on the remote
+    system.  It must be sudo capable so that a user can be created and the
+    remote directory for the user be determined.  The directory for the user is
+    created in /var/lib/{name}
 
-    --user commands will be provided to run it.
+    :param ssh_fn: a sudo capable ssh_fn that can run commands on the unit.
+    :type ssh_fn: Callable[[str], str]
+    :param name: the name of the user to create.
+    :type name: str
+    :returns: the directory of the new user.
+    :rtype: str
+    """
+    dir_ = "/var/lib/{name}".format(name=name)
+    cmd = ["sudo", "useradd", "-r", "-s", "/bin/false", "-d", dir_, "-m", name]
+    ssh_fn(cmd)
+    return dir_.strip()
+
+
+def user_exists(ssh_fn, name):
+    """Test is a user exists.
+
+    The ssh_fn is a function that takes a command and runs it on the remote
+    system.  It requires the the ssh_fn raises an exception if the command
+    fails.
+
+    :param ssh_fn: a ssh_fn that can run commands on the unit.
+    :type ssh_fn: Callable[[str], str]
+    :param name: the name of the user to test if exists.
+    :type name: str
+    :returns: True if the user exists
+    :rtype: bool
+    """
+    cmd = ["grep", "-c", "^{name}:".format(name=name), "/etc/passwd"]
+    try:
+        ssh_fn(cmd)
+    except Exception:
+        return False
+    return True
+
+
+def user_directory(ssh_fn, name=None):
+    """Get the directory for the user.
+
+    The ssh_fn is a function that takes a command and runs it on the remote
+    system.
+
+    If :param:`name` is None, then the user for the ssh_fn is detected,
+    otherwise the home dir or specified user is detected.
+
+    :param ssh_fn: a ssh_fn that can run commands on the unit.
+    :type ssh_fn: Callable[[str], str]
+    :param name: the name of the user to get the directory for.
+    :type name: Option[str]
+    :returns: True if the user exists
+    :rtype: bool
+    """
+    if name is None:
+        cmd = ["echo", "$HOME"]
+    else:
+        cmd = ["echo", "~{name}".format(name=name)]
+    return ssh_fn(cmd).strip()
+
+
+class SystemdControl:
+    """Provide a mechanism to control an daemon as a systemd process.
+
+    The control file will be stored in /etc/systemd/system
 
     It is assumed to be a simple daemon that can be stopped and started using
     typical control signals.
+
+
     """
 
     SYSTEMD_FILE = textwrap.dedent("""
         [Unit]
-        Description=UserSystemdControl file for {name}
+        Description=SystemdControl file for {name}
 
         [Service]
         ExecStart={exec_start}
+        User={name}
         Environment=PYTHONUNBUFFERED=1
         Restart=on-failure
         RestartSec=5s
@@ -326,10 +435,11 @@ class UserSystemdControl:
 
     def __init__(
             self, ssh_fn, scp_fn, name, execute, autostart=True):
-        """Initialise a UserSystemdControl object.
+        """Initialise a SystemdControl object.
 
-        :param ssh_fn: a function that runs commands on the instance.
-        :type ssh_fn: Callable[[str], Any]
+        :param ssh_fn: a function that runs commands on the instance; this
+            needs to have sudo access.
+        :type ssh_fn: Callable[[str], str]
         :param scp_fn: a function that can copy files to the instance.
         :type scp_fn: Callable[[str, str, bool], None]
         :param name: name of the unit (short, no spaces)
@@ -339,7 +449,7 @@ class UserSystemdControl:
         :type execute: str
         :param autostart: Default True; whether to automatically start the
             unit.
-        :type autostart: boolean
+        :type autostart: bool
         """
         self.ssh_fn = ssh_fn
         self.scp_fn = scp_fn
@@ -351,13 +461,16 @@ class UserSystemdControl:
         self._home_var = None
 
     @property
-    def _user_systemd_dir(self):
-        return os.path.join(self._home, ".config/systemd/user")
+    def _systemd_dir(self):
+        return "/etc/systemd/system"
 
     @property
-    def _user_systemd_file(self):
-        return os.path.join(self._user_systemd_dir,
-                            "{}.service".format(self.name))
+    def _systemd_filename(self):
+        return "{}.service".format(self.name)
+
+    @property
+    def _systemd_file(self):
+        return os.path.join(self._systemd_dir, self._systemd_filename)
 
     @property
     def _home(self):
@@ -366,30 +479,30 @@ class UserSystemdControl:
         self._home_var = self.ssh_fn("echo $HOME").strip()
         return self._home_var
 
-    @property
-    def _exec_start(self):
-        if "$HOME" in self.execute:
-            return self.execute.replace("$HOME", self._home)
-        return self.execute
-
     def install(self):
-        """Install the systemd control file on the instance."""
+        """Install the systemd control file on the instance.
+
+        Install the systemd control file.  To do this:
+
+         1. render it to a local file.
+         2. copy that file to the ssh user's directory (as a temp name)
+         3. sudo mv that file to the _systemd_dir dir.
+        """
         systemd_ctrl_file = self.SYSTEMD_FILE.format(
-            name=self.name, exec_start=self._exec_start)
+            name=self.name, exec_start=self.execute)
+
+        remote_temp_file = os.path.join(self._home, self._systemd_filename)
         with tempfile.TemporaryDirectory() as td:
             fname = os.path.join(td, "control")
             with open(fname, "wt") as f:
                 f.write(systemd_ctrl_file)
-            # self.ssh_fn("mkdir -p {}".format(self._user_systemd_dir))
-            self.ssh_fn(["mkdir", "-p", self._user_systemd_dir])
-            self.scp_fn(fname, self._user_systemd_file)
-            self.ssh_fn(["systemctl", "--user", "daemon-reload"])
+            self.scp_fn(fname, remote_temp_file)
+            self.ssh_fn(["sudo", "mv", remote_temp_file, self._systemd_file])
+            self.ssh_fn(["sudo", "systemctl", "daemon-reload"])
         self._installed = True
 
     def _systemctl(self, command):
-        # _command = ("systemctl --user {command} {name}"
-                    # .format(command=command, name=self.name))
-        _command = ["systemctl", "--user", command, self.name]
+        _command = ["sudo", "systemctl", command, self.name]
         logging.debug("Running %s", _command)
         return self.ssh_fn(_command)
 
@@ -434,12 +547,12 @@ class UserSystemdControl:
         """Return True if we think we are running.
 
         :returns: True if the systemd unit seems to be running on the unit.
-        :rtype: boolean
+        :rtype: bool
         """
         if not self._installed:
             return False
         try:
-            command = ["systemctl", "--user", "show", "-p", "SubState",
+            command = ["sudo", "systemctl", "show", "-p", "SubState",
                        "--value", "--no-pager", self.name]
             output = self.ssh_fn(command)
         except subprocess.CalledProcessError as e:
@@ -453,5 +566,5 @@ class UserSystemdControl:
         if self._installed:
             self.stop()
             self.disable()
-            self.ssh_fn(["rm", self._systemd_file])
+            self.ssh_fn(["sudo", "rm", self._systemd_file])
         self._installed = False
