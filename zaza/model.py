@@ -1326,6 +1326,9 @@ async def async_wait_for_application_states(model_name=None, states=None,
 
         logging.info("Now checking workload status and status messages")
         while True:
+            # now we sleep to allow progress to be made in the libjuju futures
+            await asyncio.sleep(2)
+
             await ensure_model_connected(model)
             timed_out = int(time.time() - start) > timeout
             issues = []
@@ -1420,9 +1423,6 @@ async def async_wait_for_application_states(model_name=None, states=None,
                 for issue in issues:
                     logging.info(issue)
                 raise ModelTimeout("Work state not achieved within timeout.")
-
-            # now we sleep to allow progress to be made in the libjuju futures
-            await asyncio.sleep(2)
 
 
 wait_for_application_states = sync_wrapper(async_wait_for_application_states)
