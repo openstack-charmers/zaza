@@ -151,19 +151,34 @@ def run_env_deployment(env_deployment, keep_model=False, force=False,
 
     except zaza.model.ModelTimeout:
         failure_report(model_aliases, show_juju_status=True)
+        # Destroy models that were not healthy before TEST_DEPLOY_TIMEOUT
+        # was reached (default: 3600s)
+        if not keep_model:
+            destroy_models(model_aliases, destroy)
         raise
-
     except Exception:
         failure_report(model_aliases)
+        # Destroy models that raised any other exception.
+        # Note(aluria): KeyboardInterrupt will be raised on underlying libs,
+        # and other signals (e.g. SIGTERM) will also miss this handler
+        # In those cases, models will have to be manually destroyed
+        if not keep_model:
+            destroy_models(model_aliases, destroy)
         raise
 
+    # Destroy successful models if --keep-model is not defined
+    if not keep_model:
+        destroy_models(model_aliases, destroy)
+
+
+def destroy_models(model_aliases, destroy):
+    """Destroy models created during integration tests."""
     # Destroy
     # Keep the model from the last run if keep_model is true, this is to
-    # maintian compat with osci and should change when the zaza collect
+    # maintain compat with osci and should change when the zaza collect
     # functions take over from osci for artifact collection.
-    if not keep_model:
-        for model_name in model_aliases.values():
-            destroy.destroy(model_name)
+    for model_name in model_aliases.values():
+        destroy.destroy(model_name)
     zaza.model.unset_juju_model_aliases()
 
 
