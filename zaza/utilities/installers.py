@@ -459,6 +459,7 @@ class SystemdControl:
         self._enabled = False
         self._installed = False
         self._home_var = None
+        self._stopped = True
 
     @property
     def _systemd_dir(self):
@@ -514,13 +515,15 @@ class SystemdControl:
             self.enable()
         if not self.is_running():
             self._systemctl("start")
+            self._stopped = False
 
     def stop(self):
         """Stop the systemd unit instance on the instance."""
-        if not self._installed:
+        if not self._installed or self._stopped:
             return
         if self.is_running():
             self._systemctl("stop")
+            self._stopped = True
 
     def restart(self):
         """Restart the systemd unit on the instance."""
@@ -530,6 +533,7 @@ class SystemdControl:
             self._systemctl("restart")
         else:
             self._systemctl("start")
+        self._stopped = False
 
     def enable(self):
         """Enable the systemd unit on the instance."""
@@ -549,7 +553,7 @@ class SystemdControl:
         :returns: True if the systemd unit seems to be running on the unit.
         :rtype: bool
         """
-        if not self._installed:
+        if not self._installed or self._stopped:
             return False
         try:
             command = ["sudo", "systemctl", "show", "-p", "SubState",
@@ -559,7 +563,9 @@ class SystemdControl:
             logging.debug("is_running() check failed: {}"
                           .format(str(e)))
             return False
-        return "running" in output.strip()
+        _running = "running" in output.strip()
+        self._stopped = not(_running)
+        return _running
 
     def remove(self):
         """Stop the unit, disable the unit, and remove the control file."""
