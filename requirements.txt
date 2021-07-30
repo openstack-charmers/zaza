@@ -33,8 +33,6 @@ python-novaclient
 python-octaviaclient
 python-swiftclient
 tenacity
-#see https://github.com/openstack-charmers/zaza/issues/456
-#distro-info
 paramiko
 python-libmaas
 # Documentation requirements
