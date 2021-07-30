@@ -455,6 +455,7 @@ class LoggerInstance:
         'unit',
         'item',
         'event',
+        'comment',
         'tags',
     ]
 
