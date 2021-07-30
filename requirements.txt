@@ -10,7 +10,7 @@ pydocstyle<4.0.0
 coverage
 mock>=1.2
 nose>=1.3.7
-pbr>=1.8.0,<1.9.0
+pbr==5.6.0
 simplejson>=2.2.0
 netifaces>=0.10.4
 netaddr>=0.7.12,!=0.7.16
@@ -33,7 +33,6 @@ python-novaclient
 python-octaviaclient
 python-swiftclient
 tenacity
-distro-info
 paramiko
 python-libmaas
 # Documentation requirements
