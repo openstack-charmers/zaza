@@ -364,7 +364,7 @@ class EventLogger:
         """
         kwargs['event'] = event
         if 'timestamp' not in kwargs:
-            kwargs['timestamp'] = datetime.datetime.now()
+            kwargs['timestamp'] = datetime.datetime.utcnow()
         for writer in self._writers.values():
             writer.write(newline=newline, **kwargs)
 
