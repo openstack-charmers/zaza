@@ -253,10 +253,8 @@ class LoggerPluginManager(PluginManagerBase):
 
     def clean_up(self):
         """Clean up the log file."""
-        try:
-            os.remove(self.filename)
-        except FileNotFoundError:
-            pass
+        pass
+        # TODO: have a configurable option to remove the log file.
 
 
 class WriterFile:
