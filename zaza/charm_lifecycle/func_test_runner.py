@@ -87,7 +87,7 @@ def run_env_deployment(env_deployment, keep_model=False, force=False,
 
     :param env_deployment: Environment Deploy to execute.
     :type env_deployment: utils.EnvironmentDeploy
-    :param keep_model: Whether to destroy models at end of run
+    :param keep_model: Whether to destroy model at end of run
     :type keep_model: boolean
     :param force: Pass the force parameter if True
     :type force: Boolean
@@ -182,12 +182,16 @@ def destroy_models(model_aliases, destroy):
     zaza.model.unset_juju_model_aliases()
 
 
-def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
-                     force=False, test_directory=None):
+def func_test_runner(keep_last_model=False, keep_all_models=False,
+                     keep_faulty_model=False, smoke=False, dev=False,
+                     bundles=None, force=False, test_directory=None):
     """Deploy the bundles and run the tests as defined by the charms tests.yaml.
 
-    :param keep_model: Whether to destroy model at end of run
-    :type keep_model: boolean
+    :param keep_last_model: Whether to destroy last model at end of run
+    :type keep_last_model: boolean
+    :param keep_all_models: Whether to keep all models at end of run
+    :type keep_all_models: boolean
+    :param keep_faulty_model: Whether to destroy a model when tests failed
     :param smoke: Whether to just run smoke test.
     :param dev: Whether to just run dev test.
     :type smoke: boolean
@@ -252,7 +256,10 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
     last_test = environment_deploys[-1].name
     for env_deployment in environment_deploys:
         preserve_model = False
-        if keep_model and last_test == env_deployment.name:
+        if (keep_all_models or
+          (last_test == env_deployment.name and (
+              keep_last_model or keep_faulty_model
+          ))):
             preserve_model = True
         run_env_deployment(env_deployment, keep_model=preserve_model,
                            force=force, test_directory=test_directory)
@@ -267,8 +274,14 @@ def parse_args(args):
     :rtype: Namespace
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--keep-model', dest='keep_model',
-                        help='Keep model at the end of the run',
+    parser.add_argument('--keep-model', '--keep-last-model', dest='keep_last_model',
+                        help='Keep last model at the end of the run (successful or not)',
+                        action='store_true')
+    parser.add_argument('--keep-all-models', dest='keep_all_models',
+                        help='Keep all models at the end of their run (successful or not)',
+                        action='store_true')
+    parser.add_argument('--keep-faulty-model', dest='keep_faulty_model',
+                        help='Keep last model at the end of the run (if not successful)',
                         action='store_true')
     parser.add_argument('--smoke', dest='smoke',
                         help='Just run smoke test(s)',
@@ -292,7 +305,9 @@ def parse_args(args):
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
     cli_utils.add_test_directory_argument(parser)
-    parser.set_defaults(keep_model=False,
+    parser.set_defaults(keep_last_model=False,
+                        keep_all_models=False,
+                        keep_faulty_model=False
                         smoke=False,
                         dev=False,
                         loglevel='INFO')
@@ -304,6 +319,14 @@ def main():
     args = parse_args(sys.argv[1:])
 
     cli_utils.setup_logging(log_level=args.loglevel.upper())
+
+    if ((args.keep_last_model and args.keep_all_models) or
+      (args.keep_last_model and args.keep_faulty_model) or
+      (args.keep_all_models and args.keep_faulty_model)):
+        raise ValueError('Ambiguous arguments: --keep-last-model '
+                         '(previously, --keep-model), --keep-all-models '
+                         'and --keep-faulty-model cannot be used together')
+
 
     if args.dev and args.smoke:
         raise ValueError('Ambiguous arguments: --smoke and '
@@ -321,7 +344,9 @@ def main():
         logging.warn("Using the --force argument for 'juju deploy'. Note "
                      "that this disables juju checks for compatibility.")
     func_test_runner(
-        keep_model=args.keep_model,
+        keep_last_model=args.keep_last_model,
+        keep_all_models=args.keep_all_models,
+        keep_faulty_model=args.keep_faulty_model,
         smoke=args.smoke,
         dev=args.dev,
         bundles=args.bundles,
