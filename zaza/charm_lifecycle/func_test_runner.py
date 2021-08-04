@@ -31,6 +31,16 @@ import zaza.model
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
 
+# Default: destroy any model after being used
+DESTROY_MODEL = 0
+# Do not destroy a model, for different reasons:
+#   - want to keep all models
+#   - want to keep the last model, tests being successful or not
+KEEP_MODEL = 1
+# Do not destroy a model with failed tests (which is the last one
+# to run, but may not be the last one in the list of bundles to test)
+KEEP_FAULTY_MODEL = 2
+
 
 def failure_report(model_aliases, show_juju_status=False):
     """Report on apps and units in an error state.
@@ -81,14 +91,14 @@ def failure_report(model_aliases, show_juju_status=False):
                     default_flow_style=False))
 
 
-def run_env_deployment(env_deployment, keep_model=False, force=False,
+def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
                        test_directory=None):
     """Run the environment deployment.
 
     :param env_deployment: Environment Deploy to execute.
     :type env_deployment: utils.EnvironmentDeploy
     :param keep_model: Whether to destroy model at end of run
-    :type keep_model: boolean
+    :type keep_model: int
     :param force: Pass the force parameter if True
     :type force: Boolean
     :param test_directory: Set the directory containing tests.yaml and bundles.
@@ -153,7 +163,7 @@ def run_env_deployment(env_deployment, keep_model=False, force=False,
         failure_report(model_aliases, show_juju_status=True)
         # Destroy models that were not healthy before TEST_DEPLOY_TIMEOUT
         # was reached (default: 3600s)
-        if not keep_model:
+        if keep_model == DESTROY_MODEL:
             destroy_models(model_aliases, destroy)
         raise
     except Exception:
@@ -162,12 +172,12 @@ def run_env_deployment(env_deployment, keep_model=False, force=False,
         # Note(aluria): KeyboardInterrupt will be raised on underlying libs,
         # and other signals (e.g. SIGTERM) will also miss this handler
         # In those cases, models will have to be manually destroyed
-        if not keep_model:
+        if keep_model == DESTROY_MODEL:
             destroy_models(model_aliases, destroy)
         raise
 
     # Destroy successful models if --keep-model is not defined
-    if not keep_model:
+    if keep_model in [DESTROY_MODEL, KEEP_FAULTY_MODEL]:
         destroy_models(model_aliases, destroy)
 
 
@@ -255,12 +265,15 @@ def func_test_runner(keep_last_model=False, keep_all_models=False,
         environment_deploys = utils.get_environment_deploys(bundle_key)
     last_test = environment_deploys[-1].name
     for env_deployment in environment_deploys:
-        preserve_model = False
-        if (keep_all_models or
-          (last_test == env_deployment.name and (
-              keep_last_model or keep_faulty_model
-          ))):
-            preserve_model = True
+        preserve_model = DESTROY_MODEL
+        if (
+            (keep_last_model and last_test == env_deployment.name) or
+            keep_all_models
+        ):
+            preserve_model = KEEP_MODEL
+        elif keep_faulty_model:
+            preserve_model = KEEP_FAULTY_MODEL
+
         run_env_deployment(env_deployment, keep_model=preserve_model,
                            force=force, test_directory=test_directory)
 
@@ -274,14 +287,18 @@ def parse_args(args):
     :rtype: Namespace
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--keep-model', '--keep-last-model', dest='keep_last_model',
-                        help='Keep last model at the end of the run (successful or not)',
+    parser.add_argument('--keep-model', '--keep-last-model',
+                        dest='keep_last_model',
+                        help=('Keep last model at the end of the run '
+                              '(successful or not)'),
                         action='store_true')
     parser.add_argument('--keep-all-models', dest='keep_all_models',
-                        help='Keep all models at the end of their run (successful or not)',
+                        help=('Keep all models at the end of their run '
+                              '(successful or not)'),
                         action='store_true')
     parser.add_argument('--keep-faulty-model', dest='keep_faulty_model',
-                        help='Keep last model at the end of the run (if not successful)',
+                        help=('Keep last model at the end of the run '
+                              '(if not successful)'),
                         action='store_true')
     parser.add_argument('--smoke', dest='smoke',
                         help='Just run smoke test(s)',
@@ -307,7 +324,7 @@ def parse_args(args):
     cli_utils.add_test_directory_argument(parser)
     parser.set_defaults(keep_last_model=False,
                         keep_all_models=False,
-                        keep_faulty_model=False
+                        keep_faulty_model=False,
                         smoke=False,
                         dev=False,
                         loglevel='INFO')
@@ -320,13 +337,14 @@ def main():
 
     cli_utils.setup_logging(log_level=args.loglevel.upper())
 
-    if ((args.keep_last_model and args.keep_all_models) or
-      (args.keep_last_model and args.keep_faulty_model) or
-      (args.keep_all_models and args.keep_faulty_model)):
+    if (
+        (args.keep_last_model and args.keep_all_models) or
+        (args.keep_last_model and args.keep_faulty_model) or
+        (args.keep_all_models and args.keep_faulty_model)
+    ):
         raise ValueError('Ambiguous arguments: --keep-last-model '
                          '(previously, --keep-model), --keep-all-models '
                          'and --keep-faulty-model cannot be used together')
-
 
     if args.dev and args.smoke:
         raise ValueError('Ambiguous arguments: --smoke and '
