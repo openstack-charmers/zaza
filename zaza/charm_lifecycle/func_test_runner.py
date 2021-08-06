@@ -107,9 +107,6 @@ def run_env_deployment(env_deployment, keep_model=False, force=False,
             deployment.model_name,
             test_directory=test_directory)
 
-    force = force or utils.is_config_deploy_forced_for_bundle(
-        deployment.bundle)
-
     for deployment in env_deployment.model_deploys:
         # Before deploy
         before_deploy.before_deploy(
@@ -119,13 +116,16 @@ def run_env_deployment(env_deployment, keep_model=False, force=False,
 
     try:
         for deployment in env_deployment.model_deploys:
+            force_ = force or utils.is_config_deploy_forced_for_bundle(
+                deployment.bundle)
+
             deploy.deploy(
                 os.path.join(
                     utils.get_bundle_dir(),
                     '{}.yaml'.format(deployment.bundle)),
                 deployment.model_name,
                 model_ctxt=model_aliases,
-                force=force,
+                force=force_,
                 test_directory=test_directory)
 
         # When deploying bundles with cross model relations, hooks may be
