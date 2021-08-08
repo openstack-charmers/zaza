@@ -102,6 +102,9 @@ from zaza.events.plugins import PluginManagerBase
 from zaza.events.formats import LogFormats
 
 
+logger = logging.getLogger(__name__)
+
+
 _loggers = dict()
 
 
@@ -199,8 +202,6 @@ class LoggerPluginManager(PluginManagerBase):
         according to their handle and name.  The same handle and name can be
         used in multiple loggers, (although that would be unusual)!
         """
-        logger = get_logger(self.managed_name)
-
         if self.filename is None:
             name = "{}_{}_{}.log".format(
                 self.collection, self.log_format, str(uuid.uuid4())[-8:])
@@ -209,8 +210,8 @@ class LoggerPluginManager(PluginManagerBase):
         self._managed_writer = get_writer(
             self.log_format, self._managed_writer_file.handle)
         # now wire it in to the logger
-        logger = get_logger(self.managed_name)
-        logger.add_writers(self._managed_writer)
+        event_logger = get_logger(self.managed_name)
+        event_logger.add_writers(self._managed_writer)
 
     def get_logger(self):
         """Return the logger instance associated with this item.
@@ -240,12 +241,12 @@ class LoggerPluginManager(PluginManagerBase):
         writter in the logger.
         """
         if self._managed_writer is None:
-            logging.warning(
+            logger.warning(
                 "LoggerPluginManager: doesn't have a managed writer to "
                 "finalise.")
             return
-        logger = get_logger(self.managed_name)
-        logger.remove_writer(self._managed_writer)
+        event_logger = get_logger(self.managed_name)
+        event_logger.remove_writer(self._managed_writer)
         self._managed_writer_file.close()
 
     def log_files(self):
@@ -397,8 +398,8 @@ class EventLogger:
                 _existing_replaced.append(w.name)
             self._writers[w.name] = w
         if _existing_replaced:
-            logging.warning("Adding writers with existing names: {}"
-                            .format(",".join(_existing_replaced)))
+            logger.warning("Adding writers with existing names: {}"
+                           .format(",".join(_existing_replaced)))
 
     def has_writer(self, name):
         """Return true if writer exists.
@@ -437,7 +438,7 @@ class EventLogger:
         :type writer: WriterBase
         """
         if writer.name not in self._writers:
-            logging.warning("Writer: %s doesn't exist, adding", writer)
+            logger.warning("Writer: %s doesn't exist, adding", writer)
         self._writers[writer.name] = writer
 
     def remove_writer(self, writer):
@@ -449,8 +450,8 @@ class EventLogger:
         :type writer: WriterBase
         """
         if writer.name not in self._writers:
-            logging.warning("Writer: %s doesn't exist, ignore removing",
-                            writer)
+            logger.warning("Writer: %s doesn't exist, ignore removing",
+                           writer)
             return
         del self._writers[writer.name]
 
@@ -502,9 +503,9 @@ class LoggerInstance:
         """
         invalid_keys = [k for k in kwargs if k not in self._valid_fields]
         if len(invalid_keys) != 0:
-            logging.warning("kwargs %s not valid for %s",
-                            ",".join(invalid_keys),
-                            self.__class__.__name__)
+            logger.warning("kwargs %s not valid for %s",
+                           ",".join(invalid_keys),
+                           self.__class__.__name__)
 
     def _add_in_prefilled(self, kwargs):
         """Add in the prefilled values if they don't exist to a passed dict.
@@ -594,8 +595,8 @@ def remove_writer(log_format, handle):
     try:
         del _writers[type_]
     except KeyError:
-        logging.debug("Writer for {}:{} didn't exist"
-                      .format(log_format, handle))
+        logger.debug("Writer for {}:{} didn't exist"
+                     .format(log_format, handle))
 
 
 class WriterBase:
@@ -885,7 +886,7 @@ def format_dict(d, tag=False):
 class HandleToLogging:
     """HandleToLogging logs events to Python logging."""
 
-    def __init__(self, name=None, level=logging.DEBUG, logger=None):
+    def __init__(self, name=None, level=logging.DEBUG, python_logger=None):
         """Initialise a HandleToLogging object.
 
         This acts as a proxy handle to enable Writers to write to Python's
@@ -895,10 +896,12 @@ class HandleToLogging:
         :type name: Optional[str]
         :param level: the level to log at (python logging)
         :type level: int
+        :param python_logger: The python logger to use for logging.
+        :type python_logger: Optional[logging.RootLogger]
         """
         self.name = name
         self.level = level
-        self.logger = logger
+        self.logger = python_logger
 
     def write(self, msg):
         """Write a message to the python logger.
@@ -910,7 +913,7 @@ class HandleToLogging:
         """
         msg.rstrip()
         if msg:
-            _logger = self.logger or logging
+            _logger = self.logger or logger
             _logger.log(self.level, msg)
 
     def flush(self):
