@@ -472,6 +472,7 @@ class LoggerInstance:
         'event',
         'comment',
         'tags',
+        'uuid',
     ]
 
     def __init__(self, event_logger, **kwargs):
