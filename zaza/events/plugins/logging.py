@@ -215,15 +215,22 @@ class LoggerPluginManager(PluginManagerBase):
     def get_logger(self):
         """Return the logger instance associated with this item.
 
-        In particular, the collection is pre-filled on the logger so that it
-        doesn't need to be set each time.
-
         :returns: an EventLogger instance
         :rtype: EventLogger
         """
-        logger = get_logger(self.managed_name)
-        return logger.prefill_with(collection=self.collection,
-                                   unit=self.managed_name)
+        return get_logger(self.managed_name)
+
+    def get_event_logger(self):
+        """Return the logger instance associated with this item.
+
+        In particular, the collection is pre-filled on the logger so that it
+        doesn't need to be set each time.
+
+        :returns: an LoggerInstance instance
+        :rtype: LoggerInstance
+        """
+        return self.get_logger().prefill_with(collection=self.collection,
+                                              unit=self.managed_name)
 
     def finalise(self):
         """Finalise the writers in the logger.
