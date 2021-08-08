@@ -880,3 +880,42 @@ def format_dict(d, tag=False):
     return ",".join(
         '{}={}'.format(k, format_value(v, tag=tag))
         for k, v in d.items())
+
+
+class HandleToLogging:
+    """HandleToLogging logs events to Python logging."""
+
+    def __init__(self, name=None, level=logging.DEBUG, logger=None):
+        """Initialise a HandleToLogging object.
+
+        This acts as a proxy handle to enable Writers to write to Python's
+        standard loggers.
+
+        :param name: the name of this handle
+        :type name: Optional[str]
+        :param level: the level to log at (python logging)
+        :type level: int
+        """
+        self.name = name
+        self.level = level
+        self.logger = logger
+
+    def write(self, msg):
+        """Write a message to the python logger.
+
+        Note that it ignores newlines.
+
+        :param msg: the message to write to the logger.
+        :type msg: str
+        """
+        msg.rstrip()
+        if msg:
+            _logger = self.logger or logging
+            _logger.log(self.level, msg)
+
+    def flush(self):
+        """Flush the handle.
+
+        This is a no-op for the HandleToLogging object.
+        """
+        pass
