@@ -28,6 +28,7 @@ import zaza.charm_lifecycle.prepare as prepare
 import zaza.charm_lifecycle.deploy as deploy
 import zaza.charm_lifecycle.test as test
 import zaza.model
+from zaza.notifications import notify_around, NotifyEvent
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
 
@@ -239,8 +240,9 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
         preserve_model = False
         if keep_model and last_test == env_deployment.name:
             preserve_model = True
-        run_env_deployment(env_deployment, keep_model=preserve_model,
-                           force=force, test_directory=test_directory)
+        with notify_around(NotifyEvent.BUNDLE, env_deployment=env_deployment):
+            run_env_deployment(env_deployment, keep_model=preserve_model,
+                               force=force, test_directory=test_directory)
 
 
 def parse_args(args):
