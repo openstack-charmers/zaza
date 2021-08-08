@@ -566,6 +566,12 @@ def get_writer(log_format, handle):
     }
 
     assert log_format in (LogFormats.CSV, LogFormats.LOG, LogFormats.InfluxDB)
+    assert log_format in (
+        LogFormats.CSV, LogFormats.LOG, LogFormats.InfluxDB), \
+        "Log format {} isn't one of {}".format(
+            log_format,
+            ", ".join((LogFormats.CSV, LogFormats.LOG, LogFormats.InfluxDB)))
+
     global _writers
     type_ = (log_format, handle)
     try:
