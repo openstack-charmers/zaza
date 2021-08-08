@@ -15,6 +15,8 @@
 """Collection of utilities to support zaza tests etc."""
 
 
+from functools import wraps
+import json
 import types
 
 
@@ -61,3 +63,38 @@ class ConfigurableMixin:
                 raise AttributeError(
                     "key {} doesn't belong to {} or is a method/property"
                     .format(k, self.__class__.__name__))
+
+
+cache = {}
+
+
+def cached(func):
+    """Cache return values for multiple executions of func + args
+
+    For example::
+
+        @cached
+        def unit_get(attribute):
+            pass
+
+        unit_get('test')
+
+    will cache the result of unit_get + 'test' for future calls.
+
+    :param func: the function to cache
+    :type func: Callable[_T]
+    :returns: Callable[_T]
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        global cache
+        key = json.dumps((func, args, kwargs), sort_keys=True, default=str)
+        try:
+            return cache[key]
+        except KeyError:
+            pass  # Drop out of the exception handler scope.
+        res = func(*args, **kwargs)
+        cache[key] = res
+        return res
+    wrapper._wrapped = func
+    return wrapper
