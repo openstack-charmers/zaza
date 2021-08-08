@@ -565,7 +565,6 @@ def get_writer(log_format, handle):
         LogFormats.InfluxDB: WriterLineProtocol,
     }
 
-    assert log_format in (LogFormats.CSV, LogFormats.LOG, LogFormats.InfluxDB)
     assert log_format in (
         LogFormats.CSV, LogFormats.LOG, LogFormats.InfluxDB), \
         "Log format {} isn't one of {}".format(
