@@ -1,0 +1,43 @@
+charm_name: none
+gate_bundles:
+- conncheck-focal
+#- events-focal
+
+target_deploy_status:
+  ubuntu:
+    workload-status-message-regex: "^$"
+
+configure:
+- zaza.charm_tests.noop.setup.basic_setup
+
+tests:
+- zaza.charm_tests.noop.tests.NoopTest
+
+tests_options:
+  plugins:
+    - zaza.plugins.events.configure
+  zaza-events:
+    log-format: InfluxDB
+    keep-logs: false
+    collection-name: DEFAULT
+    collection-description: ""
+    logger-name: DEFAULT
+    log-to-stdout: true
+    log-to-python-logging: true
+    python-logging-level: info
+    raise-exceptions: true
+    upload:
+      - type: InfluxDB
+        url: ${TEST_INFLUXDB_URL}
+        # user: ${TEST_INFLUXDB_USER}
+        # password: ${TEST_INFLUXDB_PASSWORD}
+        database: testdb
+        timestamp-resolution: us
+    log-collection-name: "testdb-{bundle}-{date}"
+    tags:
+      tag-name: tag-value
+    fields:
+      date: "{date}"
+    instrument:
+      test-classes: true
+      test-function: true
