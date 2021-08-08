@@ -135,6 +135,8 @@ class Collection(ConfigurableMixin):
                 manager)
             return
         self._event_managers.append(manager)
+        if self.log_format is None:
+            self.log_format = LogFormats.InfluxDB
         manager.configure(collection_object=self)
         self._ensure_logs_dir()
         manager.configure_plugin()
