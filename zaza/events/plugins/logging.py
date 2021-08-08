@@ -580,6 +580,24 @@ def get_writer(log_format, handle):
     return _writers[type_]
 
 
+def remove_writer(log_format, handle):
+    """Remove a writer, if it exists.
+
+    :param log_format: A log format in the form of LogFormats
+    :type log_format: str
+    :param handle: the handle associated with the writer.
+    :type handle: IO[str]
+    """
+    assert log_format in (LogFormats.CSV, LogFormats.LOG, LogFormats.InfluxDB)
+    global _writers
+    type_ = (log_format, handle)
+    try:
+        del _writers[type_]
+    except KeyError:
+        logging.debug("Writer for {}:{} didn't exist"
+                      .format(log_format, handle))
+
+
 class WriterBase:
     """A simple writer class for logging."""
 
