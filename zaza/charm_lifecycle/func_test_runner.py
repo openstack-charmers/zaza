@@ -29,6 +29,7 @@ import zaza.charm_lifecycle.deploy as deploy
 import zaza.charm_lifecycle.test as test
 import zaza.model
 from zaza.notifications import notify_around, NotifyEvent
+import zaza.plugins
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
 
@@ -235,6 +236,11 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
         else:
             bundle_key = 'gate_bundles'
         environment_deploys = utils.get_environment_deploys(bundle_key)
+
+    # Now inform any plugins of the environment deploys.
+    zaza.plugins.find_and_configure_plugins(environment_deploys)
+
+    # Now run the deploys
     last_test = environment_deploys[-1].name
     for env_deployment in environment_deploys:
         preserve_model = False
