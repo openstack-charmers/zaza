@@ -209,6 +209,22 @@ class Collection(ConfigurableMixin):
         for manager in self._event_managers:
             manager.clean_up()
 
+    def reset(self):
+        """Reset the collection so that it can be used again.
+
+        This calls reset on all the contained managers, before removing them.
+        It then resets the configuration so that it can be reset.
+        """
+        for manager in self._event_managers:
+            manager.reset()
+        self.collection = None
+        self.description = None
+        self.logs_dir = None
+        self.log_format = None
+        for manager in self._event_managers:
+            manager.collection_object = None
+        self._event_managers = []
+
 
 class Streamer:
     """An context manager for with that streams from multiple log files."""

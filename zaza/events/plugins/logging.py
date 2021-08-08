@@ -263,6 +263,16 @@ class LoggerPluginManager(PluginManagerBase):
         pass
         # TODO: have a configurable option to remove the log file.
 
+    def reset(self):
+        """Reset the logger so it can be used again."""
+        if self._managed_writer is not None:
+            self.finalise()
+            # now remove the writer
+            remove_writer(self.log_format, self._managed_writer_file.handle)
+            self._managed_writer_file = None
+            self._managed_writer = None
+        self.filename = None
+
 
 class WriterFile:
     """Handle the lifetime of a log file and the handle.

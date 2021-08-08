@@ -167,6 +167,11 @@ class ConnCheckPluginManager(PluginManagerBase):
         """Call the clean_up method on the ConnCheckManager."""
         self.manager.clean_up()
 
+    def reset(self):
+        """Reset the conncheck manager so it can be used again."""
+        self.clean_up()
+        self._conncheck_manager = None
+
 
 class ConnCheckManager(ConfigurableMixin):
     """Manage a ConnCheck set of instances."""

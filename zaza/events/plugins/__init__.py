@@ -107,3 +107,7 @@ class PluginManagerBase(ConfigurableMixin):
     def clean_up(self):
         """Clean-up any log files, resources, etc."""
         raise NotImplementedError()
+
+    def reset(self):
+        """Reset the plugin so it can be used again."""
+        raise NotImplementedError()
