@@ -195,7 +195,7 @@ def notify(event, when=None, *args, **kwargs):
     :type event: NotifyType
     """
     assert when in (
-        NotifyType.BEFORE, NotifyType.AFTER, NotifyType.EXCEPTION), \
+        None, NotifyType.BEFORE, NotifyType.AFTER, NotifyType.EXCEPTION), \
         "It doesn't make sense to notify on ALL NotifyTypes."
     if when is None:
         when = NotifyType.BEFORE
