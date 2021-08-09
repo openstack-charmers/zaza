@@ -50,13 +50,16 @@ class NotifyEvent(enum.Enum):
 
     BUNDLE = "bundle"
     ENV_DEPLOYMENT = "env-deployment"
-    PREPARE_DEPLOYMENT = "prepare-deployment"
+    PREPARE_ENVIRONMENT = "prepare-env"
     BEFORE_DEPLOY = "before-deploy"
-    DEPLOY_MODEL = "deploy-model"
-    DEPLOY_FUNCTION = "deploy-function"
+    BEFORE_DEPLOY_FUNCTION = "before-deploy-function"
+    CONFIGURE = "configure"
+    CONFIGURE_FUNCTION = "configure-function"
+    DEPLOY_BUNDLE = "deploy-bundle"
     WAIT_MODEL_SETTLE = "wait-model-settle"
     CONFIGURE_MODEL = "configure-model"
-    TEST_MODEL = "test-model"
+    TESTS = "tests"
+    TEST_CASE = "test-case"
     DESTROY_MODEL = "destroy-model"
 
 
@@ -85,7 +88,7 @@ def subscribe_this(event=None, when=None):
 
     Use as:
 
-        @subscribe_this(NotifyEvent.DEPLOY_MODEL, NotifyType.BOTH)
+        @subscribe_this(NotifyEvent.DEPLOY_BUNDLE, NotifyType.BOTH)
         def deploy_model_notification_handler(....)
 
     In this case, two events (NotifyType.BEFORE and .AFTER may be fired)
@@ -110,8 +113,7 @@ def subscribe(f, event=None, when=None):
     If :param:`event` is None, then all events in NotifyEvent are subscribed
     to.
     If :param:`event` is a list, then those events will be subscribed.
-    If :param:`when` is None, then BEFORE and AFTER events are subscribed to.
-    This is the same as BOTH.
+    If :param:`when` is None, then the BEFORE event is subscribed to.
 
     :param event: the event to register the function against.
     :type event: Union[str, Iterable[str], None]
@@ -128,8 +130,10 @@ def subscribe(f, event=None, when=None):
         events = (event, )
     if when == NotifyType.ALL:
         whens = NotifyType
-    elif when in (None, NotifyType.BOTH):
+    elif when == NotifyType.BOTH:
         whens = (NotifyType.BEFORE, NotifyType.AFTER)
+    elif when is None:
+        whens = (NotifyType.BEFORE, )
     else:
         # make an iterable of a single event
         whens = (when, )

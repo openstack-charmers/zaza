@@ -136,8 +136,10 @@ def run_env_deployment(env_deployment, keep_model=False, force=False,
         for deployment in env_deployment.model_deploys:
             logging.info("Waiting for {} to settle".format(
                 deployment.model_name))
-            zaza.model.block_until_all_units_idle(
-                model_name=deployment.model_name)
+            with notify_around(NotifyEvent.WAIT_MODEL_SETTLE,
+                               model_name=deployment.model_name):
+                zaza.model.block_until_all_units_idle(
+                    model_name=deployment.model_name)
 
         for deployment in env_deployment.model_deploys:
             configure.configure(

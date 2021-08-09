@@ -25,6 +25,10 @@ import yaml
 import zaza.controller
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
+from zaza.notifications import (
+    notify_around,
+    NotifyEvent,
+)
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.exceptions as zaza_exceptions
 import zaza.utilities.run_report as run_report
@@ -371,7 +375,9 @@ def deploy(bundle, model, wait=True, model_ctxt=None, force=False,
     """
     utils.set_base_test_dir(test_dir=test_directory)
     run_report.register_event_start('Deploy Bundle')
-    deploy_bundle(bundle, model, model_ctxt=model_ctxt, force=force)
+    with notify_around(NotifyEvent.DEPLOY_BUNDLE, bundle=bundle, model=model,
+                       model_ctxt=model_ctxt, force=force):
+        deploy_bundle(bundle, model, model_ctxt=model_ctxt, force=force)
     run_report.register_event_finish('Deploy Bundle')
     if wait:
         run_report.register_event_start('Wait for Deployment')
@@ -382,10 +388,11 @@ def deploy(bundle, model, wait=True, model_ctxt=None, force=False,
         timeout = int(deploy_ctxt.get('TEST_DEPLOY_TIMEOUT', '3600'))
         logging.info("Timeout for deployment to settle set to: {}".format(
             timeout))
-        zaza.model.wait_for_application_states(
-            model,
-            test_config.get('target_deploy_status', {}),
-            timeout=timeout)
+        with notify_around(NotifyEvent.WAIT_MODEL_SETTLE, model=model)
+            zaza.model.wait_for_application_states(
+                model,
+                test_config.get('target_deploy_status', {}),
+                timeout=timeout)
         run_report.register_event_finish('Wait for Deployment')
 
 

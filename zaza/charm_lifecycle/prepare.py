@@ -21,6 +21,7 @@ import zaza.controller
 import zaza.model
 
 import zaza.charm_lifecycle.utils as utils
+from zaza.notifications import notify, NotifyEvent
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
 import zaza.utilities.deployment_env as deployment_env
@@ -35,6 +36,7 @@ def prepare(model_name, test_directory=None):
     :param test_directory: Set the directory containing tests.yaml and bundles.
     :type test_directory: str
     """
+    notify(NotifyEvent.PREPARE_ENVIRONMENT, model_name=model_name)
     utils.set_base_test_dir(test_dir=test_directory)
     zaza.controller.add_model(
         model_name,

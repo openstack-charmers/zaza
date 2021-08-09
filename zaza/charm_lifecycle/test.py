@@ -21,6 +21,7 @@ import sys
 
 import zaza.model
 import zaza.global_options as global_options
+from zaza.notifications import notify, notify_around, NotifyEvent
 import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
@@ -66,12 +67,17 @@ def run_unittest(testcase, test_name):
     :param test_name: Name of test for logging.
     :type test_name: str
     """
-    suite = unittest.TestLoader().loadTestsFromTestCase(testcase)
-    test_result = unittest.TextTestRunner(
-        stream=Stream2Logger(),
-        verbosity=2).run(suite)
-    run_report.register_event_finish('Test {}'.format(test_name))
-    assert test_result.wasSuccessful(), "Test run failed"
+    # note if the assert fails, the events will be:
+    #   (NotifyEvent.TEST_CASE, NotifyType.BEFORE)
+    #   (NotifyEvent.TEST_CASE, NotifyEvent.EXCEPTION)
+    with notify_around(NotifyEvent.TEST_CASE, testcase=testcase,
+                       test_name=test_name):
+        suite = unittest.TestLoader().loadTestsFromTestCase(testcase)
+        test_result = unittest.TextTestRunner(
+            stream=Stream2Logger(),
+            verbosity=2).run(suite)
+        run_report.register_event_finish('Test {}'.format(test_name))
+        assert test_result.wasSuccessful(), "Test run failed"
 
 
 def run_direct(testcase, test_name):
@@ -86,9 +92,14 @@ def run_direct(testcase, test_name):
     :param test_name: Name of test for logging.
     :type test_name: str
     """
-    test_run = testcase().run()
-    assert test_run, "Test run failed"
-    run_report.register_event_finish('Test {}'.format(test_name))
+    # note if the assert fails, the events will be:
+    #   (NotifyEvent.TEST_CASE, NotifyType.BEFORE)
+    #   (NotifyEvent.TEST_CASE, NotifyEvent.EXCEPTION)
+    with notify_around(NotifyEvent.TEST_CASE, testcase=testcase,
+                       test_name=test_name):
+        test_run = testcase().run()
+        assert test_run, "Test run failed"
+        run_report.register_event_finish('Test {}'.format(test_name))
 
 
 def run_test_list(tests):
@@ -120,7 +131,8 @@ def test(model_name, tests, test_directory=None):
     """
     utils.set_base_test_dir(test_dir=test_directory)
     zaza.model.set_juju_model(model_name)
-    run_test_list(tests)
+    with notify_around(NotifyEvent.TESTS, model_name=model_name)
+        run_test_list(tests)
 
 
 def parse_args(args):
