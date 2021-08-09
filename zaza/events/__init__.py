@@ -42,7 +42,7 @@ Key ideas:
 """
 
 
-from .collection import get_collection
+from .collection import get_collection  # NOQA
 
 
 # Events that are standardised.

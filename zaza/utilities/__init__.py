@@ -17,6 +17,7 @@
 
 from functools import wraps
 import json
+import os
 import types
 
 
@@ -69,7 +70,7 @@ cache = {}
 
 
 def cached(func):
-    """Cache return values for multiple executions of func + args
+    """Cache return values for multiple executions of func + args.
 
     For example::
 

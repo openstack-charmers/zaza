@@ -14,7 +14,6 @@
 
 """Unit tests for the __init__.py functions."""
 
-import collections
 import unittest
 
 import zaza.utilities
@@ -46,7 +45,7 @@ class TestConfigurableMixin(unittest.TestCase):
                 self.configure(**kwargs)
 
         with self.assertRaises(AttributeError):
-            a = A(a=5, b=10)
+            A(a=5, b=10)
 
     def test_cant_set_hidden(self):
 
@@ -80,7 +79,6 @@ class TestConfigurableMixin(unittest.TestCase):
         a.configure(a=5)
         with self.assertRaises(AttributeError):
             a.configure(a=3, b=10)
-
 
     def test_cant_set_methods(self):
 

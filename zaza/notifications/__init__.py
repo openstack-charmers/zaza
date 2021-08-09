@@ -65,6 +65,7 @@ class NotifyEvent(enum.Enum):
 
 class NotifyType(enum.Enum):
     """Notify Types to go with the Notify Events."""
+
     BEFORE = "before"
     AFTER = "after"
     BOTH = "both"
@@ -104,7 +105,7 @@ def subscribe_this(event=None, when=None):
     """
     def accept_function(f):
         """Subscribe the decorated function."""
-        subsribe(f, event, when)
+        subscribe(f, event, when)
 
 
 def subscribe(f, event=None, when=None):
@@ -225,6 +226,7 @@ class notify_around(ContextDecorator):
     """
 
     def __init__(self, event, *args, **kwargs):
+        """Initialise a notify_around context/decorator."""
         self.event = event
         self.args = args
         self.kwargs = kwargs
@@ -232,6 +234,7 @@ class notify_around(ContextDecorator):
             kwargs['uuid'] = str(uuid.uuid4())
 
     def __enter__(self):
+        """Enter function for context/decorator."""
         notify(self.event,
                when=NotifyType.BEFORE,
                *self.args,
@@ -239,6 +242,7 @@ class notify_around(ContextDecorator):
         return self
 
     def __exit__(self, exc_type, exc, exc_tb):
+        """Exit function for context/decorator."""
         if exc_type is not None:
             kwargs = self.kwargs.copy()
             kwargs["exc_args"] = (exc_type, exc, exc_tb)

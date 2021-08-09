@@ -318,7 +318,7 @@ class ConnCheckManager(ConfigurableMixin):
         cls._spec_handlers[spec_root] = handler_fn
 
     def make_instance_with(self, spec, **kwargs):
-        """Using the spec root, make a ConnCheckInstanceBase via a handler_fn.
+        """Use the spec root, make a ConnCheckInstanceBase via a handler_fn.
 
         The strips the first part before the ':' and finds the handler fn and
         then calls it with the reamining spec.
@@ -695,6 +695,8 @@ class ConnCheckInstanceJuju(ConnCheckInstanceBase):
     """Handle ConnCheck instances on Juju units and machines."""
 
     class JujuTypes(Enum):
+        """JujuTypes."""
+
         MACHINE = 1
         UNIT = 2
 
@@ -734,7 +736,7 @@ class ConnCheckInstanceJuju(ConnCheckInstanceBase):
             self.machine_or_unit_spec.replace("/", "_").replace(":", "-"))
 
     def _validate_spec(self):
-        """The spec can either be a single number, or an LXD specification.
+        """Spec is either a single number, or an LXD specification.
 
          - machine  - int
          - LXD machine - int/lxd/int
@@ -808,7 +810,7 @@ class ConnCheckInstanceJuju(ConnCheckInstanceBase):
             .format(self.machine_or_unit_spec))
 
     def _get_address_unit(self, space=None, cidr=None):
-        """Helper to ask the unit what it's address is.
+        """Get unit address of unit.
 
         :param space: Optionally the Juju space to get an address in.
         :type space: Optional[str]
@@ -847,6 +849,7 @@ class ConnCheckInstanceJuju(ConnCheckInstanceBase):
         # TODO
         """
         raise NotImplementedError()
+
 
 ConnCheckManager.register_spec_handler('juju', ConnCheckInstanceJuju)
 

@@ -76,18 +76,18 @@ def get_collection(name="DEFAULT"):
 class Collection(ConfigurableMixin):
     """Collection of Log Events.
 
-       The collection manages a set of event loggers and associated log files.
-       The final set of files is provided in a Manifest object.
+    The collection manages a set of event loggers and associated log files.
+    The final set of files is provided in a Manifest object.
 
-       And event logger object needs the following methods:
+    And event logger object needs the following methods:
 
-           configure(**kwargs) -> None
-           finalise(self) -> None
-           get_manifest(self) -> ManifestBase
-           clean_up(self) -> None
+       configure(**kwargs) -> None
+       finalise(self) -> None
+       get_manifest(self) -> ManifestBase
+       clean_up(self) -> None
 
-       These are used to control the logging on the units, in the following
-       manner.
+    These are used to control the logging on the units, in the following
+    manner.
 
        configure(logs_dir=...) -- indicate where to put the logs.
        finalise()              -- ensure that the logs are complete and
@@ -95,9 +95,9 @@ class Collection(ConfigurableMixin):
        get_manifest()          -- fetch a manifest of all the log files.
        clean_up()              -- do any clean-up as we've finished.
 
-       If the logs_dir is not configured then a temporary log directory will be
-       created with tempfile.mkdtemp() -- this will stick around after the
-       program is completed.
+    If the logs_dir is not configured then a temporary log directory will be
+    created with tempfile.mkdtemp() -- this will stick around after the program
+    is completed.
     """
 
     def __init__(self, **kwargs):
@@ -155,7 +155,7 @@ class Collection(ConfigurableMixin):
             manager.finalise()
 
     def log_files(self):
-        """This function returns an iterator of (name, type, filename).
+        """Return iterator of (name, type, filename).
 
         This is from all of the managers.
 
