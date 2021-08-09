@@ -40,9 +40,11 @@ import enum
 import logging
 import uuid
 
+
+logger = logging.getLogger(__name__)
+
+
 # Store Notify events and functions to call against that event
-
-
 class NotifyEvent(enum.Enum):
     """Notify Events definitions."""
 
@@ -196,16 +198,16 @@ def notify(event, when=None, *args, **kwargs):
     try:
         functions = _notify_map[when][event]
     except KeyError:
-        logging.debug("Invalid when: %s", when)
+        logger.debug("Invalid when: %s", when)
         return
     for f in functions:
         try:
             f(event, when, *args, **kwargs)
         except Exception as e:
-            logging.debug("Notification function %s failed with %s, args: %s"
-                          ", kwargs:%s", f.__name__, str(e), args, kwargs)
+            logger.debug("Notification function %s failed with %s, args: %s"
+                         ", kwargs:%s", f.__name__, str(e), args, kwargs)
             import traceback
-            logging.debug(traceback.format_exc())
+            logger.debug(traceback.format_exc())
 
 
 class notify_around(ContextDecorator):
