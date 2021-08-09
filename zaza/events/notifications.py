@@ -108,6 +108,11 @@ class EventsPlugin:
      - TODO: filtering/post-processing the event stream using filters.
      - uploading the events to a InfluxDB instance.
      - TODO: uploading events to an S3 API store.
+
+    Note that the act of subscribing (using the subscribe() function) is what
+    causes the EventsPlugin object to be retained for the program's run.  i.e.
+    passing self.<function_name> to subscribe() provides the reference which
+    holds the object in memory (as part of the notifications module).
     """
 
     def __init__(self, env_deployments):
