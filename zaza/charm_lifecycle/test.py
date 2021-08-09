@@ -131,7 +131,7 @@ def test(model_name, tests, test_directory=None):
     """
     utils.set_base_test_dir(test_dir=test_directory)
     zaza.model.set_juju_model(model_name)
-    with notify_around(NotifyEvent.TESTS, model_name=model_name)
+    with notify_around(NotifyEvent.TESTS, model_name=model_name):
         run_test_list(tests)
 
 

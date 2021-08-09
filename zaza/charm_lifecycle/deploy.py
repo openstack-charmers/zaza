@@ -388,7 +388,7 @@ def deploy(bundle, model, wait=True, model_ctxt=None, force=False,
         timeout = int(deploy_ctxt.get('TEST_DEPLOY_TIMEOUT', '3600'))
         logging.info("Timeout for deployment to settle set to: {}".format(
             timeout))
-        with notify_around(NotifyEvent.WAIT_MODEL_SETTLE, model=model)
+        with notify_around(NotifyEvent.WAIT_MODEL_SETTLE, model=model):
             zaza.model.wait_for_application_states(
                 model,
                 test_config.get('target_deploy_status', {}),
