@@ -48,6 +48,9 @@ import zaza.utilities.installers
 _conncheck_plugin_managers = dict()
 
 
+logger = logging.getLogger(__name__)
+
+
 def get_plugin_manager(name="DEFAULT"):
     """Return the Collection Plugin manager for conncheck logging.
 
@@ -665,7 +668,7 @@ class ConnCheckInstanceBase(ConfigurableMixin):
         if self._systemd is not None:
             self._systemd.stop()
         else:
-            logging.debug(
+            logger.debug(
                 "Calling stop on %s but no _systemd controller.", self)
 
     def restart(self):
@@ -822,16 +825,16 @@ class ConnCheckInstanceJuju(ConnCheckInstanceBase):
                    " {}".format(self.machine_or_unit_spec, space))
             output = subprocess.check_output(cmd.split(' ')).decode()
         except subprocess.CalledProcessError:
-            logging.error("Couldn't get network address for %s in binding: %s",
-                          self.machine_or_unit_spec, space)
+            logger.error("Couldn't get network address for %s in binding: %s",
+                         self.machine_or_unit_spec, space)
             raise
         result = yaml.safe_load(output)
         if isinstance(result, str):
             return result
 
         # it's obviously, not a bare string.
-        logging.error("Mutliple results returned for getting address.\n%s",
-                      output)
+        logger.error("Mutliple results returned for getting address.\n%s",
+                     output)
         # TODO: how do we deal with multiple addresses?
         raise NotImplementedError(
             "Don't know what to do with multiple addresses.\n{}"

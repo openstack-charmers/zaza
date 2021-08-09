@@ -50,6 +50,9 @@ from .formats import LogFormats
 _collections = {}
 
 
+logger = logging.getLogger(__name__)
+
+
 def get_collection(name="DEFAULT"):
     """Return a collection by name.
 
@@ -130,7 +133,7 @@ class Collection(ConfigurableMixin):
         :type manager: PluginManagerBase
         """
         if manager in self._event_managers:
-            logging.debug(
+            logger.debug(
                 "Collection: adding manager %s more than once, ignoring.",
                 manager)
             return
@@ -264,7 +267,7 @@ class Streamer:
             try:
                 handles[f] = open(f)
             except (FileNotFoundError, OSError) as e:
-                logging.warning("Couldn't open log file: %s: %s", f, str(e))
+                logger.warning("Couldn't open log file: %s: %s", f, str(e))
         self.handles = handles
         return self._iterator()
 
@@ -274,7 +277,7 @@ class Streamer:
             try:
                 h.close()
             except Exception as e:
-                logging.warning("Exception on closing %s: %s", f, str(e))
+                logger.warning("Exception on closing %s: %s", f, str(e))
         return False
 
     def _iterator(self):
@@ -292,7 +295,7 @@ class Streamer:
                     self.handles[f].close()
                     del self.handles[f]
             except OSError as e:
-                logging.warning("Couldn't read log file: %s: %s", f, str(e))
+                logger.warning("Couldn't read log file: %s: %s", f, str(e))
                 self.handles[f].close()
                 del self.handles[f]
         if self.sort:
@@ -333,8 +336,8 @@ class Streamer:
                     self.handles[filename].close()
                     del self.handles[filename]
             except OSError as e:
-                logging.warning("Couldn't read log file: %s: %s", filename,
-                                str(e))
+                logger.warning("Couldn't read log file: %s: %s", filename,
+                               str(e))
                 self.handles[filename].close()
                 del self.handles[filename]
 
