@@ -99,3 +99,29 @@ def cached(func):
         return res
     wrapper._wrapped = func
     return wrapper
+
+
+# def expand_vars(env_deployment, value):
+def expand_vars(context, value):
+    """Search the variable and see if variables need to be expanded.
+
+    This expands ${ENV} and {context} variables in a :param:`value` parameter.
+
+    # :param env_deployment: the deployment parameters.
+    # :type env_deployment: environmentdeploy
+    :param context: a context of dictionary keys for filling in values
+    :type context: Dict[str, str]
+    :param value: the value to do variable expansion on.
+    :type value: str
+    :returns: the expanded string
+    :rtype: str
+    """
+    if not isinstance(value, str):
+        return value
+    value = os.path.expandvars(value)
+    # context = event_context_vars(env_deployment)
+    for k, v in context.items():
+        var = "{" + k + "}"
+        if var in value:
+            value = value.replace(var, v)
+    return value

@@ -73,23 +73,20 @@ The plugin values are:
 """
 
 
-from collections.abc import Iterable, Mapping
 import datetime
 import enum
-import itertools
 import logging
 import os
 from pathlib import Path
 import tempfile
 
-import requests
-
 from zaza.global_options import get_option
 import zaza.events.collection as ze_collection
 import zaza.events.plugins.logging
+from zaza.events.uploaders import upload_collection_by_config
 from zaza.events.formats import LogFormats
 from zaza.notifications import subscribe, NotifyEvent, NotifyType
-from zaza.utilities import cached
+from zaza.utilities import cached, expand_vars
 
 
 logger = logging.getLogger(__name__)
@@ -170,11 +167,12 @@ class EventsPlugin:
         assert env_deployment is not None
         collection = _get_collection()
         collection.reset()
+        context = event_context_vars(env_deployment)
         log_collection_name = expand_vars(
-            env_deployment,
+            context,
             get_option('zaza-events.log-collection-name', env_deployment.name))
         description = get_option('zaza-events.collection-description')
-        logs_dir = expand_vars(env_deployment, "{{bundle}}-{{date}}")
+        logs_dir = expand_vars(context, "{{bundle}}-{{date}}")
         Path(logs_dir).mkdir(parents=True, exist_ok=True)
         collection.configure(
             collection=log_collection_name,
@@ -229,154 +227,11 @@ class EventsPlugin:
                 "Found logs for %s type(%s) %s", name, type_, filename)
 
         # 2. do something with the logs (i.e. upload to a database)
-        uploads = get_option('zaza-events.upload', [])
-        if isinstance(uploads, str):
-            uploads = (uploads, )
-        if not isinstance(uploads, Iterable):
-            logger.error("No where to upload logs? %s", uploads)
-            return
-        for upload in uploads:
-            if not isinstance(upload, Mapping):
-                logger.error(
-                    "Ignoring upload; it doesn't seem correcly formatted?",
-                    upload)
-                continue
-            try:
-                upload_type = upload['type']
-            except KeyError:
-                logger.error("No type provided for upload, ignoring: %s",
-                             upload)
-                continue
-            # TODO: this would be nicer as a dict lookup to make it more
-            # flexible, but for the moment, we only support InfluxDB
-            if not isinstance(upload_type, str):
-                logger.error("upload type is not a str, ignoring: %s",
-                             upload_type)
-                continue
-            upload_type = upload_type.lower()
-            if upload_type == "influxdb":
-                self._upload_influxdb(upload, collection)
-            else:
-                logger.error("Unknown type %s for uploading; ignoring",
-                             upload_type)
+        upload_collection_by_config(
+            collection, context=event_context_vars(env_deployment))
 
         logger.info("Completed event logging and uploads for for %s.",
                     collection.collection)
-
-    def _upload_influxdb(self, upload_spec, collection):
-        """Upload a collection of events to an InfluxDB instance.
-
-        This uses a POST to upload data to a named database at a URL with a
-        particular timestamp-resolution.  If present, the user and password are
-        used to do the upload.  A batch size of events is also used.  Events
-        have to be in InfluxDB Line Protocol format, in the collection.
-
-            type: InfluxDB
-            url: ${INFLUXDB_URL}
-            user: ${INFLUXDB_USER}
-            password: ${INFLUXDB_PASSWORD}
-            database: charm_upgrade
-            timestamp-resolution: us
-            batch-size: 1000
-            raise-exceptions: false
-
-        Note that this won't generate an exception (e.g. there's no database,
-        etc.), unless raise-exceptions is true.  It will just log to the file.
-
-        Note that the timestamp-resolution is one of: ns, us, ms, s.
-
-        The line protocol for 1.8 is one of n, u, ms, s, m, h.  Thus, this
-        function maps ns -> n, and us -> u as part of the upload.  m and h are
-        not supported.
-
-        :param upload_spec: the upload specification of where to send the logs.
-        :type upload_spec: Dict[str, str]
-        :param collection: the collection whose logs to upload.
-        :type collection: zaza.events.collection.Collection
-        """
-        assert upload_spec['type'].lower() == "influxdb"
-        raise_exceptions = upload_spec.get('raise-exceptions', False)
-        user = upload_spec.get('user', None)
-        password = upload_spec.get('password', None)
-        timestamp_resolution = upload_spec.get('timestamp-resolution', 'u')
-        batch_size = upload_spec.get('batch-size', 1000)
-        try:
-            url = upload_spec['url']
-        except KeyError:
-            logger.error("No url supplied to upload for InfluxDB.")
-            if raise_exceptions:
-                raise
-            return
-        try:
-            database = upload_spec['database']
-        except KeyError:
-            logger.error("No database supplied to upload for InfluxDB.")
-            if raise_exceptions:
-                raise
-            return
-
-        url = os.path.expandvars(url)
-        database = os.path.expandvars(database)
-
-        # map the precision to InfluxDB.
-        try:
-            precision = {'ns': 'n',
-                         'us': 'u',
-                         'ms': 'ms',
-                         's': 's'}[timestamp_resolution]
-        except KeyError:
-            logger.error("Precision isn't one of ns, us, ms or s: %s",
-                         timestamp_resolution)
-            if raise_exceptions:
-                raise
-            return
-
-        if not url.endswith("/"):
-            url = "{}/".format(url)
-        post_url = "{}write?db={}&precision={}".format(
-            url, database, precision)
-        if user:
-            post_url = "{}&u={}".format(post_url, os.path.expandvars(user))
-        if password:
-            post_url = "{}&p={}".format(post_url, os.path.expandvars(password))
-
-        # Now got all the possible information to be able to do the uplaods.
-        logger.info(
-            "Starting upload to InfluxDB, database: %s, user: %s, "
-            "precision: %s, batch_size: %s",
-            database, user, timestamp_resolution, batch_size)
-
-        with collection.events(precision=timestamp_resolution) as events:
-            while True:
-                batch_events = itertools.islice(events, batch_size)
-                batch = "\n".join(b[1] for b in batch_events)
-                if not batch:
-                    break
-                # Essentially: curl -i -XPOST 'http://172.16.1.95:8086/write?
-                #               db=mydb&precision=u' --data-binary @batch.logs
-                try:
-                    result = requests.post(post_url, data=batch)
-                except Exception as e:
-                    logger.error("Error raised when uploading batch: %s",
-                                 str(e))
-                    if raise_exceptions:
-                        raise
-                    return
-                if result.status_code not in (requests.codes.ok,
-                                              requests.codes.no_content,
-                                              requests.codes.accepted):
-                    logger.error(
-                        "Batch upload failed.  status_code: %s",
-                        result.status_code)
-                    if raise_exceptions:
-                        result.raise_for_status()
-                    logger.error("Abandoning batch upload to InfluxDB")
-                    return
-
-        logger.info(
-            "Finished upload to InfluxDB, database: %s, user: %s, "
-            "precision: %s, batch_size: %s",
-            database, user, timestamp_resolution, batch_size)
 
     @staticmethod
     def handle_notifications(event, when, *args, **kwargs):
@@ -455,29 +310,6 @@ def event_context_vars(env_deployment):
     }
 
 
-def expand_vars(env_deployment, value):
-    """Search the variable and see if variables need to be expanded.
-
-    This expands ${ENV} and {context} variables in a :param:`value` parameter.
-
-    :param env_deployment: the deployment parameters.
-    :type env_deployment: environmentdeploy
-    :param value: the value to do variable expansion on.
-    :type value: str
-    :returns: the expanded string
-    :rtype: str
-    """
-    if not isinstance(value, str):
-        return value
-    value = os.path.expandvars(value)
-    context = event_context_vars(env_deployment)
-    for k, v in context.items():
-        var = "{" + k + "}"
-        if var in value:
-            value = value.replace(var, v)
-    return value
-
-
 def _get_collection():
     """Return the collection as defined in the plugin specification.
 
@@ -548,4 +380,3 @@ def stop_auto_events():
     TODO: implement starting and stopping logging.
     """
     pass
-
