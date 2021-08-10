@@ -7,11 +7,8 @@ target_deploy_status:
   ubuntu:
     workload-status-message-regex: "^$"
 
-configure:
-- zaza.charm_tests.noop.setup.basic_setup
-
 tests:
-- zaza.charm_tests.noop.tests.NoopTest
+- zaza.charm_tests.conncheck.tests.TestConncheckIntegration
 
 tests_options:
   plugins:
@@ -21,11 +18,19 @@ tests_options:
     keep-logs: false
     collection-name: DEFAULT
     collection-description: ""
-    logger-name: DEFAULT
-    log-to-stdout: true
-    log-to-python-logging: true
-    python-logging-level: info
     raise-exceptions: true
+    log-collection-name: "testdb-{bundle}-{date}"
+    modules:
+      - conncheck:
+          source: "file:/home/ubuntu/git/github.com/openstack-charmers/conncheck"
+          raise-exceptions: true
+      - logging:
+          logger-name: DEFAULT
+          log-to-stdout: false
+          log-to-python-logging: true
+          python-logging-level: info
+          logger-name: DEFAULT
+          raise-exceptions: true
     upload:
       - type: InfluxDB
         url: ${TEST_INFLUXDB_URL}
@@ -33,11 +38,10 @@ tests_options:
         # password: ${TEST_INFLUXDB_PASSWORD}
         database: testdb
         timestamp-resolution: us
-    log-collection-name: "testdb-{bundle}-{date}"
-    tags:
-      tag-name: tag-value
-    fields:
-      date: "{date}"
-    instrument:
-      test-classes: true
-      test-function: true
+    #tags:
+      #tag-name: tag-value
+    #fields:
+      #date: "{date}"
+    #instrument:
+      #test-classes: true
+      #test-function: true

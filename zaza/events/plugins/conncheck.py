@@ -81,7 +81,7 @@ def auto_configure_with_collection(collection, config=None):
     collection.add_logging_manager(conncheck_manager)
 
     # now configure it with a source
-    conncheck_source = config.get("conncheck-source", None)
+    conncheck_source = config.get("source", None)
     if conncheck_source is not None:
         conncheck_manager.configure(module_source=conncheck_source)
     logger.info("Complete conncheck.auto_configure_with_collection()")
@@ -613,6 +613,8 @@ class ConnCheckInstanceBase(ConfigurableMixin):
             destination = os.path.join(conncheck_home_dir, self.install_dir)
         else:
             destination = self.install_dir
+        module_source = (
+            self.module_source if self.module_source else "conncheck")
         zaza.utilities.installers.install_module_in_venv(
             self.module_source, destination, self._scp_fn, self._ssh_fn,
             run_user="conncheck")
@@ -767,6 +769,7 @@ class ConnCheckInstanceJuju(ConnCheckInstanceBase):
         self.sudo = None
         self.user = None
         super().__init__(**kwargs)
+        self.name = machine_or_unit_spec
         self._ssh_fn = zaza.utilities.installers.make_juju_ssh_fn(
             self.machine_or_unit_spec, sudo=self.sudo, model=self.model)
         self._scp_fn = zaza.utilities.installers.make_juju_scp_fn(
@@ -925,6 +928,7 @@ class ConnCheckInstanceSSH(ConnCheckInstanceBase):
         self.sudo = None
         self.user = None
         super().__init__(**kwargs)
+        self.name = address
         self._ssh_fn = zaza.utilities.installers.make_ssh_fn(
             self.address, key_file=self.key_file, user=self.user)
         self._scp_fn = zaza.utilities.installers.make_scp_fn(

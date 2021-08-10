@@ -122,6 +122,7 @@ def upload(upload_spec, collection, context=None):
             # count the number of lines:
             size = batch.count("\n") + 1
             logger.info("Uploading %s records to InfluxDB", size)
+            logger.debug("batch\n%s", batch)
             # Essentially: curl -i -XPOST 'http://172.16.1.95:8086/write?
             #               db=mydb&precision=u' --data-binary @batch.logs
             try:
