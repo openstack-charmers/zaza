@@ -41,6 +41,7 @@ from datetime import datetime
 import logging
 import tempfile
 
+from zaza.global_options import get_option
 from zaza.utilities import ConfigurableMixin
 
 from .formats import LogFormats
@@ -53,11 +54,14 @@ _collections = {}
 logger = logging.getLogger(__name__)
 
 
-def get_collection(name="DEFAULT"):
+def get_collection(name=None):
     """Return a collection by name.
 
     Collections are available globally, and typically only one will be needed
-    per test.  However, a collection per bundle may be a good approach too.
+    per test.  If the global options 'zaza-events.collection-name' is defined,
+    then that collection name is used for the collection.  This is so a global
+    collection can be used within tests if wanted.  Obviously, overriding
+    :param:`name` will force a particular collection to be returned.
 
     This returns a named collection (a.k.a logging) for use in a module.
 
@@ -65,6 +69,8 @@ def get_collection(name="DEFAULT"):
     :rtype: Collection
     """
     global _collections
+    if name is None:
+        name = get_option("zaza-events.collection-name", "DEFAULT")
     try:
         return _collections[name]
     except KeyError:

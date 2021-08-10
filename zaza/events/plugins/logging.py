@@ -100,6 +100,8 @@ import uuid
 
 from zaza.events.plugins import PluginManagerBase
 from zaza.events.formats import LogFormats
+from zaza.events.events import BEGIN, END, EXCEPTION
+from zaza.global_options import get_option
 
 
 logger = logging.getLogger(__name__)
@@ -123,6 +125,83 @@ def get_logger(name="DEFAULT", *args, **kwargs):
     if name not in _loggers:
         _loggers[name] = EventLogger(name, *args, **kwargs)
     return _loggers[name]
+
+
+def autoconfigure_with_collection(collection, config=None):
+    """Auto-configure the plugin with the collection.
+
+    This uses the config passed (if any) to auto-configure the logging plugin
+    with the collection.  Normally, config is passed as part of global_options.
+    This function is called from zaza/events/notifications.handle_before_bundle
+    function if the logging module is configured.
+
+    The config looks like:
+
+        logger-name: DEFAULT
+        log-to-stdout: false
+        log-to-python-logging: true
+        python-logging-level: debug
+        logger-name: DEFAULT
+
+    These are the default values.
+
+    :param collection: the colletion to auto-configure logging on to.
+    :type collection: zaza.events.collection.Collection
+    :param config: config to use to perform the auto-configuration.
+    :type config: Dict[str, ANY]
+    """
+    name = config.get("logger-name", "DEFAULT")
+    logging_manager = get_plugin_manager(name)
+
+    collection.add_logging_manager(logging_manager)
+    event_logger = logging_manager.get_logger()
+
+    if config.get('log-to-stdout', False):
+        add_stdout_to_logger(event_logger)
+    if config.get('log-to-python-logging', False):
+        level = config.get('python-logging-level', 'debug').upper()
+        level_num = getattr(logging, level, None)
+        if not isinstance(level_num, int):
+            raise ValueError('Invalid log level: "{}"'.format(level))
+        event_logger.add_writers(
+            get_writer(LogFormats.LOG,
+                       HandleToLogging(name="auto-logger",
+                                       level=level_num,
+                                       python_logger=logger)))
+
+
+def get_logging_manager():
+    """Return the events logging manager (for the collection).
+
+    This returns the logging manager for logging time-series events from within
+    zaza tests.  The advantage of using this is that it taps into the
+    global_options to get the 'right' one for the test.
+
+    Note: if there are no zaza-events options configured the 'DEFAULT' event
+    logging manager will be returned, which if nothing is configured, won't do
+    anything with logs if a logger is requested and then used.
+
+    :returns: the configured logging manager.
+    :rtype: zaza.events.plugins.logging.LoggerPluginManager
+    """
+    name = get_option("zaza-events.modules.logging.logger-name", None)
+    if name is None:
+        name = get_option("zaza-events.collection-name", "DEFAULT")
+    return get_plugin_manager(name)
+
+
+def get_event_logger():
+    """Get an event logger with prefilled fields for the collection.
+
+    This returns an options configured event logger (proxy) with prefilled
+    fields.  This is almost CERTAINLY the event logger that you want to use in
+    zaza test functions.
+
+    :returns: a configured LoggerInstance with prefilled collection and unit
+        fields.
+    :rtype: LoggerInstance
+    """
+    return get_logging_manager().get_event_logger()
 
 
 def add_stdout_to_logger(name_or_logger="DEFAULT"):
@@ -230,8 +309,13 @@ class LoggerPluginManager(PluginManagerBase):
         :returns: an LoggerInstance instance
         :rtype: LoggerInstance
         """
-        return self.get_logger().prefill_with(collection=self.collection,
-                                              unit=self.managed_name)
+        try:
+            return self.get_logger().prefill_with(collection=self.collection,
+                                                  unit=self.managed_name)
+        except AttributeError:
+            # If it goes bang, it's probably not configured, so just return the
+            # default logger.
+            return get_logger()
 
     def finalise(self):
         """Finalise the writers in the logger.

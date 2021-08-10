@@ -41,6 +41,7 @@ import yaml
 
 from zaza.events.plugins import PluginManagerBase
 from zaza.events.formats import LogFormats
+from zaza.global_options import get_option
 from zaza.utilities import ConfigurableMixin
 import zaza.utilities.installers
 
@@ -49,6 +50,52 @@ _conncheck_plugin_managers = dict()
 
 
 logger = logging.getLogger(__name__)
+
+
+def autoconfigure_with_collection(collection, config=None):
+    """Auto-configure the plugin with the collection.
+
+    This uses the config passed (if any) to auto-configure the conncheck plugin
+    with the collection.  Normally, config is passed as part of global_options.
+    This function is called from zaza/events/notifications.handle_before_bundle
+    function if the conncheck module is configured.
+
+    The config looks like:
+
+        manager-name: DEFAULT
+        conncheck-source: <the source for conncheck modules on the target>
+
+
+    These are the default values.
+
+    :param collection: the colletion to auto-configure logging on to.
+    :type collection: zaza.events.collection.Collection
+    :param config: config to use to perform the auto-configuration.
+    :type config: Dict[str, ANY]
+    """
+    if config is None:
+        config = {}
+    name = config.get("manager-name", "DEFAULT")
+    conncheck_manager = get_plugin_manager(name)
+    collection.add_logging_manager(conncheck_manager)
+
+    # now configure it with a source
+    conncheck_source = config.get("conncheck-source", None)
+    if conncheck_source is not None:
+        conncheck_manager.configure(module_source=conncheck_source)
+
+
+def get_conncheck_manager():
+    """Get the conncheck manager that's most like to be useful.
+
+    If zaza-events.modules.conncheck.manager-name is defined, then use that to
+    return the manager, otherwise, use the DEFAULT.
+
+    :returns: a conncheck manager
+    :rtype: ConnCheckPluginManager
+    """
+    name = get_option('zaza-events.modules.conncheck.manager-name', "DEFAULT")
+    return get_plugin_manager(name)
 
 
 def get_plugin_manager(name="DEFAULT"):

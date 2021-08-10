@@ -33,14 +33,18 @@ The intentions is for the tests.yaml to be used as:
         log-format: InfluxDB
         keep-logs: false
         collection-name: DEFAULT
-        events-logger-name: DEFAULT
         collection-description: ""
-        logger-name: DEFAULT
-        log-to-stdout: false
-        log-to-python-logging: true
-        python-logging-level: debug
         finalize-after-each-bundle: true
         raise-exceptions: false
+        log-collection-name: "charm-upgrade-{bundle}-{date}"
+        modules:
+          - conncheck
+          - logging:
+            logger-name: DEFAULT
+            log-to-stdout: false
+            log-to-python-logging: true
+            python-logging-level: debug
+            logger-name: DEFAULT
         upload:
           - type: InfluxDB
             url: ${TEST_INFLUXDB_URL}
@@ -50,7 +54,11 @@ The intentions is for the tests.yaml to be used as:
             timestamp-resolution: us
           - type: S3
             etc.
-        log-collection-name: "charm-upgrade-{bundle}-{date}"
+
+    TODO: add these options; it would be nice to tag a collection, also to add
+    custom fields.  The instrumentation of classes and functions is not done
+    yet, although the test 'class' is run.
+
         tags:
           tag-name: tag-value
         fields:
@@ -73,6 +81,7 @@ The plugin values are:
 """
 
 
+from collections.abc import Iterable
 import datetime
 import enum
 import logging
@@ -80,11 +89,12 @@ import os
 from pathlib import Path
 import tempfile
 
+import zaza.charm_lifecycle.utils as utils
 from zaza.global_options import get_option
 import zaza.events.collection as ze_collection
 import zaza.events.plugins.logging
 from zaza.events.uploaders import upload_collection_by_config
-from zaza.events.formats import LogFormats
+from zaza.events import get_event_logger
 from zaza.notifications import subscribe, NotifyEvent, NotifyType
 from zaza.utilities import cached, expand_vars
 
@@ -165,34 +175,64 @@ class EventsPlugin:
         assert event is NotifyEvent.BUNDLE
         assert when is NotifyType.BEFORE
         assert env_deployment is not None
-        collection = _get_collection()
+        # Note that get_collection gets a zaza-events.* configured collection
+        # if the collection-name key is present.
+        collection = ze_collection.get_collection()
         collection.reset()
         context = event_context_vars(env_deployment)
         log_collection_name = expand_vars(
             context,
             get_option('zaza-events.log-collection-name', env_deployment.name))
         description = get_option('zaza-events.collection-description')
-        logs_dir = expand_vars(context, "{{bundle}}-{{date}}")
+        logs_dir_name = expand_vars(context, "{{bundle}}-{{date}}")
+        logs_dir = os.path.join(self.logs_dir_base, logs_dir_name)
         Path(logs_dir).mkdir(parents=True, exist_ok=True)
         collection.configure(
             collection=log_collection_name,
             description=description,
             logs_dir=logs_dir)
-        logging_manager = get_logging_manager()
-        collection.add_logging_manager(logging_manager)
-        event_logger = logging_manager.get_logger()
-        if get_option('zaza-events.log-to-stdout'):
-            zaza.events.plugins.logging.add_stdout_to_logger(event_logger)
-        if get_option('zaza-events.log-to-python-logging'):
-            level = get_option(
-                'zaza-events.python-logging-level', 'debug').upper()
-            level_num = getattr(logging, level, None)
-            if not isinstance(level_num, int):
-                raise ValueError('Invalid log level: "{}"'.format(level))
-            event_logger.add_writers(zaza.events.plugins.logging.get_writer(
-                LogFormats.LOG,
-                zaza.events.plugins.logging.HandleToLogging(level)))
-        events = logging_manager.get_event_logger()
+
+        # Now configure any additional modules automagically
+        modules = get_option('zaza-events.modules', [])
+        if isinstance(modules, str) or not isinstance(modules, Iterable):
+            logger.error("Option zaza-events.module isn't a list? %s",
+                         modules)
+            return
+        for module_spec in modules:
+            # if module is a dictionary then it's a key: spec, otherwise there
+            # is no spec for the module.
+            if isinstance(module_spec, dict):
+                if len(module_spec.keys()) != 1:
+                    logger.error(
+                        "Module key %s is not formatted as a single-key "
+                        "dictionary", module_spec)
+                    continue
+                module, config = module_spec.items()[0]
+                if not isinstance(config, dict):
+                    logger.error(
+                        "Module key %s has invalid config %s", module, config)
+                    continue
+            elif isinstance(module_spec, str):
+                module, config = (module_spec, {})
+            else:
+                logger.error("Can configure with %s.", module_spec)
+                continue
+            configure_func = ("zaza.events.plugins.{}.auto_configure_with"
+                              .format(module))
+            try:
+                logger.debug("Running autoconfigure for zaza-events func %s.",
+                             configure_func)
+                utils.get_class(configure_func)(collection, config)
+            except Exception as e:
+                logger.error(
+                    "Error running autoconfigure for zaza-events %s: %s",
+                    configure_func, str(e))
+                if get_option('zaza-events.raise-exceptions', False):
+                    raise
+
+        # logging_manager = get_logging_manager()
+        # events = logging_manager.get_event_logger()
+        events = get_event_logger()
         events.log(zaza.events.START_TEST,
                    comment="Starting {}".format(log_collection_name))
 
@@ -216,9 +256,10 @@ class EventsPlugin:
         """
         assert event is NotifyEvent.BUNDLE
         assert when is NotifyType.AFTER
-        events = get_logging_manager().get_event_logger()
+        # events = get_logging_manager().get_event_logger()
+        events = get_event_logger()
         events.log(zaza.events.END_TEST, comment="Test ended")
-        collection = _get_collection()
+        collection = ze_collection.get_collection()
         collection.finalise()
 
         # 1. Access all the log files:
@@ -259,7 +300,8 @@ class EventsPlugin:
             return
         logger.debug("handle_notifications: %s, %s, %s, %s",
                      event, when, args, kwargs)
-        events = get_logging_manager().get_event_logger()
+        # events = get_logging_manager().get_event_logger()
+        events = get_event_logger()
         if isinstance(event, enum.Enum):
             event = event.value
         if when in (NotifyType.BEFORE, NotifyType.AFTER):
@@ -308,62 +350,6 @@ def event_context_vars(env_deployment):
         'date': "{}us".format(int(datetime.datetime.now().timestamp() * 1e6)),
         'bundle': bundle,
     }
-
-
-def _get_collection():
-    """Return the collection as defined in the plugin specification.
-
-    :returns: the collection for time-series events.
-    :rtype: zaza.events.collection.Collection
-    """
-    return ze_collection.get_collection(
-        name=get_option("zaza-events.collection-name", "DEFAULT"))
-
-
-def get_logging_manager():
-    """Return the events logging manager (for the collection).
-
-    This returns the logging manager for logging time-series events from within
-    zaza tests.  The advantage of using this is that it taps into the
-    global_options to get the 'right' one for the test.
-
-    Note: if there are no zaza-events options configured the 'DEFAULT' event
-    logging manager will be returned, which if nothing is configured, won't do
-    anything with logs if a logger is requested and then used.
-
-    :returns: the configured logging manager.
-    :rtype: zaza.events.plugins.logging.LoggerPluginManager
-    """
-    name = get_option("zaza-events.events-logger-name", None)
-    if name is None:
-        name = get_option("zaza-events.collection-name", "DEFAULT")
-    return zaza.events.plugins.logging.get_plugin_manager(name)
-
-
-def get_logger():
-    """Get a logger with no prefilled fields.
-
-    This gets the options configured event logger BUT with no prefilled fields.
-    You almost certainly want the get_event_logger() version.
-
-    :returns: get a configured, but with no pre-filled fields, EventLogger
-    :rytype: zaza.events.plugins.logging.EventLogger
-    """
-    return get_logging_manager().get_logger()
-
-
-def get_event_logger():
-    """Get an event logger with prefilled fields for the collection.
-
-    This returns an options configured event logger (proxy) with prefilled
-    fields.  This is almost CERTAINLY the event logger that you want to use in
-    zaza test functions.
-
-    :returns: a configured LoggerInstance with prefilled collection and unit
-        fields.
-    :rtype: LoggerInstance
-    """
-    return get_logging_manager().get_event_logger()
 
 
 def start_auto_events():
