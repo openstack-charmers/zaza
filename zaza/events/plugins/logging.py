@@ -219,6 +219,78 @@ def add_stdout_to_logger(name_or_logger="DEFAULT"):
         logger.add_writers(WriterDefault(sys.stdout))
 
 
+class span:
+    """Provide a new span of logs.
+
+    This is to allow uuid fields to be auto-generated and then indicate a span
+    of logs around an activity.
+
+    Can be used as:
+
+        span = events.span()
+        events.log(zaza.events.BEGIN, block=block, comment="...")
+
+    or:
+
+        with events.span("comment") as span:
+            ...
+            events.log(zaza.events.COMMENT, span=span, comment="...")
+            ...
+
+        The final BEGIN and END blocks are performed automatically with the
+        comment.
+    """
+
+    def __init__(self, event_logger, comment=None, **kwargs):
+        """Initialise a span logger.
+
+        :param event_logger: the logger that this will use.
+        :type event_logger: Union[EventLogger, LoggerInstance]
+        :param comment: the comment that goes with this span.
+        :type comment: Optional[str]
+        :param kwargs: Additional fields/tags to go with the span log.
+        :type kwargs: Dict[str, ANY]
+        """
+        self.event_logger = event_logger
+        self.uuid = str(uuid.uuid4())
+        self.comment = comment
+        self.kwargs = kwargs
+
+    @property
+    def _kwargs(self):
+        """Return the kwargs for the log.
+
+        Merges the UUID with the kwargs and comment.
+
+        :returns: the kwargs to pass to the log.
+        :rtype: Dict[str, ANY]
+        """
+        kwargs = self.kwargs.copy()
+        kwargs['uuid'] = self.uuid
+        if self.comment:
+            kwargs['comment'] = self.comment
+        return kwargs
+
+    def __enter__(self):
+        """Log start event on entry to context."""
+        self.event_logger.log(BEGIN, **self._kwargs)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Log end event on exit from context.
+
+        If there is an exception, log an exception event instead.
+        Return False so as to propagate the exception.
+        """
+        if exc_type is None:
+            self.event_logger.log(END, **self._kwargs)
+        else:
+            self.comment = "Exception: {}: {}".format(
+                str(exc_type), str(exc_val))
+            self.event_logger.log(EXCEPTION, **self._kwargs)
+        self.event_logger = None
+        return False
+
+
 _log_dir = None
 
 
@@ -455,6 +527,9 @@ class EventLogger:
         This writes the log to each of the writers that is attached to the
         logger.
 
+        If "span" is passed in the kwargs and the value is a span() object,
+        then the uuid is pulled out and placed as 'uuid' in the log.
+
         :param event: the event that is being logged.
         :type event: str
         :param newline: Whether to make sure a newline is added.
@@ -465,8 +540,28 @@ class EventLogger:
         kwargs['event'] = event
         if 'timestamp' not in kwargs:
             kwargs['timestamp'] = datetime.datetime.now()
+        if 'span' in kwargs and isinstance(kwargs['span'], span):
+            span_ = kwargs.pop('span')
+            kwargs['uuid'] = span_.uuid
         for writer in self._writers.values():
             writer.write(newline=newline, **kwargs)
+
+    def span(self, comment=None, **kwargs):
+        """Return a span event decorator.
+
+        This provides BEGIN and END/EXCEPTION events around a span.  If called
+        as a normal function, then it returns the span() object.  The span()
+        object can also be used as a contextmanager and so it can be used as a
+        span.  See :class:`span` for more details.
+
+        :param comment: the optional comment that gets applied to each event.
+        :type comment: Optional[str]
+        :param kwargs: optional fields/tags to send to the logger.
+        :type kwargs: Dict[str, ANY]
+        :returns: a span() object.
+        :rtype: span
+        """
+        return span(self, comment=comment, **kwargs)
 
     def add_writers(self, *writers):
         """Add the writers to the logger.
@@ -629,6 +724,23 @@ class LoggerInstance:
         """
         self._validate_attrs(kwargs)
         self.event_logger.log(event, **(self._add_in_prefilled(kwargs)))
+
+    def span(self, comment=None, **kwargs):
+        """Return a span event decorator.
+
+        This provides BEGIN and END/EXCEPTION events around a span.  If called
+        as a normal function, then it returns the span() object.  The span()
+        object can also be used as a contextmanager and so it can be used as a
+        span.  See :class:`span` for more details.
+
+        :param comment: the optional comment that gets applied to each event.
+        :type comment: Optional[str]
+        :param kwargs: optional fields/tags to send to the logger.
+        :type kwargs: Dict[str, ANY]
+        :returns: a span() object.
+        :rtype: span
+        """
+        return span(self, comment=comment, **kwargs)
 
 
 _writers = dict()
