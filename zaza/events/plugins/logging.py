@@ -127,7 +127,7 @@ def get_logger(name="DEFAULT", *args, **kwargs):
     return _loggers[name]
 
 
-def autoconfigure_with_collection(collection, config=None):
+def auto_configure_with_collection(collection, config=None):
     """Auto-configure the plugin with the collection.
 
     This uses the config passed (if any) to auto-configure the logging plugin

@@ -52,7 +52,7 @@ _conncheck_plugin_managers = dict()
 logger = logging.getLogger(__name__)
 
 
-def autoconfigure_with_collection(collection, config=None):
+def auto_configure_with_collection(collection, config=None):
     """Auto-configure the plugin with the collection.
 
     This uses the config passed (if any) to auto-configure the conncheck plugin

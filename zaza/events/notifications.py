@@ -40,11 +40,11 @@ The intentions is for the tests.yaml to be used as:
         modules:
           - conncheck
           - logging:
-            logger-name: DEFAULT
-            log-to-stdout: false
-            log-to-python-logging: true
-            python-logging-level: debug
-            logger-name: DEFAULT
+              logger-name: DEFAULT
+              log-to-stdout: false
+              log-to-python-logging: true
+              python-logging-level: debug
+              logger-name: DEFAULT
         upload:
           - type: InfluxDB
             url: ${TEST_INFLUXDB_URL}
@@ -185,7 +185,11 @@ class EventsPlugin:
             get_option('zaza-events.log-collection-name', env_deployment.name))
         description = get_option('zaza-events.collection-description')
         logs_dir_name = expand_vars(context, "{{bundle}}-{{date}}")
-        logs_dir = os.path.join(self.logs_dir_base, logs_dir_name)
+        try:
+            logs_dir_base = self.logs_dir_base.name
+        except AttributeError:
+            logs_dir_base = self.logs_dir_base
+        logs_dir = os.path.join(logs_dir_base, logs_dir_name)
         Path(logs_dir).mkdir(parents=True, exist_ok=True)
         collection.configure(
             collection=log_collection_name,
@@ -207,7 +211,7 @@ class EventsPlugin:
                         "Module key %s is not formatted as a single-key "
                         "dictionary", module_spec)
                     continue
-                module, config = module_spec.items()[0]
+                module, config = list(module_spec.items())[0]
                 if not isinstance(config, dict):
                     logger.error(
                         "Module key %s has invalid config %s", module, config)
@@ -217,10 +221,11 @@ class EventsPlugin:
             else:
                 logger.error("Can configure with %s.", module_spec)
                 continue
-            configure_func = ("zaza.events.plugins.{}.auto_configure_with"
-                              .format(module))
+            configure_func = (
+                "zaza.events.plugins.{}.auto_configure_with_collection"
+                .format(module))
             try:
-                logger.debug("Running autoconfigure for zaza-events func %s.",
+                logger.info("Running autoconfigure for zaza-events func %s()",
                              configure_func)
                 utils.get_class(configure_func)(collection, config)
             except Exception as e:

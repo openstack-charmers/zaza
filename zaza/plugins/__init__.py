@@ -70,4 +70,11 @@ def find_and_configure_plugins(env_deployments):
         return
     for plugin_func in plugins:
         logger.debug("Running plugin func %s.", plugin_func)
-        utils.get_class(plugin_func)(env_deployments)
+        try:
+            utils.get_class(plugin_func)(env_deployments)
+        except Exception as e:
+            logger.error("Plugin func: '%s' failed with %s",
+                         plugin_func, str(e))
+            import traceback
+            logger.error(traceback.format_exc())
+            raise

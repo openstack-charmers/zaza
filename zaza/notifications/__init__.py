@@ -209,10 +209,11 @@ def notify(event, when=None, *args, **kwargs):
         try:
             f(event, when, *args, **kwargs)
         except Exception as e:
-            logger.debug("Notification function %s failed with %s, args: %s"
+            logger.error("Notification function %s failed with %s, args: %s"
                          ", kwargs:%s", f.__name__, str(e), args, kwargs)
             import traceback
-            logger.debug(traceback.format_exc())
+            logger.error(traceback.format_exc())
+            raise
 
 
 class notify_around(ContextDecorator):

@@ -47,7 +47,6 @@ from .collection import get_collection  # NOQA
 from .plugins.logging import ( # NOQA
     get_event_logger,
     get_logger,
-    block,
 )
 from .plugins.conncheck import get_conncheck_manager  # NOQA
 from .events import *  # NOQA

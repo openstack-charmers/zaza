@@ -25,7 +25,7 @@ from zaza.utilities import expand_vars
 logger = logging.getLogger(__name__)
 
 
-def upload(self, upload_spec, collection, context=None):
+def upload(upload_spec, collection, context=None):
     """Upload a collection of events to an InfluxDB instance.
 
     This uses a POST to upload data to a named database at a URL with a
