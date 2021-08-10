@@ -110,7 +110,7 @@ def upload(upload_spec, collection, context=None):
     # Now got all the possible information to be able to do the uplaods.
     logger.info(
         "Starting upload to InfluxDB, database: %s, user: %s, "
-        "precision: %s, batch_size: %s",
+        "precision: %s, maximum batch_size: %s",
         database, user, timestamp_resolution, batch_size)
 
     with collection.events(precision=timestamp_resolution) as events:
@@ -119,6 +119,9 @@ def upload(upload_spec, collection, context=None):
             batch = "\n".join(b[1] for b in batch_events)
             if not batch:
                 break
+            # count the number of lines:
+            size = batch.count("\n") + 1
+            logger.info("Uploading %s records to InfluxDB", size)
             # Essentially: curl -i -XPOST 'http://172.16.1.95:8086/write?
             #               db=mydb&precision=u' --data-binary @batch.logs
             try:
@@ -142,5 +145,5 @@ def upload(upload_spec, collection, context=None):
 
     logger.info(
         "Finished upload to InfluxDB, database: %s, user: %s, "
-        "precision: %s, batch_size: %s",
-        database, user, timestamp_resolution, batch_size)
+        "precision: %s",
+        database, user, timestamp_resolution)

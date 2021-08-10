@@ -73,6 +73,7 @@ def auto_configure_with_collection(collection, config=None):
     :param config: config to use to perform the auto-configuration.
     :type config: Dict[str, ANY]
     """
+    logger.info("conncheck.auto_configure_with_collection() called.")
     if config is None:
         config = {}
     name = config.get("manager-name", "DEFAULT")
@@ -83,6 +84,7 @@ def auto_configure_with_collection(collection, config=None):
     conncheck_source = config.get("conncheck-source", None)
     if conncheck_source is not None:
         conncheck_manager.configure(module_source=conncheck_source)
+    logger.info("Complete conncheck.auto_configure_with_collection()")
 
 
 def get_conncheck_manager():

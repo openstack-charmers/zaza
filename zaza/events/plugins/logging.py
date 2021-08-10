@@ -150,6 +150,7 @@ def auto_configure_with_collection(collection, config=None):
     :param config: config to use to perform the auto-configuration.
     :type config: Dict[str, ANY]
     """
+    logger.info("autoconfigure_with_collection for logging called.")
     name = config.get("logger-name", "DEFAULT")
     logging_manager = get_plugin_manager(name)
 
@@ -157,8 +158,10 @@ def auto_configure_with_collection(collection, config=None):
     event_logger = logging_manager.get_logger()
 
     if config.get('log-to-stdout', False):
+        logger.info("Setting event logging to STDOUT")
         add_stdout_to_logger(event_logger)
     if config.get('log-to-python-logging', False):
+        logger.info("Setting event-logging to Python logging system.")
         level = config.get('python-logging-level', 'debug').upper()
         level_num = getattr(logging, level, None)
         if not isinstance(level_num, int):
@@ -952,6 +955,8 @@ class WriterDefault(WriterBase):
                       'uuid', 'comment'):
             try:
                 value = kwargs[field]
+                if field == "comment":
+                    value = '"{}"'.format(value)
                 msg.append(value)
                 del kwargs[field]
             except KeyError:
@@ -1107,10 +1112,10 @@ class HandleToLogging:
         :param msg: the message to write to the logger.
         :type msg: str
         """
-        msg.rstrip()
+        msg = msg.rstrip()
         if msg:
             _logger = self.logger or logger
-            _logger.log(self.level, msg)
+            _logger.log(self.level, "(events): '%s'", msg)
 
     def flush(self):
         """Flush the handle.

@@ -69,7 +69,7 @@ def find_and_configure_plugins(env_deployments):
         logger.error("Couldn't load plugins as it doesn't seem to be a list?")
         return
     for plugin_func in plugins:
-        logger.debug("Running plugin func %s.", plugin_func)
+        logger.info("Running plugin func %s()", plugin_func)
         try:
             utils.get_class(plugin_func)(env_deployments)
         except Exception as e:

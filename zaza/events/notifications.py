@@ -152,6 +152,7 @@ class EventsPlugin:
         subscribe(self.handle_after_bundle,
                   event=NotifyEvent.BUNDLE,
                   when=NotifyType.AFTER)
+        logger.info("Configured EventsPlugin.")
 
     def handle_before_bundle(
             self, event, when, *args, env_deployment=None, **kwargs):
@@ -172,6 +173,8 @@ class EventsPlugin:
         :param **kwargs: Any additional kwargs; these are ignored.
         :type **kwargs: Dict[str, ANY]
         """
+        logger.info("handle_before_bundle() called for env_deployment:%s",
+                     env_deployment)
         assert event is NotifyEvent.BUNDLE
         assert when is NotifyType.BEFORE
         assert env_deployment is not None
