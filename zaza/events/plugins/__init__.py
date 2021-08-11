@@ -78,7 +78,7 @@ class PluginManagerBase(ConfigurableMixin):
         """Return the format for the collection.
 
         :returns: the format of the logs from the whole collection, one of
-            zaza.events.formats.LogFormats
+            zaza.events.types.LogFormats
         :rtype: str
         """
         return self.collection_object.log_format

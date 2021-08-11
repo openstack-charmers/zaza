@@ -99,8 +99,7 @@ import sys
 import uuid
 
 from zaza.events.plugins import PluginManagerBase
-from zaza.events.formats import LogFormats
-from zaza.events.events import BEGIN, END, EXCEPTION
+from zaza.events.types import LogFormats, BEGIN, END, EXCEPTION
 from zaza.global_options import get_option
 
 

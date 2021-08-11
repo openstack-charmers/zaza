@@ -12,7 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The actual events as defines."""
+"""Types for logging."""
+
+
+class LogFormats:
+    """Format default types."""
+
+    CSV = 'CSV'
+    LOG = 'LOG'
+    InfluxDB = 'InfluxDB'
+
+
 
 # Events that are standardised.
 

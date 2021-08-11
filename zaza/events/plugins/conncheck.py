@@ -40,7 +40,7 @@ import tempfile
 import yaml
 
 from zaza.events.plugins import PluginManagerBase
-from zaza.events.formats import LogFormats
+from zaza.events.types import LogFormats
 from zaza.global_options import get_option
 from zaza.utilities import ConfigurableMixin
 import zaza.utilities.installers
