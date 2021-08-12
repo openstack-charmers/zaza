@@ -15,7 +15,7 @@
 """Types for logging."""
 
 import enum
-from zaza.notifications import _NotifyEvent
+from zaza.notifications import _NotifyEvents
 
 
 class LogFormats:
@@ -31,8 +31,8 @@ class LogFormats:
 class _Events:
     """zaza.events as an enum for type safety.
 
-    Note: as this class is derivied from zaza.notifications.NotifyEvent it also
-    has those events as well.
+    Note: as this class is derivied from zaza.notifications.NotifyEvents it
+    also has those events as well.
     """
 
     # Core events
@@ -45,8 +45,8 @@ class _Events:
 
 
 # Enums can't be extended, so we use this little trick.
-class Events(_Events, _NotifyEvent, enum.Enum):
-    """The Events enum that mixes _Events and _NotifyEvents."""
+class Events(_Events, _NotifyEvents, enum.Enum):
+    """The Events enum that mixes _Events and _NotifyEventss."""
 
     pass
 

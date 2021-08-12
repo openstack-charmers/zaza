@@ -21,13 +21,13 @@ import zaza.model
 import zaza.charm_lifecycle.utils as utils
 from zaza.notifications import (
     notify_around,
-    NotifyEvent,
+    NotifyEvents,
 )
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
 
 
-@notify_around(NotifyEvent.BEFORE_DEPLOY)
+@notify_around(NotifyEvents.BEFORE_DEPLOY)
 def run_before_deploy_list(functions):
     """Run the pre-deploy scripts.
 
@@ -38,7 +38,7 @@ def run_before_deploy_list(functions):
     :type tests: ['zaza.charms_tests.svc.setup', ...]
     """
     for func in functions:
-        with notify_around(NotifyEvent.BEFORE_DEPLOY_FUNCTION, function=func):
+        with notify_around(NotifyEvents.BEFORE_DEPLOY_FUNCTION, function=func):
             # TODO: change run_report to use zaza.notifications
             run_report.register_event_start('Before Deploy {}'.format(func))
             utils.get_class(func)()

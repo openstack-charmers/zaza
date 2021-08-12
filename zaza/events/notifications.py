@@ -82,7 +82,7 @@ The plugin values are:
 Converting zaza.notifications into zaza.events
 ==============================================
 
-The zaza.notifications module emits events of enum.Enum type NotifyEvent.
+The zaza.notifications module emits events of enum.Enum type NotifyEvents.
 Note that zaza.notifications can be other types, but this module only picks up
 the ones it is interested in.
 
@@ -105,7 +105,7 @@ from zaza.global_options import get_option
 import zaza.events.collection as ze_collection
 from zaza.events.uploaders import upload_collection_by_config
 from zaza.events import get_global_event_logger_instance
-from zaza.notifications import subscribe, NotifyEvent, NotifyType
+from zaza.notifications import subscribe, NotifyEvents, NotifyType
 from zaza.utilities import cached, expand_vars
 
 from .formats import Events
@@ -159,10 +159,10 @@ class EventsPlugin:
         # Handle the BEFORE and AFTER bundle notifications to actually create
         # and finalise the events logger after each deployment.
         subscribe(self.handle_before_bundle,
-                  event=NotifyEvent.BUNDLE,
+                  event=NotifyEvents.BUNDLE,
                   when=NotifyType.BEFORE)
         subscribe(self.handle_after_bundle,
-                  event=NotifyEvent.BUNDLE,
+                  event=NotifyEvents.BUNDLE,
                   when=NotifyType.AFTER)
         logger.info("Configured EventsPlugin.")
 
@@ -174,8 +174,8 @@ class EventsPlugin:
         be a bundle that gets all its logs collected and then saved "somewhere"
         according to the config.
 
-        :param event: This must be NotifyEvent.BUNDLE
-        :type event: NotifyEvent
+        :param event: This must be NotifyEvents.BUNDLE
+        :type event: NotifyEvents
         :param when: This must be NotifyType.BEFORE
         :type when: NotifyType
         :param *args: Any additional args passed; these are ignored.
@@ -187,7 +187,7 @@ class EventsPlugin:
         """
         logger.info("handle_before_bundle() called for env_deployment:%s",
                     env_deployment)
-        assert event is NotifyEvent.BUNDLE
+        assert event is NotifyEvents.BUNDLE
         assert when is NotifyType.BEFORE
         assert env_deployment is not None
         # Note that get_collection gets a zaza-events.* configured collection
@@ -262,8 +262,8 @@ class EventsPlugin:
         This is the stage when the logs are finalised, processed, and then
         uploaded to where they should be stored (according to the config).
 
-        :param event: This must be NotifyEvent.BUNDLE
-        :type event: NotifyEvent
+        :param event: This must be NotifyEvents.BUNDLE
+        :type event: NotifyEvents
         :param when: This must be NotifyType.AFTER
         :type when: NotifyType
         :param *args: Any additional args passed; these are ignored.
@@ -273,7 +273,7 @@ class EventsPlugin:
         :param **kwargs: Any additional kwargs; these are ignored.
         :type **kwargs: Dict[str, ANY]
         """
-        assert event is NotifyEvent.BUNDLE
+        assert event is NotifyEvents.BUNDLE
         assert when is NotifyType.AFTER
         events = get_global_event_logger_instance()
         events.log(Events.END_TEST, comment="Test ended")
@@ -297,7 +297,7 @@ class EventsPlugin:
         By definition, the config for zaza-events must be available as
         otherwise this function can't be called.
 
-        The event (a NotifyEvent) is used as it's str version of the event
+        The event (a NotifyEvents) is used as it's str version of the event
         logger.  A before or after is added if the NotifyType is BEFORE or
         AFTER.
 
@@ -306,17 +306,17 @@ class EventsPlugin:
         needed here (probably) to translate between notifications and
         time-series events.
 
-        Note: every NotifyEvent is also an z.e.types.Events event.  This
-        converts from NotifyEvent to Events before calling log().
+        Note: every NotifyEvents is also an z.e.types.Events event.  This
+        converts from NotifyEvents to Events before calling log().
 
         :param event: the event that has been notified
-        :type event: NotifyEvent
+        :type event: NotifyEvents
         :param when: the 'place' of the event (NotifyType.?)
         :type when: NotifyType
         """
-        assert isinstance(event, NotifyEvent)
+        assert isinstance(event, NotifyEvents)
         # don't log events that are already handled.
-        if event == NotifyEvent.BUNDLE:
+        if event == NotifyEvents.BUNDLE:
             return
         logger.debug("handle_notifications: %s, %s, %s, %s",
                      event, when, args, kwargs)
@@ -327,7 +327,7 @@ class EventsPlugin:
             if isinstance(when, enum.Enum):
                 when = when.value
             event = "{}-{}".format(event, when)
-        # transform the NotifyEvent into a Events object.
+        # transform the NotifyEvents into a Events object.
         event_ = _convert_notify_into_events(event)
         # TODO: filter/transform kwargs to be valid for Time-series events?
         events.log(event_, **kwargs)
@@ -335,10 +335,10 @@ class EventsPlugin:
 
 @cached
 def _convert_notify_into_events(notify_event):
-    """Convert a NotifyEvent into a Events.
+    """Convert a NotifyEvents into a Events.
 
     :param notify_event: the event to downcast
-    :type notify_event: NotifyEvent
+    :type notify_event: NotifyEvents
     :returns: the event, cast as an Events object
     :rtype: Events
     :raises ValueError: if the event can't be converted.
@@ -392,9 +392,9 @@ def dict_item_apply(f):
     return _inner
 
 
-# map to indicate how to convert from a NotifyEvent field name into an Events
+# map to indicate how to convert from a NotifyEvents field name into an Events
 # field name.  The first part of the tuple is the target field, the second is a
-# function that takes 3 params (current value of kwargs field, the NotifyEvent
+# function that takes 3 params (current value of kwargs field, the NotifyEvents
 # field name, value of that NoitifyEvent) and should return the new value.
 _convert_map = {
     "model_name": ("tags", dict_item_apply(third)),

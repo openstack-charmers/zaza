@@ -28,7 +28,7 @@ import zaza.charm_lifecycle.prepare as prepare
 import zaza.charm_lifecycle.deploy as deploy
 import zaza.charm_lifecycle.test as test
 import zaza.model
-from zaza.notifications import notify_around, NotifyEvent
+from zaza.notifications import notify_around, NotifyEvents
 import zaza.plugins
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
@@ -136,7 +136,7 @@ def run_env_deployment(env_deployment, keep_model=False, force=False,
         for deployment in env_deployment.model_deploys:
             logging.info("Waiting for {} to settle".format(
                 deployment.model_name))
-            with notify_around(NotifyEvent.WAIT_MODEL_SETTLE,
+            with notify_around(NotifyEvents.WAIT_MODEL_SETTLE,
                                model_name=deployment.model_name):
                 zaza.model.block_until_all_units_idle(
                     model_name=deployment.model_name)
@@ -248,7 +248,7 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
         preserve_model = False
         if keep_model and last_test == env_deployment.name:
             preserve_model = True
-        with notify_around(NotifyEvent.BUNDLE, env_deployment=env_deployment):
+        with notify_around(NotifyEvents.BUNDLE, env_deployment=env_deployment):
             run_env_deployment(env_deployment, keep_model=preserve_model,
                                force=force, test_directory=test_directory)
 

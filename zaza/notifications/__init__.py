@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 
 # Store Notify events and functions to call against that event
-class _NotifyEvent:
+class _NotifyEvents:
     """Notify Events definitions."""
 
     BUNDLE = "bundle"
@@ -63,9 +63,9 @@ class _NotifyEvent:
     DESTROY_MODEL = "destroy-model"
 
 
-# Note that Enum's can't be extended, and _NotifyEvent is available for mixing
+# Note that Enum's can't be extended, and _NotifyEvents is available for mixing
 # into other Enums.
-class NotifyEvent(_NotifyEvent, enum.Enum):
+class NotifyEvents(_NotifyEvents, enum.Enum):
     """NotityEvents enum."""
 
     pass
@@ -89,7 +89,7 @@ _notify_map = {
 
 
 def subscribe_this(event=None, when=None):
-    """Register a function  to call for an NotifyEvent as a decorator.
+    """Register a function  to call for an NotifyEvents as a decorator.
 
     The :param:`when` is when the function gets called.
     The :param:`event` is the charm lifecycle event, zaza event, that this
@@ -97,7 +97,7 @@ def subscribe_this(event=None, when=None):
 
     Use as:
 
-        @subscribe_this(NotifyEvent.DEPLOY_BUNDLE, NotifyType.BOTH)
+        @subscribe_this(NotifyEvents.DEPLOY_BUNDLE, NotifyType.BOTH)
         def deploy_model_notification_handler(....)
 
     In this case, two events (NotifyType.BEFORE and .AFTER may be fired)
@@ -119,7 +119,7 @@ def subscribe_this(event=None, when=None):
 def subscribe(f, event=None, when=None):
     """Suscribe to an event.
 
-    If :param:`event` is None, then all events in NotifyEvent are subscribed
+    If :param:`event` is None, then all events in NotifyEvents are subscribed
     to.
     If :param:`event` is a list, then those events will be subscribed.
     If :param:`when` is None, then the BEFORE event is subscribed to.
@@ -131,7 +131,7 @@ def subscribe(f, event=None, when=None):
     """
     global _notify_map
     if event is None:
-        events = NotifyEvent
+        events = NotifyEvents
     elif isinstance(event, Iterable):
         events = event
     else:
@@ -191,14 +191,14 @@ def notify(event, when=None, *args, **kwargs):
     Can be called from code to notify handler functions that a notification has
     happened.
 
-    Note that event doesn't have to be a NotifyEvent Enum; it can be anything
-    that can be a dictionary key.  The NotifyEvent Enum members are 'special'
+    Note that event doesn't have to be a NotifyEvents Enum; it can be anything
+    that can be a dictionary key.  The NotifyEvents Enum members are 'special'
     in that subscribers can subscribe to the whole 'set' using None.
 
     If when is None, then it is assumed to be BEFORE, and it indicated as such.
 
     :param event: the event to notify to subscribers.
-    :type event: Union[NotifyEvent, str, ANY]
+    :type event: Union[NotifyEvents, str, ANY]
     :param when: the NotifyType event (BEFORE, AFTER, EXCEPTION) -- note
         that 'BOTH' and 'ALL' don't make much sense here!
     :type event: NotifyType

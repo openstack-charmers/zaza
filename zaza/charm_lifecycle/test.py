@@ -21,7 +21,7 @@ import sys
 
 import zaza.model
 import zaza.global_options as global_options
-from zaza.notifications import notify_around, NotifyEvent
+from zaza.notifications import notify_around, NotifyEvents
 import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
@@ -68,9 +68,9 @@ def run_unittest(testcase, test_name):
     :type test_name: str
     """
     # note if the assert fails, the events will be:
-    #   (NotifyEvent.TEST_CASE, NotifyType.BEFORE)
-    #   (NotifyEvent.TEST_CASE, NotifyEvent.EXCEPTION)
-    with notify_around(NotifyEvent.TEST_CASE, testcase=testcase,
+    #   (NotifyEvents.TEST_CASE, NotifyType.BEFORE)
+    #   (NotifyEvents.TEST_CASE, NotifyEvents.EXCEPTION)
+    with notify_around(NotifyEvents.TEST_CASE, testcase=testcase,
                        test_name=test_name):
         suite = unittest.TestLoader().loadTestsFromTestCase(testcase)
         test_result = unittest.TextTestRunner(
@@ -93,9 +93,9 @@ def run_direct(testcase, test_name):
     :type test_name: str
     """
     # note if the assert fails, the events will be:
-    #   (NotifyEvent.TEST_CASE, NotifyType.BEFORE)
-    #   (NotifyEvent.TEST_CASE, NotifyEvent.EXCEPTION)
-    with notify_around(NotifyEvent.TEST_CASE, testcase=testcase,
+    #   (NotifyEvents.TEST_CASE, NotifyType.BEFORE)
+    #   (NotifyEvents.TEST_CASE, NotifyEvents.EXCEPTION)
+    with notify_around(NotifyEvents.TEST_CASE, testcase=testcase,
                        test_name=test_name):
         test_run = testcase().run()
         assert test_run, "Test run failed"
@@ -131,7 +131,7 @@ def test(model_name, tests, test_directory=None):
     """
     utils.set_base_test_dir(test_dir=test_directory)
     zaza.model.set_juju_model(model_name)
-    with notify_around(NotifyEvent.TESTS, model_name=model_name):
+    with notify_around(NotifyEvents.TESTS, model_name=model_name):
         run_test_list(tests)
 
 
