@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 
 # Store Notify events and functions to call against that event
-class NotifyEvent(enum.Enum):
+class _NotifyEvent:
     """Notify Events definitions."""
 
     BUNDLE = "bundle"
@@ -61,6 +61,11 @@ class NotifyEvent(enum.Enum):
     TESTS = "tests"
     TEST_CASE = "test-case"
     DESTROY_MODEL = "destroy-model"
+
+
+# Note that Enum's can't be extended, and _NotifyEvent is available for mixing
+# into other Enums.
+class NotifyEvent(_NotifyEvent, enum.Enum)
 
 
 class NotifyType(enum.Enum):

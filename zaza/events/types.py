@@ -15,6 +15,7 @@
 """Types for logging."""
 
 import enum
+from zaza.notifications import _NotifyEvent
 
 
 class LogFormats:
@@ -27,23 +28,44 @@ class LogFormats:
 
 # Events that are standardised.
 
-class Events(enum.Enum):
-    """zaza.events as an enum for type safety."""
+class _Events:
+    """zaza.events as an enum for type safety.
 
-    START_TEST = "start-test"
+    Note: as this class is derivied from zaza.notifications.NotifyEvent it also
+    has those events as well.
+    """
+
+    # Core events
+    START_TEST = "start"
     COMMENT = "comment"
-    BEGIN = "begin-block"
-    END = "end-block"
-    EXCEPTION = "exception-in-block"
-    END_TEST = "end-test"
+    BEGIN = "span-begin"
+    END = "span-end"
+    EXCEPTION = "exception-in-span"
+    END_TEST = "end"
 
+
+# Enums can't be extended, so we use this little trick.
+class Events(_Events, ,_NotifyEvents, enum.Enum)
+
+
+# Meaning of the fields:
+#    'collection' - the collection (loosely measurement in InfluxDB parlance)
+#    'timestamp'  - the timestamp
+#    'event'      - the event (from :class:`Events` above)
+#    'span'       - either before, after, or absent - used for spans
+#    'unit'       - the unit 'DEFAULT' is typically zaza tests.
+#    'item'       - the item - test dependent (e.g. could be a juju unit name)
+#    'comment'    - a comment field
+#    'tags'       - any additional tags that are of interest.
+#    'uuid'       - used to pair up/collect common sequences of events.
 
 FIELDS = (
-    'timestamp',
     'collection',
+    'timestamp',
+    'event',
+    'span',
     'unit',
     'item',
-    'event',
     'comment',
     'tags',
     'uuid',

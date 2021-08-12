@@ -269,12 +269,10 @@ class EventsPlugin:
         collection = ze_collection.get_collection()
         collection.finalise()
 
-        # 1. Access all the log files:
         for (name, type_, filename) in collection.log_files():
             logger.debug(
                 "Found logs for %s type(%s) %s", name, type_, filename)
 
-        # 2. do something with the logs (i.e. upload to a database)
         upload_collection_by_config(
             collection, context=event_context_vars(env_deployment))
 
@@ -297,11 +295,15 @@ class EventsPlugin:
         needed here (probably) to translate between notifications and
         time-series events.
 
+        Note: every NotifyEvent is also an z.e.types.Events event.  This
+        converts from NotifyEvent to Events before calling log().
+
         :param event: the event that has been notified
         :type event: NotifyEvent
         :param when: the 'place' of the event (NotifyType.?)
         :type when: NotifyType
         """
+        assert isinstance(event, NotifyEvent)
         # don't log events that are already handled.
         if event == NotifyEvent.BUNDLE:
             return
@@ -314,8 +316,28 @@ class EventsPlugin:
             if isinstance(when, enum.Enum):
                 when = when.value
             event = "{}-{}".format(event, when)
+        # transform the NotifyEvent into a Events object.
+        event_ = _convert_notify_into_events(event)
         # TODO: filter/transform kwargs to be valid for Time-series events?
-        events.log(event, **kwargs)
+        events.log(_event, **kwargs)
+
+
+@cached
+def _convert_notify_into_events(notify_event):
+    """Convert a NotifyEvent into a Events.
+
+    :param notify_event: the event to downcast
+    :type notify_event: NotifyEvent
+    :returns: the event, cast as an Events object
+    :rtype: Events
+    :raises ValueError: if the event can't be converted.
+    """
+    v = notify_event.value
+    for ev in Events:
+        if ev.value == v:
+            return ev
+    raise ValueError(
+        "Can't convert {} into an Events object".format(notify_event))
 
 
 @cached
