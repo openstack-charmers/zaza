@@ -616,7 +616,7 @@ class ConnCheckInstanceBase(ConfigurableMixin):
         module_source = (
             self.module_source if self.module_source else "conncheck")
         zaza.utilities.installers.install_module_in_venv(
-            self.module_source, destination, self._scp_fn, self._ssh_fn,
+            module_source, destination, self._scp_fn, self._ssh_fn,
             run_user="conncheck")
         systemd_cmd = (
             "{home}/.venv/bin/conncheck -c {home}/{config} --log DEBUG"
