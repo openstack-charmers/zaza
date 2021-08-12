@@ -21,7 +21,7 @@ import sys
 
 import zaza.model
 import zaza.global_options as global_options
-from zaza.notifications import notify, notify_around, NotifyEvent
+from zaza.notifications import notify_around, NotifyEvent
 import zaza.charm_lifecycle.utils as utils
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
