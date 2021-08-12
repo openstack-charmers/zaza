@@ -49,4 +49,11 @@ from .plugins.logging import ( # NOQA
     get_logger,
 )
 from .plugins.conncheck import get_conncheck_manager  # NOQA
-from .events import *  # NOQA
+from .types import (  # NOQA
+    LogFormats,
+    Events,
+)
+from .tests_integration import ( # NOQA
+    get_global_events_logging_manager,
+    get_global_event_logger_instance,
+)

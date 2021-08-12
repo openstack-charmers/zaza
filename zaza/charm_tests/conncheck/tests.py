@@ -18,9 +18,9 @@
 import logging
 import time
 import unittest
-import time
 
 import zaza.events
+from zaza.events import Events
 import zaza.model
 import zaza.global_options
 import zaza.utilities.generic
@@ -42,11 +42,11 @@ class TestConncheckIntegration(unittest.TestCase):
         logger.info('Setup the logging environment and install ConnCheck.')
 
         conncheck_manager = zaza.events.get_conncheck_manager()
-        events = zaza.events.get_event_logger()
+        events = zaza.events.get_global_event_logger_instance()
 
         # Configure the conncheck manager
         span = events.span()
-        events.log(zaza.events.BEGIN,
+        events.log(Events.BEGIN,
                    span=span,
                    comment="start ConnCheck configuration")
 
@@ -67,17 +67,17 @@ class TestConncheckIntegration(unittest.TestCase):
         instances[1].add_speaker('udp', 8080, instances[0])
 
         # start them speaking.
-        events.log(zaza.events.COMMENT,
+        events.log(Events.COMMENT,
                    span=span,
                    comment="ConnCheck instances configuring")
         for instance in instances:
             instance.start()
-        events.log(zaza.events.END,
+        events.log(Events.END,
                    span=span,
                    comment="ConnCheck configured")
 
         for n in range(5):
-            events.log(zaza.events.COMMENT,
+            events.log(Events.COMMENT,
                        comment="Sleeping for 5 seconds: {} of 5"
                        .format(n + 1))
             time.sleep(5)
@@ -95,7 +95,7 @@ class TestConncheckIntegration(unittest.TestCase):
 
         # Now wait a while to allow more events to be collected.
         for n in range(5):
-            events.log(zaza.events.COMMENT,
+            events.log(Events.COMMENT,
                        comment="Sleeping for 5 seconds: {} of 5"
                        .format(n + 1))
             time.sleep(5)
@@ -104,7 +104,7 @@ class TestConncheckIntegration(unittest.TestCase):
             for instance in instances:
                 instance.finalise()
 
-        events.log(zaza.events.COMMENT, comment="Test ended")
+        events.log(Events.COMMENT, comment="Test ended")
 
         # Note that the zaza framework will now finalise and upload the events
         # to wherever they are configured.

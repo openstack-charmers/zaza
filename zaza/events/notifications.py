@@ -92,11 +92,12 @@ import tempfile
 import zaza.charm_lifecycle.utils as utils
 from zaza.global_options import get_option
 import zaza.events.collection as ze_collection
-import zaza.events.plugins.logging
 from zaza.events.uploaders import upload_collection_by_config
-from zaza.events import get_event_logger
+from zaza.events import get_global_event_logger_instance
 from zaza.notifications import subscribe, NotifyEvent, NotifyType
 from zaza.utilities import cached, expand_vars
+
+from .formats import Events
 
 
 logger = logging.getLogger(__name__)
@@ -174,7 +175,7 @@ class EventsPlugin:
         :type **kwargs: Dict[str, ANY]
         """
         logger.info("handle_before_bundle() called for env_deployment:%s",
-                     env_deployment)
+                    env_deployment)
         assert event is NotifyEvent.BUNDLE
         assert when is NotifyType.BEFORE
         assert env_deployment is not None
@@ -229,7 +230,7 @@ class EventsPlugin:
                 .format(module))
             try:
                 logger.info("Running autoconfigure for zaza-events func %s()",
-                             configure_func)
+                            configure_func)
                 utils.get_class(configure_func)(collection, config)
             except Exception as e:
                 logger.error(
@@ -238,10 +239,9 @@ class EventsPlugin:
                 if get_option('zaza-events.raise-exceptions', False):
                     raise
 
-        # logging_manager = get_logging_manager()
-        # events = logging_manager.get_event_logger()
-        events = get_event_logger()
-        events.log(zaza.events.START_TEST,
+        # events = logging_manager.get_global_event_logger_instance()
+        events = get_global_event_logger_instance()
+        events.log(Events.START_TEST,
                    comment="Starting {}".format(log_collection_name))
 
     def handle_after_bundle(
@@ -264,9 +264,8 @@ class EventsPlugin:
         """
         assert event is NotifyEvent.BUNDLE
         assert when is NotifyType.AFTER
-        # events = get_logging_manager().get_event_logger()
-        events = get_event_logger()
-        events.log(zaza.events.END_TEST, comment="Test ended")
+        events = get_global_event_logger_instance()
+        events.log(Events.END_TEST, comment="Test ended")
         collection = ze_collection.get_collection()
         collection.finalise()
 
@@ -308,8 +307,7 @@ class EventsPlugin:
             return
         logger.debug("handle_notifications: %s, %s, %s, %s",
                      event, when, args, kwargs)
-        # events = get_logging_manager().get_event_logger()
-        events = get_event_logger()
+        events = get_global_event_logger_instance()
         if isinstance(event, enum.Enum):
             event = event.value
         if when in (NotifyType.BEFORE, NotifyType.AFTER):

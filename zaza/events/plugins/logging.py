@@ -61,7 +61,7 @@ In the case for, say a charm-upgrade test:
     charm_events.log_event(zaza.events.START)
     charm_events.log_event(zaza.events.STAGE, msg="set config to xx")
     ...
-    charm_events.log_event(zaza.events.END)
+    charm_events.log_event(Events.END)
 
 Note that some events are predefined (they are just strings) to help to ensure
 that common set of events are used across units and items.
@@ -87,11 +87,42 @@ The events module supports multiple log sources, via EventLoggerBase.
     # or (ASPIRATIONAL - not done yet!)
     logger.upload_to_influxdb(influx_config)
 
+
+Structure of Logging plugin
+===========================
+
+The main components:
+
+ - LoggerPluginManager:
+       This plugs the 'standalone' event logging into the
+       zaza.events.collection.Collection class.  This is how the logs from
+       tests and zaza can be combined with events generated from other plugins.
+
+ - EventLogger
+   - LoggerInstance
+       These two classes manage the logging.  The EventLogger object 'holds'
+       the WriterBase classes that provide the mechanism for formatting and
+       then writing to a logged location.  The 'LoggerInstance' provides the
+       log() method that actually does a log; this calls the EventLogger._log()
+       method that then calls the writers.
+
+ - WriterFile
+       This manages a file on behalf of a Writer.
+
+ - WriterBase
+   - WriterCSV
+   - WriterDefault
+   - WriterLineProtocol
+       These are the actual format writers.  WriterDefault is for human
+       readable output, whereas the other two are for machine consumption.
+
+ - HandleToLogging
+       This small class provides a WriterFile like interface, but provides
+       writing to a Python Logger.
 """
 
 import tempfile
 import atexit
-import collections
 import datetime
 import logging
 import os
@@ -99,32 +130,17 @@ import sys
 import uuid
 
 from zaza.events.plugins import PluginManagerBase
-from zaza.events.types import LogFormats, BEGIN, END, EXCEPTION
-from zaza.global_options import get_option
+from zaza.events.types import LogFormats, Events, FIELDS
 
 
 logger = logging.getLogger(__name__)
 
 
-_loggers = dict()
+###############################################################################
 
+# Auto-configure a logger according to config.
 
-def get_logger(name="DEFAULT", *args, **kwargs):
-    """Get a logger instance.
-
-    The name is the logger to get.  This is global so that it can be fetched
-    from any module.
-
-    :param name: the name of the logger.
-    :type name: str
-    :returns: the logger instance
-    :rtype: EventLogger
-    """
-    global _loggers
-    if name not in _loggers:
-        _loggers[name] = EventLogger(name, *args, **kwargs)
-    return _loggers[name]
-
+###############################################################################
 
 def auto_configure_with_collection(collection, config=None):
     """Auto-configure the plugin with the collection.
@@ -160,50 +176,66 @@ def auto_configure_with_collection(collection, config=None):
         logger.info("Setting event logging to STDOUT")
         add_stdout_to_logger(event_logger)
     if config.get('log-to-python-logging', False):
-        logger.info("Setting event-logging to Python logging system.")
         level = config.get('python-logging-level', 'debug').upper()
         level_num = getattr(logging, level, None)
         if not isinstance(level_num, int):
             raise ValueError('Invalid log level: "{}"'.format(level))
+        logger.info(
+            "Setting event-logging to Python logging system at level %s",
+            level)
         event_logger.add_writers(
-            get_writer(LogFormats.LOG,
-                       HandleToLogging(name="auto-logger",
-                                       level=level_num,
-                                       python_logger=logger)))
+            make_writer(LogFormats.LOG,
+                        HandleToLogging(name="auto-logger",
+                                        level=level_num,
+                                        python_logger=logger)))
 
 
-def get_logging_manager():
-    """Return the events logging manager (for the collection).
+###############################################################################
 
-    This returns the logging manager for logging time-series events from within
-    zaza tests.  The advantage of using this is that it taps into the
-    global_options to get the 'right' one for the test.
+# Module API functions for getting loggers of various kinds.
 
-    Note: if there are no zaza-events options configured the 'DEFAULT' event
-    logging manager will be returned, which if nothing is configured, won't do
-    anything with logs if a logger is requested and then used.
+###############################################################################
 
-    :returns: the configured logging manager.
-    :rtype: zaza.events.plugins.logging.LoggerPluginManager
+_loggers = dict()
+
+
+def get_logger(name="DEFAULT"):
+    """Get an EventLogger by name.
+
+    The name is the logger to get.  This is global so that it can be fetched
+    from any module.  This is probably not useful as there is no 'log' method.
+    Use :function:`get_logger_instance` for a useful logger.
+
+    :param name: the name of the logger.
+    :type name: str
+    :returns: the logger instance
+    :rtype: EventLogger
     """
-    name = get_option("zaza-events.modules.logging.logger-name", None)
-    if name is None:
-        name = get_option("zaza-events.collection-name", "DEFAULT")
-    return get_plugin_manager(name)
+    global _loggers
+    if name not in _loggers:
+        _loggers[name] = EventLogger(name)
+    return _loggers[name]
 
 
-def get_event_logger():
-    """Get an event logger with prefilled fields for the collection.
+def get_logger_instance(name="DEFAULT", **kwargs):
+    """Get an LoggerInstance by name.
 
-    This returns an options configured event logger (proxy) with prefilled
-    fields.  This is almost CERTAINLY the event logger that you want to use in
-    zaza test functions.
+    The name is the logger to get.  This is global so that it can be fetched
+    from any module.
 
-    :returns: a configured LoggerInstance with prefilled collection and unit
-        fields.
+    The :param:`kwargs` can be used to prefill the keys on the logger.  See
+    also the :method:`prefill_with` available on the :class:`EventLogger` and
+    :class:`LoggerInstance` classes.
+
+    :param name: the name of the logger.
+    :type name: str
+    :param kwargs: key-value pairs to preconfigure fields in the
+        LoggerInstance.
+    :type kwargs: Dict[str, Any]
+    :returns: the logger instance
     :rtype: LoggerInstance
     """
-    return get_logging_manager().get_event_logger()
+    return get_logger(name).get_logger_instance(**kwargs)
 
 
 def add_stdout_to_logger(name_or_logger="DEFAULT"):
@@ -217,98 +249,14 @@ def add_stdout_to_logger(name_or_logger="DEFAULT"):
         logger = name_or_logger
     else:
         logger = get_logger(name_or_logger)
-    if not logger.has_writer("DEFAULT"):
-        logger.add_writers(WriterDefault(sys.stdout))
+    logger.add_writers(WriterDefault(sys.stdout))
 
 
-class span:
-    """Provide a new span of logs.
+###############################################################################
 
-    This is to allow uuid fields to be auto-generated and then indicate a span
-    of logs around an activity.
+# LoggerPluginManager - plug EventLogger into z.e.collection.Collection
 
-    Can be used as:
-
-        span = events.span()
-        events.log(zaza.events.BEGIN, block=block, comment="...")
-
-    or:
-
-        with events.span("comment") as span:
-            ...
-            events.log(zaza.events.COMMENT, span=span, comment="...")
-            ...
-
-        The final BEGIN and END blocks are performed automatically with the
-        comment.
-    """
-
-    def __init__(self, event_logger, comment=None, **kwargs):
-        """Initialise a span logger.
-
-        :param event_logger: the logger that this will use.
-        :type event_logger: Union[EventLogger, LoggerInstance]
-        :param comment: the comment that goes with this span.
-        :type comment: Optional[str]
-        :param kwargs: Additional fields/tags to go with the span log.
-        :type kwargs: Dict[str, ANY]
-        """
-        self.event_logger = event_logger
-        self.uuid = str(uuid.uuid4())
-        self.comment = comment
-        self.kwargs = kwargs
-
-    @property
-    def _kwargs(self):
-        """Return the kwargs for the log.
-
-        Merges the UUID with the kwargs and comment.
-
-        :returns: the kwargs to pass to the log.
-        :rtype: Dict[str, ANY]
-        """
-        kwargs = self.kwargs.copy()
-        kwargs['uuid'] = self.uuid
-        if self.comment:
-            kwargs['comment'] = self.comment
-        return kwargs
-
-    def __enter__(self):
-        """Log start event on entry to context."""
-        self.event_logger.log(BEGIN, **self._kwargs)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Log end event on exit from context.
-
-        If there is an exception, log an exception event instead.
-        Return False so as to propagate the exception.
-        """
-        if exc_type is None:
-            self.event_logger.log(END, **self._kwargs)
-        else:
-            self.comment = "Exception: {}: {}".format(
-                str(exc_type), str(exc_val))
-            self.event_logger.log(EXCEPTION, **self._kwargs)
-        self.event_logger = None
-        return False
-
-
-_log_dir = None
-
-
-def _get_writers_log_dir():
-    """Return the directory for writing log files to.
-
-    :returns: A log dir for writing logs to, if one is not set then a temporary
-        one is created; it gets deleted when the script ends!
-    :rtype: Path
-    """
-    global _log_dir
-    if _log_dir is not None:
-        return _log_dir
-    _log_dir = tempfile.TemporaryDirectory()
-    return _log_dir
-
+###############################################################################
 
 _logger_plugin_managers = dict()
 
@@ -360,21 +308,21 @@ class LoggerPluginManager(PluginManagerBase):
                 self.collection, self.log_format, str(uuid.uuid4())[-8:])
             self.filename = os.path.join(self.logs_dir, name)
         self._managed_writer_file = WriterFile(self.log_format, self.filename)
-        self._managed_writer = get_writer(
+        self._managed_writer = make_writer(
             self.log_format, self._managed_writer_file.handle)
         # now wire it in to the logger
         event_logger = get_logger(self.managed_name)
         event_logger.add_writers(self._managed_writer)
 
     def get_logger(self):
-        """Return the logger instance associated with this item.
+        """Return the EventLogger associated with this item.
 
         :returns: an EventLogger instance
         :rtype: EventLogger
         """
         return get_logger(self.managed_name)
 
-    def get_event_logger(self):
+    def get_event_logger_instance(self):
         """Return the logger instance associated with this item.
 
         In particular, the collection is pre-filled on the logger so that it
@@ -384,12 +332,12 @@ class LoggerPluginManager(PluginManagerBase):
         :rtype: LoggerInstance
         """
         try:
-            return self.get_logger().prefill_with(collection=self.collection,
-                                                  unit=self.managed_name)
+            return self.get_logger().get_logger_instance(
+                collection=self.collection, unit=self.managed_name)
         except AttributeError:
             # If it goes bang, it's probably not configured, so just return the
             # default logger.
-            return get_logger()
+            return get_logger().get_logger_instance()
 
     def finalise(self):
         """Finalise the writers in the logger.
@@ -426,11 +374,307 @@ class LoggerPluginManager(PluginManagerBase):
         """Reset the logger so it can be used again."""
         if self._managed_writer is not None:
             self.finalise()
-            # now remove the writer
-            remove_writer(self.log_format, self._managed_writer_file.handle)
             self._managed_writer_file = None
             self._managed_writer = None
         self.filename = None
+
+
+###############################################################################
+
+# EventLogger - the core 'logging' class.
+
+###############################################################################
+
+class EventLogger:
+    """Event logging class to log events."""
+
+    def __init__(self, name):
+        """Initialise an empty EventLogger.
+
+        :param name: the name of this logger; typically DEFAULT
+        :type name: str
+        """
+        self.name = name
+        self._writers = []
+
+    def get_logger_instance(self, **kwargs):
+        """Return an instance logger for this event logger.
+
+        :param:`kwargs` allows for prefilling fields, and thus allows the user
+        of the event logging system to prefill some parameters and then use
+        that logger more simply.
+
+        :param kwargs: the fields to prefill.  e.g. unit='my-unit'.
+        :type kwargs: Dict[str, Any]
+        :returns: A LoggerInstance proxy for the EventLoger.
+        :rtype: LoggerInstance
+        """
+        return LoggerInstance(self, **kwargs)
+
+    def _log(self, event, newline=True, **kwargs):
+        """Log an event.
+
+        This writes the log to each of the writers that is attached to the
+        logger.
+
+        If "span" is passed in the kwargs and the value is a span() object,
+        then the uuid is pulled out and placed as 'uuid' in the log.
+
+        :param event: the event that is being logged.
+        :type event: zaza.events.types.Event
+        :param newline: Whether to make sure a newline is added.
+        :type newline: bool
+        :param kwargs: Key=value pairs to include in the log.
+        :type kwargs: Dict[str, Any]
+        """
+        assert isinstance(event, Events), (
+            "Mustn't pass a non-Events Enum event to {}.log()"
+            .format(self.__class__.__name__))
+        kwargs['event'] = event.value
+        if 'timestamp' not in kwargs:
+            kwargs['timestamp'] = datetime.datetime.now()
+        if 'span' in kwargs and isinstance(kwargs['span'], span):
+            span_ = kwargs.pop('span')
+            kwargs['uuid'] = span_.uuid
+        for writer in self._writers:
+            writer.write(newline=newline, **kwargs)
+
+    def _validate_attrs(self, kwargs):
+        """Valdiate that keys (from the kwargs passed as a Dict).
+
+        The valid keys are those that are typically used as fields.  However,
+        InfluxDB is schemaless and so any fields can be used.
+
+        :param kwargs: the params passed to the LoggerInstance.
+        :type kwargs: Dict[str, Any]
+        """
+        invalid_keys = [k for k in kwargs if k not in FIELDS]
+        if len(invalid_keys) != 0:
+            logger.warning("EventLogger: %s not valid for %s",
+                           ",".join(invalid_keys),
+                           self.__class__.__name__)
+
+    def add_writers(self, *writers):
+        """Add the writers to the logger.
+
+        Any existing writers with the same name are replaced.
+
+        :param writers: The writers (derived from WriterBase)
+        :type writers: List[WriterBase]
+        """
+        _existing_replaced = []
+        for w in writers:
+            if w in self._writers:
+                _existing_replaced.append(w)
+            else:
+                self._writers.append(w)
+        if _existing_replaced:
+            logger.warning("Adding existing writers: {}"
+                           .format(",".join(_existing_replaced)))
+
+    def remove_writer(self, writer):
+        """Remove a writer.
+
+        Logs a warning if the writer doesn't exist.
+
+        :param writer: the writer.
+        :type writer: WriterBase
+        """
+        to_keep = []
+        for i, w in enumerate(self._writers):
+            if w != writer:
+                to_keep.append(i)
+        if len(to_keep) == len(self._writers):
+            logger.warning("Writer: %s doesn't exist, ignore removing",
+                           writer)
+            return
+        self._writers = to_keep
+
+
+class LoggerInstance:
+    """The logging instance to provide logging.
+
+    Connects to the EventLogger, and can have pre-filled fields to make it
+    easier to log things.  Multiple different LoggerInstances can exist that
+    all use the same EventLogger to enable different parts of the code to own
+    their own (prefilled) logger instances.
+    """
+
+    def __init__(self, event_logger, **kwargs):
+        """Create a logger instance.
+
+        This allows prefilling of valid fields in a logger.
+
+        Note tht it produces a warning if any other that the _valid_fields keys
+        are used. The attributes are stored on the object (self).
+
+        :param event_logger: The event logger this is attached to.
+        :type event_logger: EventLogger
+        """
+        self.event_logger = event_logger
+        self._validate_attrs(kwargs)
+        self.prefilled = {}
+        self.prefilled.update(kwargs)
+
+    def _add_in_prefilled(self, kwargs):
+        """Add in the prefilled values if they don't exist to a passed dict.
+
+        :param kwargs: the key=value pairs to event log.
+        :type kwargs: Dict[str, Any]
+        :returns: the original kwargs with any additionally prefilled values.
+        :rtype: Dict[str, Any]
+        """
+        # shallow copy, because update mutates rather than returning a new
+        # dict.
+        _prefilled = self.prefilled.copy()
+        _prefilled.update(kwargs)
+        return _prefilled
+
+    def prefill_with(self, **kwargs):
+        """Allow further prefilling with fields.
+
+        :param kwargs: key=value pairs to prefill for a log
+        :type kwargs: Dict[str, Any]
+        :returns: a new LoggerInstance with the existing and new prefilled
+            values (allows overwriting existing values.)
+        :rtype: LoggerInstance
+        """
+        self._validate_attrs(kwargs)
+        return LoggerInstance(self.event_logger,
+                              **(self._add_in_prefilled(kwargs)))
+
+    def log(self, event, **kwargs):
+        """Call the parent log function.
+
+        Log an event adding in prefilled values if they aren't present in the
+        passed keyword arguments.
+
+        :param event: the event to log
+        :type event: zaza.events.types.Events
+        :param kwargs: The key=value arguments to log
+        :type kwargs: Dict[str, Any]
+        """
+        self.event_logger._log(event, **(self._add_in_prefilled(kwargs)))
+
+    def span(self, comment=None, **kwargs):
+        """Return a span event decorator.
+
+        This provides BEGIN and END/EXCEPTION events around a span.  If called
+        as a normal function, then it returns the span() object.  The span()
+        object can also be used as a contextmanager and so it can be used as a
+        span.  See :class:`span` for more details.
+
+        :param comment: the optional comment that gets applied to each event.
+        :type comment: Optional[str]
+        :param kwargs: optional fields/tags to send to the logger.
+        :type kwargs: Dict[str, ANY]
+        :returns: a span() object.
+        :rtype: span
+        """
+        return span(self, comment=comment, **kwargs)
+
+
+class span:
+    """Provide a new span of logs.
+
+    This is to allow uuid fields to be auto-generated and then indicate a span
+    of logs around an activity.
+
+    Can be used as:
+
+        span = events.span()
+        events.log(Events.BEGIN, block=block, comment="...")
+
+    or:
+
+        with events.span("comment") as span:
+            ...
+            events.log(zaza.events.Events.COMMENT, span=span, comment="...")
+            ...
+
+        The final BEGIN and END blocks are performed automatically with the
+        comment.
+    """
+
+    def __init__(self, event_logger, comment=None, **kwargs):
+        """Initialise a span logger.
+
+        :param event_logger: the logger that this will use.
+        :type event_logger: Union[EventLogger, LoggerInstance]
+        :param comment: the comment that goes with this span.
+        :type comment: Optional[str]
+        :param kwargs: Additional fields/tags to go with the span log.
+        :type kwargs: Dict[str, ANY]
+        """
+        self.event_logger = event_logger
+        self.uuid = str(uuid.uuid4())
+        self.comment = comment
+        self.kwargs = kwargs
+
+    @property
+    def _kwargs(self):
+        """Return the kwargs for the log.
+
+        Merges the UUID with the kwargs and comment.
+
+        :returns: the kwargs to pass to the log.
+        :rtype: Dict[str, ANY]
+        """
+        kwargs = self.kwargs.copy()
+        kwargs['uuid'] = self.uuid
+        if self.comment:
+            kwargs['comment'] = self.comment
+        return kwargs
+
+    def __enter__(self):
+        """Log start event on entry to context."""
+        self.event_logger.log(Events.BEGIN, **self._kwargs)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Log end event on exit from context.
+
+        If there is an exception, log an exception event instead.
+        Return False so as to propagate the exception.
+        """
+        if exc_type is None:
+            self.event_logger.log(Events.END, **self._kwargs)
+        else:
+            self.comment = "Exception: {}: {}".format(
+                str(exc_type), str(exc_val))
+            self.event_logger.log(Events.EXCEPTION, **self._kwargs)
+        self.event_logger = None
+        return False
+
+
+###############################################################################
+
+# Writers; turns events into formatted types for writing to log files.
+
+###############################################################################
+
+def make_writer(log_format, handle):
+    """Make a writer with the appropirate format.
+
+    :param log_format: A log format in the form of LogFormats
+    :type log_format: str
+    :param handle: the handle associated with the writer.
+    :type handle: IO[str]
+    :returns: a Writer
+    :rtype: WriterBase
+    """
+    types = {
+        LogFormats.CSV: WriterCSV,
+        LogFormats.LOG: WriterDefault,
+        LogFormats.InfluxDB: WriterLineProtocol,
+    }
+
+    assert log_format in (
+        LogFormats.CSV, LogFormats.LOG, LogFormats.InfluxDB), \
+        "Log format {} isn't one of {}".format(
+            log_format,
+            ", ".join((LogFormats.CSV, LogFormats.LOG, LogFormats.InfluxDB)))
+
+    return types[log_format](handle)
 
 
 class WriterFile:
@@ -497,304 +741,22 @@ class WriterFile:
             self.handle = None
 
 
-class EventLogger:
-    """Event logging class to log events."""
-
-    def __init__(self, name):
-        """Initialise an empty EventLogger.
-
-        :param name: the name of this logger; typically DEFAULT
-        :type name: str
-        """
-        self.name = name
-        self._writers = collections.OrderedDict()
-
-    def prefill_with(self, **kwargs):
-        """Fill in the unit or item prefix, returning an instance logger.
-
-        Prefilling an EventLogger (by using a LoggerInstance proxy) allows the
-        user of the event logging system to prefill some parameters and then
-        use that logger more simply.
-
-        :param kwargs: the fields to prefill.  e.g. unit='my-unit'.
-        :type kwargs: Dict[str, Any]
-        :returns: A LoggerInstance proxy for the EventLoger.
-        :rtype: LoggerInstance
-        """
-        return LoggerInstance(self, **kwargs)
-
-    def log(self, event, newline=True, **kwargs):
-        """Log an event.
-
-        This writes the log to each of the writers that is attached to the
-        logger.
-
-        If "span" is passed in the kwargs and the value is a span() object,
-        then the uuid is pulled out and placed as 'uuid' in the log.
-
-        :param event: the event that is being logged.
-        :type event: str
-        :param newline: Whether to make sure a newline is added.
-        :type newline: bool
-        :param kwargs: Key=value pairs to include in the log.
-        :type kwargs: Dict[str, Any]
-        """
-        kwargs['event'] = event
-        if 'timestamp' not in kwargs:
-            kwargs['timestamp'] = datetime.datetime.now()
-        if 'span' in kwargs and isinstance(kwargs['span'], span):
-            span_ = kwargs.pop('span')
-            kwargs['uuid'] = span_.uuid
-        for writer in self._writers.values():
-            writer.write(newline=newline, **kwargs)
-
-    def span(self, comment=None, **kwargs):
-        """Return a span event decorator.
-
-        This provides BEGIN and END/EXCEPTION events around a span.  If called
-        as a normal function, then it returns the span() object.  The span()
-        object can also be used as a contextmanager and so it can be used as a
-        span.  See :class:`span` for more details.
-
-        :param comment: the optional comment that gets applied to each event.
-        :type comment: Optional[str]
-        :param kwargs: optional fields/tags to send to the logger.
-        :type kwargs: Dict[str, ANY]
-        :returns: a span() object.
-        :rtype: span
-        """
-        return span(self, comment=comment, **kwargs)
-
-    def add_writers(self, *writers):
-        """Add the writers to the logger.
-
-        Any existing writers with the same name are replaced.
-
-        :param writers: The writers (derived from WriterBase)
-        :type writers: List[WriterBase]
-        """
-        _existing_replaced = []
-        for w in writers:
-            if w.name in self._writers:
-                _existing_replaced.append(w.name)
-            self._writers[w.name] = w
-        if _existing_replaced:
-            logger.warning("Adding writers with existing names: {}"
-                           .format(",".join(_existing_replaced)))
-
-    def has_writer(self, name):
-        """Return true if writer exists.
-
-        :param name: the name of the writer.
-        :type name: str
-        :returns: true if writer exists.
-        :rtype: bool
-        """
-        try:
-            self._writers[name]
-            return True
-        except KeyError:
-            return False
-
-    def get_writer(self, name):
-        """Return a writer by name.
-
-        :param name: the name of the writer.
-        :type name: str
-        :returns: The Writer
-        :rtype: WriterBase
-        :raises KeyError: if writer doesn't exist.
-        """
-        try:
-            return self._writers[name]
-        except KeyError:
-            raise KeyError("Writer with name: {} doesn't exist")
-
-    def update_writer(self, writer):
-        """Update (or add) a writer.
-
-        Logs a warning if the writer didn't exist.
-
-        :param writer: the writer.
-        :type writer: WriterBase
-        """
-        if writer.name not in self._writers:
-            logger.warning("Writer: %s doesn't exist, adding", writer)
-        self._writers[writer.name] = writer
-
-    def remove_writer(self, writer):
-        """Remove a writer.
-
-        Logs a warning if the writer doesn't exist.
-
-        :param writer: the writer.
-        :type writer: WriterBase
-        """
-        if writer.name not in self._writers:
-            logger.warning("Writer: %s doesn't exist, ignore removing",
-                           writer)
-            return
-        del self._writers[writer.name]
+# Need a global to hold the temporary directory until the program ends.
+_log_dir = None
 
 
-class LoggerInstance:
-    """A proxy for the EventLogger that can have prefilled keys.
+def _get_writers_log_dir():
+    """Return the directory for writing log files to.
 
-    Connects to the EventLogger, but can have field pre-filled to make it
-    easier to log things.  Multiple different LoggerInstances can exist that
-    all use the same EventLogger to enable different parts of the code to own
-    their own (prefilled) logger instances.
+    :returns: A log dir for writing logs to, if one is not set then a temporary
+        one is created; it gets deleted when the script ends!
+    :rtype: Path
     """
-
-    _valid_fields = [
-        'timestamp',
-        'collection',
-        'unit',
-        'item',
-        'event',
-        'comment',
-        'tags',
-        'uuid',
-    ]
-
-    def __init__(self, event_logger, **kwargs):
-        """Create a logger instance.
-
-        This allows prefilling of valid fields in a logger.
-
-        Note tht it produces a warning if any other that the _valid_fields keys
-        are used. The attributes are stored on the object (self).
-
-        :param event_logger: The event logger this is attached to.
-        :type event_logger: EventLogger
-        """
-        self.event_logger = event_logger
-        self._validate_attrs(kwargs)
-        self.prefilled = {}
-        self.prefilled.update(kwargs)
-
-    def _validate_attrs(self, kwargs):
-        """Valdiate that keys (from the kwargs passed as a Dict).
-
-        The valid keys are those that are typically used as fields.  However,
-        InfluxDB is schemaless and so any fields can be used.
-
-        :param kwargs: the params passed to the LoggerInstance.
-        :type kwargs: Dict[str, Any]
-        """
-        invalid_keys = [k for k in kwargs if k not in self._valid_fields]
-        if len(invalid_keys) != 0:
-            logger.warning("kwargs %s not valid for %s",
-                           ",".join(invalid_keys),
-                           self.__class__.__name__)
-
-    def _add_in_prefilled(self, kwargs):
-        """Add in the prefilled values if they don't exist to a passed dict.
-
-        :param kwargs: the key=value pairs to event log.
-        :type kwargs: Dict[str, Any]
-        :returns: the original kwargs with any additionally prefilled values.
-        :rtype: Dict[str, Any]
-        """
-        # shallow copy, because update mutates rather than returning a new
-        # dict.
-        _prefilled = self.prefilled.copy()
-        _prefilled.update(kwargs)
-        return _prefilled
-
-    def prefill_with(self, **kwargs):
-        """Allow further prefilling with fields.
-
-        :param kwargs: key=value pairs to prefill for a log
-        :type kwargs: Dict[str, Any]
-        :returns: a new LoggerInstance with the existing and new prefilled
-            values (allows overwriting existing values.)
-        :rtype: LoggerInstance
-        """
-        self._validate_attrs(kwargs)
-        return LoggerInstance(self.event_logger,
-                              **(self._add_in_prefilled(kwargs)))
-
-    def log(self, event, **kwargs):
-        """Call the parent log function.
-
-        Log an event adding in prefilled values if they aren't present in the
-        passed keyword arguments.
-
-        :param kwargs: The key=value arguments to log
-        :type kwargs: Dict[str, Any]
-        """
-        self._validate_attrs(kwargs)
-        self.event_logger.log(event, **(self._add_in_prefilled(kwargs)))
-
-    def span(self, comment=None, **kwargs):
-        """Return a span event decorator.
-
-        This provides BEGIN and END/EXCEPTION events around a span.  If called
-        as a normal function, then it returns the span() object.  The span()
-        object can also be used as a contextmanager and so it can be used as a
-        span.  See :class:`span` for more details.
-
-        :param comment: the optional comment that gets applied to each event.
-        :type comment: Optional[str]
-        :param kwargs: optional fields/tags to send to the logger.
-        :type kwargs: Dict[str, ANY]
-        :returns: a span() object.
-        :rtype: span
-        """
-        return span(self, comment=comment, **kwargs)
-
-
-_writers = dict()
-
-
-def get_writer(log_format, handle):
-    """Get or make a writer with the appropirate format.
-
-    :param log_format: A log format in the form of LogFormats
-    :type log_format: str
-    :param handle: the handle associated with the writer.
-    :type handle: IO[str]
-    :returns: a Writer
-    :rtype: WriterBase
-    """
-    types = {
-        LogFormats.CSV: WriterCSV,
-        LogFormats.LOG: WriterDefault,
-        LogFormats.InfluxDB: WriterLineProtocol,
-    }
-
-    assert log_format in (
-        LogFormats.CSV, LogFormats.LOG, LogFormats.InfluxDB), \
-        "Log format {} isn't one of {}".format(
-            log_format,
-            ", ".join((LogFormats.CSV, LogFormats.LOG, LogFormats.InfluxDB)))
-
-    global _writers
-    type_ = (log_format, handle)
-    try:
-        return _writers[type_]
-    except KeyError:
-        _writers[type_] = types[log_format](handle)
-    return _writers[type_]
-
-
-def remove_writer(log_format, handle):
-    """Remove a writer, if it exists.
-
-    :param log_format: A log format in the form of LogFormats
-    :type log_format: str
-    :param handle: the handle associated with the writer.
-    :type handle: IO[str]
-    """
-    assert log_format in (LogFormats.CSV, LogFormats.LOG, LogFormats.InfluxDB)
-    global _writers
-    type_ = (log_format, handle)
-    try:
-        del _writers[type_]
-    except KeyError:
-        logger.debug("Writer for {}:{} didn't exist"
-                     .format(log_format, handle))
+    global _log_dir
+    if _log_dir is not None:
+        return _log_dir
+    _log_dir = tempfile.TemporaryDirectory()
+    return _log_dir.name
 
 
 class WriterBase:

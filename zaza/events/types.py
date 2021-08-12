@@ -14,6 +14,8 @@
 
 """Types for logging."""
 
+import enum
+
 
 class LogFormats:
     """Format default types."""
@@ -23,12 +25,26 @@ class LogFormats:
     InfluxDB = 'InfluxDB'
 
 
-
 # Events that are standardised.
 
-START_TEST = "start-test"
-COMMENT = "comment"
-BEGIN = "begin-block"
-END = "end-block"
-EXCEPTION = "exception-in-block"
-END_TEST = "end-test"
+class Events(enum.Enum):
+    """zaza.events as an enum for type safety."""
+
+    START_TEST = "start-test"
+    COMMENT = "comment"
+    BEGIN = "begin-block"
+    END = "end-block"
+    EXCEPTION = "exception-in-block"
+    END_TEST = "end-test"
+
+
+FIELDS = (
+    'timestamp',
+    'collection',
+    'unit',
+    'item',
+    'event',
+    'comment',
+    'tags',
+    'uuid',
+)
