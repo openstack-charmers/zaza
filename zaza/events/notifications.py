@@ -78,6 +78,17 @@ The plugin values are:
  - TODO: datetime: today's date and time.
  - TOSO: timestamp: the timestamp of the start of the test (in unix epoc
    non-float)
+
+Converting zaza.notifications into zaza.events
+==============================================
+
+The zaza.notifications module emits events of enum.Enum type NotifyEvent.
+Note that zaza.notifications can be other types, but this module only picks up
+the ones it is interested in.
+
+zaza.events events are Enum(str) (Events).  Also there is a strict set of
+possible fields that make up an event as listed in list
+zaza.event.types.FIELDS.
 """
 
 
@@ -319,7 +330,7 @@ class EventsPlugin:
         # transform the NotifyEvent into a Events object.
         event_ = _convert_notify_into_events(event)
         # TODO: filter/transform kwargs to be valid for Time-series events?
-        events.log(_event, **kwargs)
+        events.log(event_, **kwargs)
 
 
 @cached
@@ -338,6 +349,84 @@ def _convert_notify_into_events(notify_event):
             return ev
     raise ValueError(
         "Can't convert {} into an Events object".format(notify_event))
+
+
+def third(_, __, x):
+    """Return the 3rd param, ignoring the first two.
+
+    Return the 3rd param value unchanged, ignoring the first two params.
+    """
+    return x
+
+
+def pick(attr):
+    """Return a function that picks 'attr' from the 3rd param to that fn.
+
+    :param attr: the attribute to get from the 3rd param of the function that
+    will be returned.
+    :type attr: str
+    :returns: A function that takes 3 params and returns the 3rd with a picked
+        attribute
+    :rtype: Callable[[Any, Any, object], Any]
+    """
+    return lambda _, __, x: getattr(x, attr)
+
+
+def dict_item_apply(f):
+    """Apply function 'f' to the parameters passed and update the dict.
+
+    This returns a function that takes a (current, key, value) where 'current'
+    is the current value, a dictionary or None, key is original field, and
+    value is the original value.  'f' gets to transform that value, which is
+    then applied to the dictionary, which is then returned.
+
+    :param f: the function to apply
+    :type f: Callable[[dict, Any, Any], dict]
+    """
+    def _inner(current, key, value):
+        if current is None:
+            current = {}
+        current[key] = f(current, key, value)
+        return current
+
+    return _inner
+
+
+# map to indicate how to convert from a NotifyEvent field name into an Events
+# field name.  The first part of the tuple is the target field, the second is a
+# function that takes 3 params (current value of kwargs field, the NotifyEvent
+# field name, value of that NoitifyEvent) and should return the new value.
+_convert_map = {
+    "model_name": ("tags", dict_item_apply(third)),
+    "function": ("tags", dict_item_apply(pick("__name__"))),
+    "bundle": ("item", third),
+    "model": ("tags", dict_item_apply(pick("name"))),
+    "force": ("tags", dict_item_apply(third)),
+    "testcase": ("item", pick("__name__")),
+    "test_name": ("tags", dict_item_apply(pick("__name__"))),
+}
+
+
+def _convert_notify_kwargs_to_events_args(kwargs):
+    """Convert the custom parameters into events args.
+
+    This also discards any 'unknown' arguments so that they do not end up in
+    the event (and thus potentially break uploaders).  Any non "str" values
+    left over are 'str'ed.
+
+    :params kwargs: the key-value args provided for fields and tags
+    :type kwargs: Dict[str, Any]
+    :returns: key-value pairs compatible with Events events.
+    :rtype: Dict[str, str]
+    """
+    for k, v in kwargs.copy().items():
+        if k in _convert_map:
+            key, _convert_fn = _convert_map[k]
+            kwargs[key] = _convert_fn(kwargs.get(key, None), k, v)
+            del kwargs[k]
+        elif not isinstance(v, str):
+            kwargs[k] = str(v)
+    return kwargs
 
 
 @cached

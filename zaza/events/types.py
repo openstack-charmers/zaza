@@ -45,7 +45,10 @@ class _Events:
 
 
 # Enums can't be extended, so we use this little trick.
-class Events(_Events, ,_NotifyEvents, enum.Enum)
+class Events(_Events, _NotifyEvent, enum.Enum):
+    """The Events enum that mixes _Events and _NotifyEvents."""
+
+    pass
 
 
 # Meaning of the fields:

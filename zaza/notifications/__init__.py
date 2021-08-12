@@ -65,7 +65,10 @@ class _NotifyEvent:
 
 # Note that Enum's can't be extended, and _NotifyEvent is available for mixing
 # into other Enums.
-class NotifyEvent(_NotifyEvent, enum.Enum)
+class NotifyEvent(_NotifyEvent, enum.Enum):
+    """NotityEvents enum."""
+
+    pass
 
 
 class NotifyType(enum.Enum):
