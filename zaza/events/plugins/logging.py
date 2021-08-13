@@ -428,14 +428,15 @@ class EventLogger:
         :type kwargs: Dict[str, Any]
         """
         assert isinstance(event, Events), (
-            "Mustn't pass a non-Events Enum event to {}.log()"
-            .format(self.__class__.__name__))
+            "Mustn't pass a non-Events Enum event '{}', type({}), to {}.log()"
+            .format(event, type(event), self.__class__.__name__))
         kwargs['event'] = event.value
         if 'timestamp' not in kwargs:
             kwargs['timestamp'] = datetime.datetime.now()
         if 'span' in kwargs and isinstance(kwargs['span'], span):
             span_ = kwargs.pop('span')
             kwargs['uuid'] = span_.uuid
+        self._validate_attrs(kwargs)
         for writer in self._writers:
             writer.write(newline=newline, **kwargs)
 
@@ -512,7 +513,6 @@ class LoggerInstance:
         :type event_logger: EventLogger
         """
         self.event_logger = event_logger
-        self._validate_attrs(kwargs)
         self.prefilled = {}
         self.prefilled.update(kwargs)
 
@@ -539,7 +539,6 @@ class LoggerInstance:
             values (allows overwriting existing values.)
         :rtype: LoggerInstance
         """
-        self._validate_attrs(kwargs)
         return LoggerInstance(self.event_logger,
                               **(self._add_in_prefilled(kwargs)))
 
