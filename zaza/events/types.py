@@ -15,7 +15,9 @@
 """Types for logging."""
 
 import enum
-from zaza.notifications import _NotifyEvents
+import itertools
+
+from zaza.notifications import NotifyEvents
 
 
 class LogFormats:
@@ -28,7 +30,7 @@ class LogFormats:
 
 # Events that are standardised.
 
-class _Events:
+class _Events(enum.Enum):
     """zaza.events as an enum for type safety.
 
     Note: as this class is derivied from zaza.notifications.NotifyEvents it
@@ -45,11 +47,8 @@ class _Events:
 
 
 # Enums can't be extended, so we use this little trick.
-class Events(_Events, _NotifyEvents, enum.Enum):
-    """The Events enum that mixes _Events and _NotifyEventss."""
-
-    pass
-
+Events = enum.Enum('Events', [(i.name, i.value)
+                              for i in itertools.chain(NotifyEvents, _Events)])
 
 # Meaning of the fields:
 #    'collection' - the collection (loosely measurement in InfluxDB parlance)

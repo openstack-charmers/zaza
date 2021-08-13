@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 
 # Store Notify events and functions to call against that event
-class _NotifyEvents:
+class NotifyEvents(enum.Enum):
     """Notify Events definitions."""
 
     BUNDLE = "bundle"
@@ -61,14 +61,6 @@ class _NotifyEvents:
     TESTS = "tests"
     TEST_CASE = "test-case"
     DESTROY_MODEL = "destroy-model"
-
-
-# Note that Enum's can't be extended, and _NotifyEvents is available for mixing
-# into other Enums.
-class NotifyEvents(_NotifyEvents, enum.Enum):
-    """NotityEvents enum."""
-
-    pass
 
 
 class NotifyType(enum.Enum):
@@ -195,8 +187,6 @@ def notify(event, when=None, *args, **kwargs):
     that can be a dictionary key.  The NotifyEvents Enum members are 'special'
     in that subscribers can subscribe to the whole 'set' using None.
 
-    If when is None, then it is assumed to be BEFORE, and it indicated as such.
-
     :param event: the event to notify to subscribers.
     :type event: Union[NotifyEvents, str, ANY]
     :param when: the NotifyType event (BEFORE, AFTER, EXCEPTION) -- note
@@ -206,8 +196,6 @@ def notify(event, when=None, *args, **kwargs):
     assert when in (
         None, NotifyType.BEFORE, NotifyType.AFTER, NotifyType.EXCEPTION), \
         "It doesn't make sense to notify on ALL NotifyTypes."
-    if when is None:
-        when = NotifyType.BEFORE
     try:
         functions = _notify_map[when][event]
     except KeyError:

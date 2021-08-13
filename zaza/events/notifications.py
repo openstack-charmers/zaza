@@ -108,7 +108,7 @@ from zaza.events import get_global_event_logger_instance
 from zaza.notifications import subscribe, NotifyEvents, NotifyType
 from zaza.utilities import cached, expand_vars
 
-from .formats import Events
+from .types import Events
 
 
 logger = logging.getLogger(__name__)
@@ -321,12 +321,12 @@ class EventsPlugin:
         logger.debug("handle_notifications: %s, %s, %s, %s",
                      event, when, args, kwargs)
         events = get_global_event_logger_instance()
-        if isinstance(event, enum.Enum):
-            event = event.value
-        if when in (NotifyType.BEFORE, NotifyType.AFTER):
-            if isinstance(when, enum.Enum):
-                when = when.value
-            event = "{}-{}".format(event, when)
+        if 'span' not in kwargs:
+            if when == NotifyType.BEFORE:
+                kwargs['span'] = "before"
+            elif when == NotifyType.AFTER:
+                kwargs['span'] = "after"
+
         # transform the NotifyEvents into a Events object.
         event_ = _convert_notify_into_events(event)
         # TODO: filter/transform kwargs to be valid for Time-series events?
