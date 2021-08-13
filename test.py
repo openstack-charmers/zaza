@@ -1,6 +1,18 @@
 #!/usr/bin/env python3
 
 # TODO move this to an example usage of the Collection events module
+#
+# This is an example of how to use zaza.events.collection.Collection outside of
+# the zaza tests.yaml integration.  The key concepts here are:
+#
+# - Use the collection to combine events logged here, and with the ConnCheck
+#   dataplane testing module.
+# - Stream the events to a file.  Note that it's possible to also use the
+# - zaza.events.uploaders.influxdb.upload() directly to upload the events to a
+#   InfluxDB database.
+#
+# Note it is *much* easier to use the built in zaza integration if deploying
+# models and running tests against them.
 
 import asyncio
 import logging
@@ -9,6 +21,7 @@ import pathlib
 import time
 
 import zaza.events
+from zaza.events import Events
 import zaza.events.plugins.logging
 import zaza.events.plugins.conncheck
 
@@ -28,10 +41,8 @@ collection.add_logging_manager(logging_manager)
 # add stdout logging of the logs
 zaza.events.plugins.logging.add_stdout_to_logger()
 
-events = logging_manager.get_logger()
-events.log(zaza.events.START_TEST, comment="hello alex")
-events.log(zaza.events.COMMENT, comment="test sleeping for 120 seconds")
-events.log(zaza.events.END_TEST, comment="Test ended")
+events = logging_manager.get_event_logger_instance()
+events.log(Events.START_TEST, comment="hello")
 
 # Add a ConnCheck data-plane source.
 conncheck_manager = zaza.events.plugins.conncheck.get_plugin_manager()
@@ -50,8 +61,6 @@ else:
         "file:/home/ubuntu/git/github.com/openstack-charmers/"
         "conncheck")
 conncheck_manager.configure(module_source=conncheck_source)
-print(conncheck_manager.module_source)
-print(conncheck_manager.manager.module_source)
 assert conncheck_manager.manager.module_source == conncheck_source
 
 # let's add some instances
@@ -62,25 +71,14 @@ instances = [
     conncheck_manager.add_instance("juju:{}".format(unit.name))
     for unit in sorted(zaza.model.get_units(app), key=lambda m: m.name)]
 
-# put a UDP and HTTP listener on each unit.
-# This automatically installs the Conncheck module on each instance.
-for instance in instances:
-    instance.add_listener('udp', 8081)
-    instance.add_listener('http', 8080)
+# One listener, one http sender
+instances[0].add_listener('udp', 8080)
+instances[1].add_speaker('udp', 8080, instances[0])
 
-# add UDP and HTTP speakers to each of the other units in a circle
-num_instances = len(instances)
-for i, instance in enumerate(instances):
-    next_instance = instances[(i + 1) % num_instances]
-    instance.add_speaker('udp', 8081, next_instance)
-    instance.add_speaker('http', 8080, next_instance)
 # start them speaking.
-events.log(zaza.events.COMMENT,
-           comment="ConnCheck instances configuring")
-for instance in instances:
-    instance.start()
-events.log(zaza.events.COMMENT,
-           comment="ConnCheck configured")
+with events.span("Configure ConnCheck instances"):
+    for instance in instances:
+        instance.start()
 
 # let's do the conncheck logging
 # with events.block("ConnCheck logging") as block:
@@ -89,11 +87,13 @@ for n in range(10):
     print("Sleeping for 5 seconds: {}".format(n))
     time.sleep(5)
 
-for instance in instances:
-    instance.stop()
+with events.span("Finalise ConnCheck instances"):
+    for instance in instances:
+        instance.finalise()
 
 # And let's clean-up the logs and then just write them to the log.  Now
 # gather all the stuff together, flush, close logs, and collect them.
+events.log(Events.END_TEST, comment="Test ended")
 collection.finalise()
 
 # Access all the log files:
@@ -104,7 +104,6 @@ for (name, type_, filename) in collection.log_files():
 with open("combined.logs", "wt") as f:
     with collection.events(precision="us") as events:
         for event in events:
-            print(event)
             print(event[1], file=f)
 
 # and really just clean-up now.
