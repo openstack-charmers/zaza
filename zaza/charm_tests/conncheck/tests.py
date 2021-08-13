@@ -77,9 +77,6 @@ class TestConncheckIntegration(unittest.TestCase):
             time.sleep(5)
 
         # Now reboot the first instance.
-        logger.error("instances[0] is: %s", instances[0])
-        logger.error("instances[0].machine_or_unit_spec: %s",
-                     instances[0].machine_or_unit_spec)
         unit_name = instances[0].name
         with events.span("Rebooting {}".format(unit_name)):
             zaza.utilities.generic.reboot(unit_name)
