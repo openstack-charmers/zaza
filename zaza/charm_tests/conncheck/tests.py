@@ -46,13 +46,12 @@ class TestConncheckIntegration(unittest.TestCase):
 
         # Configure the conncheck manager
         span = events.span()
-        events.log(Events.BEGIN,
+        events.log(Events.COMMENT,
                    span=span,
                    comment="start ConnCheck configuration")
 
         # add an instance to each of the units
         model = zaza.model.get_juju_model()
-        logger.info("model is type(%s) '%s'", type(model), model)
         apps = zaza.model.sync_deployed(model)
         logger.info("apps are: %s", apps)
         assert 'ubuntu' in apps
@@ -64,19 +63,14 @@ class TestConncheckIntegration(unittest.TestCase):
 
         # One listener, one http sender
         instances[0].add_listener('udp', 8080)
-        instances[1].add_speaker('udp', 8080, instances[0])
+        instances[1].add_speaker('udp', 8080, instances[0], wait=1, interval=3)
 
         # start them speaking.
-        events.log(Events.COMMENT,
-                   span=span,
-                   comment="ConnCheck instances configuring")
-        for instance in instances:
-            instance.start()
-        events.log(Events.END,
-                   span=span,
-                   comment="ConnCheck configured")
+        with events.span("Configuring ConnCheck instances."):
+            for instance in instances:
+                instance.start()
 
-        for n in range(5):
+        for n in range(10):
             events.log(Events.COMMENT,
                        comment="Sleeping for 5 seconds: {} of 5"
                        .format(n + 1))
@@ -94,7 +88,7 @@ class TestConncheckIntegration(unittest.TestCase):
             zaza.model.block_until_all_units_idle()
 
         # Now wait a while to allow more events to be collected.
-        for n in range(5):
+        for n in range(10):
             events.log(Events.COMMENT,
                        comment="Sleeping for 5 seconds: {} of 5"
                        .format(n + 1))

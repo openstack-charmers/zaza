@@ -37,7 +37,7 @@ tests_options:
         # user: ${TEST_INFLUXDB_USER}
         # password: ${TEST_INFLUXDB_PASSWORD}
         database: testdb
-        timestamp-resolution: us
+        timestamp-resolution: ns
     #tags:
       #tag-name: tag-value
     #fields:

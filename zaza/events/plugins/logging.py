@@ -128,9 +128,10 @@ import logging
 import os
 import sys
 import uuid
+import weakref
 
 from zaza.events.plugins import PluginManagerBase
-from zaza.events.types import LogFormats, Events, FIELDS
+from zaza.events.types import LogFormats, Events, Span, FIELDS
 
 
 logger = logging.getLogger(__name__)
@@ -558,10 +559,15 @@ class LoggerInstance:
     def span(self, comment=None, **kwargs):
         """Return a span event decorator.
 
-        This provides BEGIN and END/EXCEPTION events around a span.  If called
-        as a normal function, then it returns the span() object.  The span()
-        object can also be used as a contextmanager and so it can be used as a
-        span.  See :class:`span` for more details.
+        This provides COMMENT events with span=Span.BEFORE and span=Span.AFTER
+        fields for the span. An EXCEPTION events is written with a
+        span=Span.AFTER if an exception is raised. If called as a normal
+        function, then it returns the span() object.  The span() object can
+        also be used as a contextmanager and so it can be used as a span.  See
+        :class:`span` for more details.
+
+        By default a COMMENT event is used, but this can be overridden by
+        providing the "event" as a kwarg.
 
         :param comment: the optional comment that gets applied to each event.
         :type comment: Optional[str]
@@ -582,32 +588,31 @@ class span:
     Can be used as:
 
         span = events.span()
-        events.log(Events.BEGIN, block=block, comment="...")
+        events.log(Events.COMMENT, span=span, comment="...")
 
     or:
 
         with events.span("comment") as span:
             ...
-            events.log(zaza.events.Events.COMMENT, span=span, comment="...")
+            events.log(Events.COMMENT, span=span, comment="...")
             ...
-
-        The final BEGIN and END blocks are performed automatically with the
-        comment.
     """
 
-    def __init__(self, event_logger, comment=None, **kwargs):
+    def __init__(self, event_logger, comment=None, event=None, **kwargs):
         """Initialise a span logger.
 
         :param event_logger: the logger that this will use.
         :type event_logger: Union[EventLogger, LoggerInstance]
         :param comment: the comment that goes with this span.
         :type comment: Optional[str]
+        :param event: the Events event to go with the span
         :param kwargs: Additional fields/tags to go with the span log.
         :type kwargs: Dict[str, ANY]
         """
-        self.event_logger = event_logger
+        self.event_logger_ref = weakref.ref(event_logger)
         self.uuid = str(uuid.uuid4())
         self.comment = comment
+        self.event = event or Events.COMMENT
         self.kwargs = kwargs
 
     @property
@@ -627,7 +632,10 @@ class span:
 
     def __enter__(self):
         """Log start event on entry to context."""
-        self.event_logger.log(Events.BEGIN, **self._kwargs)
+        kwargs = self._kwargs
+        if 'span' not in kwargs:
+            kwargs['span'] = Span.BEFORE.value
+        self.event_logger_ref().log(self.event, **kwargs)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Log end event on exit from context.
@@ -635,13 +643,15 @@ class span:
         If there is an exception, log an exception event instead.
         Return False so as to propagate the exception.
         """
+        kwargs = self._kwargs
+        if 'span' not in kwargs:
+            kwargs['span'] = Span.AFTER.value
         if exc_type is None:
-            self.event_logger.log(Events.END, **self._kwargs)
+            self.event_logger_ref().log(self.event, **kwargs)
         else:
             self.comment = "Exception: {}: {}".format(
                 str(exc_type), str(exc_val))
-            self.event_logger.log(Events.EXCEPTION, **self._kwargs)
-        self.event_logger = None
+            self.event_logger_ref().log(Events.EXCEPTION, **kwargs)
         return False
 
 

@@ -40,8 +40,6 @@ class _Events(enum.Enum):
     # Core events
     START_TEST = "start"
     COMMENT = "comment"
-    BEGIN = "span-begin"
-    END = "span-end"
     EXCEPTION = "exception-in-span"
     END_TEST = "end"
 
@@ -49,6 +47,15 @@ class _Events(enum.Enum):
 # Enums can't be extended, so we use this little trick.
 Events = enum.Enum('Events', [(i.name, i.value)
                               for i in itertools.chain(NotifyEvents, _Events)])
+
+
+class Span(enum.Enum):
+    """Span possibilities."""
+
+    BEFORE = "before"
+    WITHIN = "within"
+    AFTER = "after"
+
 
 # Meaning of the fields:
 #    'collection' - the collection (loosely measurement in InfluxDB parlance)

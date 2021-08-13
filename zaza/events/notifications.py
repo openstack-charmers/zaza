@@ -154,7 +154,7 @@ class EventsPlugin:
 
         # Handle all notifications and turn them into zaza.events for the
         # timeseries event logging.
-        subscribe(self.handle_notifications, event=None, when=None)
+        subscribe(self.handle_notifications, event=None, when=NotifyType.BOTH)
 
         # Handle the BEFORE and AFTER bundle notifications to actually create
         # and finalise the events logger after each deployment.
@@ -394,6 +394,26 @@ def dict_item_apply(f):
     return _inner
 
 
+def trim(f, size=10):
+    """Apply function 'f' to the parameters passed and then trim the str.
+
+    The function returns a function that takes (current, key, value) which is
+    passed to the 'f' function.
+
+    :param f: the function to call, and then trim the results of.
+    :type f: Callable
+    :returns: the trimmed string
+    :rtype: str
+    """
+    def _inner(*args):
+        res = f(*args)
+        if isinstance(res, str):
+            res = res[-size:]
+        return res
+
+    return _inner
+
+
 # map to indicate how to convert from a NotifyEvents field name into an Events
 # field name.  The first part of the tuple is the target field, the second is a
 # function that takes 3 params (current value of kwargs field, the NotifyEvents
@@ -401,8 +421,9 @@ def dict_item_apply(f):
 _convert_map = {
     "model_name": ("tags", dict_item_apply(third)),
     "function": ("tags", dict_item_apply(pick("__name__"))),
-    "bundle": ("item", third),
+    "bundle": ("item", trim(third, 20)),
     "model": ("tags", dict_item_apply(third)),
+    "model_ctxt": (None, None),
     "force": ("tags", dict_item_apply(third)),
     "testcase": ("item", pick("__name__")),
     "test_name": ("tags", dict_item_apply(pick("__name__"))),
@@ -424,7 +445,8 @@ def _convert_notify_kwargs_to_events_args(kwargs):
     for k, v in kwargs.copy().items():
         if k in _convert_map:
             key, _convert_fn = _convert_map[k]
-            kwargs[key] = _convert_fn(kwargs.get(key, None), k, v)
+            if key is not None:
+                kwargs[key] = _convert_fn(kwargs.get(key, None), k, v)
             del kwargs[k]
         elif not isinstance(v, str):
             kwargs[k] = str(v)
