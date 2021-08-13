@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-# TODO move this to an example usage of the Collection events module
-#
 # This is an example of how to use zaza.events.collection.Collection outside of
 # the zaza tests.yaml integration.  The key concepts here are:
 #
