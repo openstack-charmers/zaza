@@ -57,4 +57,4 @@ def get_global_event_logger_instance():
         fields.
     :rtype: LoggerInstance
     """
-    return get_global_events_logging_manager().get_event_logger()
+    return get_global_events_logging_manager().get_event_logger_instance()
