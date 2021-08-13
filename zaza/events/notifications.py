@@ -329,7 +329,7 @@ class EventsPlugin:
 
         # transform the NotifyEvents into a Events object.
         event_ = _convert_notify_into_events(event)
-        # TODO: filter/transform kwargs to be valid for Time-series events?
+        kwargs = _convert_notify_kwargs_to_events_args(kwargs)
         events.log(event_, **kwargs)
 
 
@@ -362,6 +362,8 @@ def third(_, __, x):
 def pick(attr):
     """Return a function that picks 'attr' from the 3rd param to that fn.
 
+    If attr doesn't exist on the object, then just return the object.
+
     :param attr: the attribute to get from the 3rd param of the function that
     will be returned.
     :type attr: str
@@ -369,7 +371,7 @@ def pick(attr):
         attribute
     :rtype: Callable[[Any, Any, object], Any]
     """
-    return lambda _, __, x: getattr(x, attr)
+    return lambda _, __, x: getattr(x, attr, x)
 
 
 def dict_item_apply(f):
@@ -400,7 +402,7 @@ _convert_map = {
     "model_name": ("tags", dict_item_apply(third)),
     "function": ("tags", dict_item_apply(pick("__name__"))),
     "bundle": ("item", third),
-    "model": ("tags", dict_item_apply(pick("name"))),
+    "model": ("tags", dict_item_apply(third)),
     "force": ("tags", dict_item_apply(third)),
     "testcase": ("item", pick("__name__")),
     "test_name": ("tags", dict_item_apply(pick("__name__"))),
