@@ -1,7 +1,6 @@
 charm_name: none
 gate_bundles:
 - conncheck-focal
-#- events-focal
 
 target_deploy_status:
   ubuntu:
