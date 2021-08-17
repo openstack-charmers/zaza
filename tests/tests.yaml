@@ -3,7 +3,6 @@ gate_bundles:
 - magpie-xenial
 - magpie-bionic
 - magpie-focal
-- magpie-groovy
 dev_bundles:
 # magpie isn't hirsute ready yet.
 - magpie-hirsute
