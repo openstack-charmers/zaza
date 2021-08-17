@@ -20,6 +20,7 @@ from sys import version_info
 
 
 __path__ = extend_path(__path__, __name__)
+_ATEXIT = []
 
 
 def run(*steps):
@@ -85,3 +86,30 @@ def sync_wrapper(f):
             return await f(*args, **kwargs)
         return run(_run_it())
     return _wrapper
+
+
+def atexit(func):
+    """Queue the passed callable for the very end of execution.
+
+    :param func: A callable that will be run at the end of a Zaza run
+    :type func: Callable
+    :returns: None
+    :raises: RuntimeError if the argument is not callable
+    """
+    global _ATEXIT
+    if not callable(func):
+        raise RuntimeError("_atexit must be passed a Callable")
+    _ATEXIT.append(func)
+
+
+def run_atexit_hooks():
+    """Run the queued atexit callables.
+
+    :returns: None
+    """
+    global _ATEXIT
+    for func in _ATEXIT:
+        try:
+            func()
+        except Exception as e:
+            logging.error("Error in cleanup: {}".format(e))
