@@ -24,14 +24,20 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
     def test_parser(self):
         # Test defaults
         args = lc_func_test_runner.parse_args([])
-        self.assertFalse(args.keep_model)
+        self.assertFalse(args.keep_last_model)
         self.assertFalse(args.smoke)
         self.assertFalse(args.dev)
         self.assertFalse(args.force)
         self.assertIsNone(args.bundles)
         # Test flags
-        args = lc_func_test_runner.parse_args(['--keep-model'])
-        self.assertTrue(args.keep_model)
+        for flag in ['--keep-model', '--keep-last-model']:
+            args = lc_func_test_runner.parse_args([flag])
+            self.assertTrue(args.keep_last_model)
+            args.keep_last_model = False
+        args = lc_func_test_runner.parse_args(['--keep-all-models'])
+        self.assertTrue(args.keep_all_models)
+        args = lc_func_test_runner.parse_args(['--keep-faulty-model'])
+        self.assertTrue(args.keep_faulty_model)
         args = lc_func_test_runner.parse_args(['--smoke'])
         self.assertTrue(args.smoke)
         args = lc_func_test_runner.parse_args(['--dev'])
@@ -499,6 +505,9 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             'block_until_all_units_idle')
         _args = mock.Mock()
         _args.loglevel = 'DEBUG'
+        _args.keep_last_model = False
+        _args.keep_all_models = False
+        _args.keep_faulty_model = False
         _args.dev = True
         _args.smoke = True
         self.parse_args.return_value = _args
@@ -515,6 +524,9 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.patch_object(lc_func_test_runner, 'asyncio')
         _args = mock.Mock()
         _args.loglevel = 'DEBUG'
+        _args.keep_last_model = False
+        _args.keep_all_models = False
+        _args.keep_faulty_model = False
         _args.dev = True
         _args.smoke = False
         _args.bundles = ['foo.yaml']
@@ -533,6 +545,9 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         self.patch_object(lc_func_test_runner, 'asyncio')
         _args = mock.Mock()
         _args.loglevel = 'DEBUG'
+        _args.keep_last_model = False
+        _args.keep_all_models = False
+        _args.keep_faulty_model = False
         _args.dev = False
         _args.smoke = True
         _args.bundles = ['foo.yaml']
@@ -543,3 +558,33 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             ('Ambiguous arguments: --bundle and --smoke '
              'cannot be used together'),
             str(context.exception))
+
+    def __keep_model_ambiguous(
+        self, last_model=False, all_models=False, faulty_model=False
+    ):
+        self.patch_object(lc_func_test_runner, 'parse_args')
+        self.patch_object(lc_func_test_runner, 'cli_utils')
+        self.patch_object(lc_func_test_runner, 'func_test_runner')
+        self.patch_object(lc_func_test_runner, 'asyncio')
+        _args = mock.Mock()
+        _args.loglevel = 'DEBUG'
+        _args.keep_last_model = last_model
+        _args.keep_all_models = all_models
+        _args.keep_faulty_model = faulty_model
+        self.parse_args.return_value = _args
+        with self.assertRaises(ValueError) as context:
+            lc_func_test_runner.main()
+        self.assertEqual(
+            ('Ambiguous arguments: --keep-last-model '
+             '(previously, --keep-model), --keep-all-models '
+             'and --keep-faulty-model cannot be used together'),
+            str(context.exception))
+
+    def test_main_bundle_keep_model_ambiguous_case1(self):
+        self.__keep_model_ambiguous(True, True, False)
+
+    def test_main_bundle_keep_model_ambiguous_case2(self):
+        self.__keep_model_ambiguous(True, False, True)
+
+    def test_main_bundle_keep_model_ambiguous_case3(self):
+        self.__keep_model_ambiguous(False, True, True)
