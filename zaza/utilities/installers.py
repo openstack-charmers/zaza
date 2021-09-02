@@ -181,7 +181,7 @@ def make_juju_ssh_fn(unit, sudo=False, model=None):
     :param model: the (optional) model on which to run the unit on
     :type model: Optional[str]
     :returns: the callable that can be used to ssh onto a unit
-    :rtype: Callable[[str], str]
+    :rtype: Callable[List[Union[str, List[str]]], str]
     """
     def _ssh_fn(command):
         return _run_via_juju_ssh(unit, command, sudo=sudo, model=model)
@@ -189,7 +189,7 @@ def make_juju_ssh_fn(unit, sudo=False, model=None):
     return _ssh_fn
 
 
-def _run_via_juju_ssh(unit_name, cmd, sudo=None, model=None, quiet=True):
+def _run_via_juju_ssh(unit_name, cmd, sudo=False, model=None, quiet=True):
     """Run command on unit via ssh - local, that understands sudo and models.
 
     For executing commands on units when the juju agent is down.
@@ -197,9 +197,9 @@ def _run_via_juju_ssh(unit_name, cmd, sudo=None, model=None, quiet=True):
     :param unit_name: Unit Name
     :type unit_name: str
     :param cmd: Command to execute on remote unit
-    :type cmd: str
+    :type cmd: Union[str, List[str]]
     :param sudo: Flag, if True, sets the command to be sudo
-    :type sudo: False
+    :type sudo: bool
     :param model: optional model to pass in.
     :type model: Optional[str]
     :param quiet: If quiet, stop any logging from ssh.  This prevents the
@@ -211,8 +211,10 @@ def _run_via_juju_ssh(unit_name, cmd, sudo=None, model=None, quiet=True):
     """
     if sudo is None:
         sudo = False
-    if sudo and "sudo" not in cmd:
-        cmd = "sudo {}".format(cmd)
+    if isinstance(cmd, str):
+        cmd = cmd.split(" ")
+    if sudo and cmd[0] != "sudo":
+        cmd.insert(0, "sudo")
     _cmd = ['juju', 'ssh']
     if model is not None:
         _cmd.append('--model={}'.format(model))
@@ -220,8 +222,6 @@ def _run_via_juju_ssh(unit_name, cmd, sudo=None, model=None, quiet=True):
     if quiet:
         _cmd.extend(['-o', 'LogLevel=QUIET'])
     _cmd.append('--')
-    if isinstance(cmd, str):
-        cmd = cmd.split(" ")
     _cmd.extend(cmd)
     logging.debug("Running %s on %s", _cmd, unit_name)
     output = subprocess.check_output(_cmd).decode()
@@ -434,7 +434,7 @@ class SystemdControl:
         """)
 
     def __init__(
-            self, ssh_fn, scp_fn, name, execute, autostart=True):
+            self, ssh_fn, scp_fn, name, execute):
         """Initialise a SystemdControl object.
 
         :param ssh_fn: a function that runs commands on the instance; this
@@ -447,15 +447,11 @@ class SystemdControl:
         :param execute: the command+options that the systemd unit will execute
             to run the program.
         :type execute: str
-        :param autostart: Default True; whether to automatically start the
-            unit.
-        :type autostart: bool
         """
         self.ssh_fn = ssh_fn
         self.scp_fn = scp_fn
         self.name = name
         self.execute = execute
-        self.autostart = autostart
         self._enabled = False
         self._installed = False
         self._home_var = None
@@ -492,6 +488,7 @@ class SystemdControl:
         systemd_ctrl_file = self.SYSTEMD_FILE.format(
             name=self.name, exec_start=self.execute)
 
+        print(self._home, self._systemd_filename)
         remote_temp_file = os.path.join(self._home, self._systemd_filename)
         with tempfile.TemporaryDirectory() as td:
             fname = os.path.join(td, "control")
@@ -562,6 +559,7 @@ class SystemdControl:
         except subprocess.CalledProcessError as e:
             logging.debug("is_running() check failed: {}"
                           .format(str(e)))
+            self._stopped = True
             return False
         _running = "running" in output.strip()
         self._stopped = not(_running)
