@@ -33,6 +33,16 @@ import zaza.plugins
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
 
+# Default: destroy any model after being used
+DESTROY_MODEL = 0
+# Do not destroy a model, for different reasons:
+#   - want to keep all models
+#   - want to keep the last model, tests being successful or not
+KEEP_MODEL = 1
+# Do not destroy a model with failed tests (which is the last one
+# to run, but may not be the last one in the list of bundles to test)
+KEEP_FAULTY_MODEL = 2
+
 
 def failure_report(model_aliases, show_juju_status=False):
     """Report on apps and units in an error state.
@@ -83,14 +93,14 @@ def failure_report(model_aliases, show_juju_status=False):
                     default_flow_style=False))
 
 
-def run_env_deployment(env_deployment, keep_model=False, force=False,
+def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
                        test_directory=None):
     """Run the environment deployment.
 
     :param env_deployment: Environment Deploy to execute.
     :type env_deployment: utils.EnvironmentDeploy
-    :param keep_model: Whether to destroy models at end of run
-    :type keep_model: boolean
+    :param keep_model: Whether to destroy model at end of run
+    :type keep_model: int
     :param force: Pass the force parameter if True
     :type force: Boolean
     :param test_directory: Set the directory containing tests.yaml and bundles.
@@ -155,28 +165,47 @@ def run_env_deployment(env_deployment, keep_model=False, force=False,
 
     except zaza.model.ModelTimeout:
         failure_report(model_aliases, show_juju_status=True)
+        # Destroy models that were not healthy before TEST_DEPLOY_TIMEOUT
+        # was reached (default: 3600s)
+        if keep_model == DESTROY_MODEL:
+            destroy_models(model_aliases, destroy)
         raise
-
     except Exception:
         failure_report(model_aliases)
+        # Destroy models that raised any other exception.
+        # Note(aluria): KeyboardInterrupt will be raised on underlying libs,
+        # and other signals (e.g. SIGTERM) will also miss this handler
+        # In those cases, models will have to be manually destroyed
+        if keep_model == DESTROY_MODEL:
+            destroy_models(model_aliases, destroy)
         raise
 
+    # Destroy successful models if --keep-model is not defined
+    if keep_model in [DESTROY_MODEL, KEEP_FAULTY_MODEL]:
+        destroy_models(model_aliases, destroy)
+
+
+def destroy_models(model_aliases, destroy):
+    """Destroy models created during integration tests."""
     # Destroy
     # Keep the model from the last run if keep_model is true, this is to
-    # maintian compat with osci and should change when the zaza collect
+    # maintain compat with osci and should change when the zaza collect
     # functions take over from osci for artifact collection.
-    if not keep_model:
-        for model_name in model_aliases.values():
-            destroy.destroy(model_name)
+    for model_name in model_aliases.values():
+        destroy.destroy(model_name)
     zaza.model.unset_juju_model_aliases()
 
 
-def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
-                     force=False, test_directory=None):
+def func_test_runner(keep_last_model=False, keep_all_models=False,
+                     keep_faulty_model=False, smoke=False, dev=False,
+                     bundles=None, force=False, test_directory=None):
     """Deploy the bundles and run the tests as defined by the charms tests.yaml.
 
-    :param keep_model: Whether to destroy model at end of run
-    :type keep_model: boolean
+    :param keep_last_model: Whether to destroy last model at end of run
+    :type keep_last_model: boolean
+    :param keep_all_models: Whether to keep all models at end of run
+    :type keep_all_models: boolean
+    :param keep_faulty_model: Whether to destroy a model when tests failed
     :param smoke: Whether to just run smoke test.
     :param dev: Whether to just run dev test.
     :type smoke: boolean
@@ -245,9 +274,15 @@ def func_test_runner(keep_model=False, smoke=False, dev=False, bundles=None,
     # Now run the deploys
     last_test = environment_deploys[-1].name
     for env_deployment in environment_deploys:
-        preserve_model = False
-        if keep_model and last_test == env_deployment.name:
-            preserve_model = True
+        preserve_model = DESTROY_MODEL
+        if (
+            (keep_last_model and last_test == env_deployment.name) or
+            keep_all_models
+        ):
+            preserve_model = KEEP_MODEL
+        elif keep_faulty_model:
+            preserve_model = KEEP_FAULTY_MODEL
+
         with notify_around(NotifyEvents.BUNDLE, env_deployment=env_deployment):
             run_env_deployment(env_deployment, keep_model=preserve_model,
                                force=force, test_directory=test_directory)
@@ -262,8 +297,18 @@ def parse_args(args):
     :rtype: Namespace
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--keep-model', dest='keep_model',
-                        help='Keep model at the end of the run',
+    parser.add_argument('--keep-model', '--keep-last-model',
+                        dest='keep_last_model',
+                        help=('Keep last model at the end of the run '
+                              '(successful or not)'),
+                        action='store_true')
+    parser.add_argument('--keep-all-models', dest='keep_all_models',
+                        help=('Keep all models at the end of their run '
+                              '(successful or not)'),
+                        action='store_true')
+    parser.add_argument('--keep-faulty-model', dest='keep_faulty_model',
+                        help=('Keep last model at the end of the run '
+                              '(if not successful)'),
                         action='store_true')
     parser.add_argument('--smoke', dest='smoke',
                         help='Just run smoke test(s)',
@@ -287,7 +332,9 @@ def parse_args(args):
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
     cli_utils.add_test_directory_argument(parser)
-    parser.set_defaults(keep_model=False,
+    parser.set_defaults(keep_last_model=False,
+                        keep_all_models=False,
+                        keep_faulty_model=False,
                         smoke=False,
                         dev=False,
                         loglevel='INFO')
@@ -299,6 +346,15 @@ def main():
     args = parse_args(sys.argv[1:])
 
     cli_utils.setup_logging(log_level=args.loglevel.upper())
+
+    if (
+        (args.keep_last_model and args.keep_all_models) or
+        (args.keep_last_model and args.keep_faulty_model) or
+        (args.keep_all_models and args.keep_faulty_model)
+    ):
+        raise ValueError('Ambiguous arguments: --keep-last-model '
+                         '(previously, --keep-model), --keep-all-models '
+                         'and --keep-faulty-model cannot be used together')
 
     if args.dev and args.smoke:
         raise ValueError('Ambiguous arguments: --smoke and '
@@ -316,7 +372,9 @@ def main():
         logging.warn("Using the --force argument for 'juju deploy'. Note "
                      "that this disables juju checks for compatibility.")
     func_test_runner(
-        keep_model=args.keep_model,
+        keep_last_model=args.keep_last_model,
+        keep_all_models=args.keep_all_models,
+        keep_faulty_model=args.keep_faulty_model,
         smoke=args.smoke,
         dev=args.dev,
         bundles=args.bundles,
