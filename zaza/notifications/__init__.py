@@ -106,6 +106,9 @@ def subscribe_this(event=None, when=None):
     def accept_function(f):
         """Subscribe the decorated function."""
         subscribe(f, event, when)
+        return f
+
+    return accept_function
 
 
 def subscribe(f, event=None, when=None):
@@ -130,11 +133,13 @@ def subscribe(f, event=None, when=None):
         # make an iterable of a single event
         events = (event, )
     if when == NotifyType.ALL:
-        whens = NotifyType
+        whens = (NotifyType.BEFORE, NotifyType.AFTER, NotifyType.EXCEPTION)
     elif when == NotifyType.BOTH:
         whens = (NotifyType.BEFORE, NotifyType.AFTER)
     elif when is None:
         whens = (NotifyType.BEFORE, )
+    elif isinstance(when, Iterable):
+        whens = when
     else:
         # make an iterable of a single event
         whens = (when, )
@@ -159,17 +164,23 @@ def unsubscribe(f, event=None, when=None):
     :type when: str
     """
     global _notify_map
-    if when is None:
-        whens = NotifyType
+    if when is None or when == NotifyType.ALL:
+        whens = (NotifyType.BEFORE, NotifyType.AFTER, NotifyType.EXCEPTION)
+    elif when == NotifyType.BOTH:
+        whens = (NotifyType.BEFORE, NotifyType.AFTER)
     elif isinstance(when, Iterable):
         whens = when
     else:
         whens = (when, )
+    if isinstance(event, Iterable):
+        events = event
+    elif event is not None:
+        events = (event, )
+    else:
+        events = tuple()
     for when_ in whens:
         if event is None:
             events = _notify_map[when_].keys()
-        else:
-            events = (event, )
         for event_ in events:
             try:
                 _notify_map[when_][event_].remove(f)
@@ -177,7 +188,7 @@ def unsubscribe(f, event=None, when=None):
                 pass
 
 
-def notify(event, when=None, *args, **kwargs):
+def notify(event, *args, when=None, **kwargs):
     """Notify registered handler functions.
 
     Can be called from code to notify handler functions that a notification has
@@ -206,7 +217,7 @@ def notify(event, when=None, *args, **kwargs):
             f(event, when, *args, **kwargs)
         except Exception as e:
             logger.error("Notification function %s failed with %s, args: %s"
-                         ", kwargs:%s", f.__name__, str(e), args, kwargs)
+                         ", kwargs:%s", str(f), str(e), args, kwargs)
             import traceback
             logger.error(traceback.format_exc())
             raise
@@ -244,13 +255,13 @@ class notify_around(ContextDecorator):
             kwargs = self.kwargs.copy()
             kwargs["exc_args"] = (exc_type, exc, exc_tb)
             notify(self.event,
-                   when=NotifyType.EXCEPTION,
                    *self.args,
+                   when=NotifyType.EXCEPTION,
                    **self.kwargs)
         else:
             notify(self.event,
-                   when=NotifyType.AFTER,
                    *self.args,
+                   when=NotifyType.AFTER,
                    **self.kwargs)
         # we don't actually handle the exception
         return False
