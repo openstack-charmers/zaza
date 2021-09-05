@@ -209,8 +209,6 @@ def _run_via_juju_ssh(unit_name, cmd, sudo=False, model=None, quiet=True):
     :rtype: str
     :raises: subprocess.CalledProcessError
     """
-    if sudo is None:
-        sudo = False
     if isinstance(cmd, str):
         cmd = cmd.split(" ")
     if sudo and cmd[0] != "sudo":
