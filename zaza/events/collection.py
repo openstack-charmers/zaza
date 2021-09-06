@@ -205,7 +205,7 @@ class Collection(ConfigurableMixin):
         """
         specs = list(self.log_files())
         if not specs:
-            return
+            return Streamer([], self.log_format)
         type_ = specs[0][1]
         if not all(t[1] == type_ for t in specs[1:]):
             raise AssertionError("Not all specs match {}".format(type_))
@@ -323,8 +323,10 @@ class Streamer:
                 try:
                     line = self.handles[filename].readline()
                 except KeyError:
-                    # i.e. no more from this filename
-                    continue
+                    # i.e. no more from this filename, and may even not be
+                    # possible to reach this line.  However, it guarantees that
+                    # the function will continue producing events.
+                    continue  # pragma: no cover
                 if line:
                     event = line.rstrip()
                     ts = _parse_date(self.log_format, event)
@@ -380,14 +382,18 @@ def _re_precision_timestamp_influxdb(event,
     :rtype: datetime.datetime
     """
     assert precision in ("s", "ms", "us", "ns")
+    second_prefix = ('m', 'u', 'n')
     precision_m = _precision_multipliers[precision]
 
     event_list = event.split(" ")
     ts = event_list[-1]
+
     suffix = ts[-2:]
+    if len(suffix) == 2 and suffix[0] not in second_prefix:
+        suffix = suffix[1]
     try:
         event_m = _precision_multipliers[suffix]
-        ts = ts[:-2]
+        ts = ts[:-len(suffix)]
     except KeyError:
         event_m = _precision_multipliers[no_suffix_precision]
         suffix = no_suffix_precision
