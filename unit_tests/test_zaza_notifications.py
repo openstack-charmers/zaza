@@ -17,7 +17,6 @@
 import copy
 from collections.abc import Iterable
 import mock
-import subprocess
 
 import unit_tests.utils as tests_utils
 
@@ -285,7 +284,7 @@ class TestNotifications(tests_utils.BaseTestCase):
         notifications.subscribe(f, event=NotifyEvents.BUNDLE,
                                 when=NotifyType.BEFORE)
 
-        with self.assertRaises(ExceptionTest) as e:
+        with self.assertRaises(ExceptionTest):
             notifications.notify(NotifyEvents.BUNDLE, "hello",
                                  when=NotifyType.BEFORE, thing="thing")
         f.assert_called_once_with(
