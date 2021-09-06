@@ -94,7 +94,6 @@ zaza.event.types.FIELDS.
 
 from collections.abc import Iterable
 import datetime
-import enum
 import logging
 import os
 from pathlib import Path
