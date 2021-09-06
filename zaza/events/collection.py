@@ -44,7 +44,7 @@ import tempfile
 from zaza.global_options import get_option
 from zaza.utilities import ConfigurableMixin
 
-from .formats import LogFormats
+from .types import LogFormats
 
 
 # Hold collections; probably there will only be one.
