@@ -22,9 +22,7 @@ The intentions is for the tests.yaml to be used as:
     - some-bundle
 
     tests:
-    - zaza.plugins.events.start_auto_events
     - zaza.charm_tests.noop.tests.NoopTest
-    - zaza.plugins.events.stop_auto_events
 
     tests_options:
       plugins:
@@ -490,19 +488,3 @@ def event_context_vars(env_deployment):
         'date': "{}us".format(int(datetime.datetime.now().timestamp() * 1e6)),
         'bundle': bundle,
     }
-
-
-def start_auto_events():
-    """Start event logging on the configured logger.
-
-    TODO: implement starting and stopping logging.
-    """
-    pass
-
-
-def stop_auto_events():
-    """Stop event logging on the configured logger.
-
-    TODO: implement starting and stopping logging.
-    """
-    pass
