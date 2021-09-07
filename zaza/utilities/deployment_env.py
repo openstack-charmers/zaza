@@ -92,8 +92,13 @@ def get_model_settings():
     """
     model_settings = copy.deepcopy(MODEL_DEFAULTS)
     model_settings.update(get_setup_file_section(MODEL_SETTINGS_SECTION))
+    env_settings = os.environ.get('MODEL_SETTINGS', '')
+    test_env_settings = os.environ.get('TEST_MODEL_SETTINGS', '')
     model_settings.update(
-        parse_option_list_string(os.environ.get('MODEL_SETTINGS', '')))
+        parse_option_list_string(test_env_settings or env_settings))
+    if env_settings:
+        logging.warn('MODEL_SETTINGS is deprecated, please update to '
+                     'TEST_MODEL_SETTINGS')
     return model_settings
 
 
@@ -105,12 +110,13 @@ def get_model_constraints():
     """
     model_constraints = copy.deepcopy(MODEL_DEFAULT_CONSTRAINTS)
     model_constraints.update(get_setup_file_section(MODEL_CONSTRAINTS_SECTION))
-    env_constraints = os.environ.get('MODEL_CONSTRAINTS')
-    test_env_constraints = os.environ.get('TEST_MODEL_CONSTRAINTS')
+    env_constraints = os.environ.get('MODEL_CONSTRAINTS', '')
+    test_env_constraints = os.environ.get('TEST_MODEL_CONSTRAINTS', '')
     model_constraints.update(
-        parse_option_list_string(test_env_constraints or env_constraints or ''))
-    if env_constraints is not None:
-        logging.warn("MODEL_CONSTRAINTS is deprecated, please update to TEST_MODEL_CONSTRAINTS")
+        parse_option_list_string(test_env_constraints or env_constraints))
+    if env_constraints:
+        logging.warn('MODEL_CONSTRAINTS is deprecated, please update to '
+                     'TEST_MODEL_CONSTRAINTS')
     return model_constraints
 
 
