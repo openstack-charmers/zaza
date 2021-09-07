@@ -63,7 +63,7 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
         expect_config = copy.deepcopy(self.MODEL_CONFIG_DEFAULTS)
         expect_config.update({'test-mode': 'false'})
         self.base_get_model_settings(
-            {'MODEL_SETTINGS': 'test-mode=false'},
+            {'TEST_MODEL_SETTINGS': 'test-mode=false'},
             expect_config)
 
     def test_get_model_settings_file_override(self):
@@ -84,7 +84,7 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
             'get_setup_file_section',
             return_value={'default-series': 'file-setting'})
         self.base_get_model_settings(
-            {'MODEL_SETTINGS': 'default-series=env-setting'},
+            {'TEST_MODEL_SETTINGS': 'default-series=env-setting'},
             expect_config)
 
     def base_get_model_constraints(self, env, expect):
