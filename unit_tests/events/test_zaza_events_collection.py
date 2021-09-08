@@ -18,6 +18,8 @@ import datetime
 import mock
 import os
 import tempfile
+import sys
+import unittest
 
 import unit_tests.utils as tests_utils
 
@@ -645,6 +647,8 @@ class TestFromISOFormat(tests_utils.BaseTestCase):
         res = collection._fromisoformat(s)
         self.assertEqual(ts, res)
 
+    @unittest.skipIf(sys.version_info.major != 3 or sys.version_info.minor < 7,
+                     "not supported on py36 or lower.")
     def test__fromisoformat37plus(self):
         self.patch('sys.version_info', name='mock_version_info')
         self.mock_version_info.major = 3
@@ -654,6 +658,8 @@ class TestFromISOFormat(tests_utils.BaseTestCase):
         res = collection._fromisoformat(s)
         self.assertEqual(ts, res)
 
+    @unittest.skipIf(sys.version_info.major != 3 or sys.version_info.minor < 7,
+                     "not supported on py36 or lower.")
     def test__fromisoformat37plus_float(self):
         self.patch('sys.version_info', name='mock_version_info')
         self.mock_version_info.major = 3
