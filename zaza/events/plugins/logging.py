@@ -166,6 +166,8 @@ def auto_configure_with_collection(collection, config=None):
     :param config: config to use to perform the auto-configuration.
     :type config: Dict[str, ANY]
     """
+    if config is None:
+        config = {}
     logger.info("autoconfigure_with_collection for logging called.")
     name = config.get("logger-name", "DEFAULT")
     logging_manager = get_plugin_manager(name)
@@ -471,8 +473,7 @@ class EventLogger:
             else:
                 self._writers.append(w)
         if _existing_replaced:
-            logger.warning("Adding existing writers: {}"
-                           .format(",".join(_existing_replaced)))
+            logger.warning("Adding existing writers: %s", _existing_replaced)
 
     def remove_writer(self, writer):
         """Remove a writer.
@@ -483,9 +484,9 @@ class EventLogger:
         :type writer: WriterBase
         """
         to_keep = []
-        for i, w in enumerate(self._writers):
+        for w in self._writers:
             if w != writer:
-                to_keep.append(i)
+                to_keep.append(w)
         if len(to_keep) == len(self._writers):
             logger.warning("Writer: %s doesn't exist, ignore removing",
                            writer)
@@ -728,19 +729,7 @@ class WriterFile:
         self.filename = filename
         self.handle = open(filename, "w+t")
         self.delete = delete
-
-        def clean_up():
-            if self.handle is not None:
-                self.handle.flush()
-                self.handle.close()
-                self.handle = None
-            if self.delete:
-                try:
-                    os.remove(self.filename)
-                except FileNotFoundError:
-                    pass
-
-        atexit.register(clean_up)
+        atexit.register(self.close)
 
     def close(self):
         """Close the associated handle."""
@@ -748,6 +737,11 @@ class WriterFile:
             self.handle.flush()
             self.handle.close()
             self.handle = None
+        if self.delete:
+            try:
+                os.remove(self.filename)
+            except FileNotFoundError:
+                pass
 
 
 # Need a global to hold the temporary directory until the program ends.
@@ -763,7 +757,7 @@ def _get_writers_log_dir():
     """
     global _log_dir
     if _log_dir is not None:
-        return _log_dir
+        return _log_dir.name
     _log_dir = tempfile.TemporaryDirectory()
     return _log_dir.name
 
@@ -808,7 +802,7 @@ class WriterBase:
         except KeyError:
             pass
         msg = self.format(**kwargs)
-        self._write_to_handle(msg, newline=True)
+        self._write_to_handle(msg, newline=newline)
 
     def format(self, **kwargs):
         """Format the log."""
@@ -839,9 +833,13 @@ class WriterCSV(WriterBase):
 
     """
 
+    _FIELDS = ('timestamp', 'collection', 'unit', 'item', 'event', 'uuid',
+               'comment')
+
     def __init__(self, handle):
         """Create a WriterCSV."""
         super().__init__("CSV", handle)
+        self._write_header()
 
     @staticmethod
     def _format_csv(value):
@@ -859,9 +857,18 @@ class WriterCSV(WriterBase):
         assert isinstance(value, str)
         if not(value.startswith('"') and value.endswith('"')):
             if '"' in value:
-                value.replace('"', '""')
+                value = value.replace('"', '""')
             value = '"{}"'.format(value)
         return value
+
+    def _write_header(self):
+        """Write a header of the headings to the log file.
+
+        Called when the WriterCSV is initialised.
+        """
+        fields = list(self._FIELDS) + ['tags']
+        header = ",".join(self._format_csv(h) for h in fields)
+        self._write_to_handle(header, newline=True)
 
     def format(self, **kwargs):
         """Format a CSV log line.
@@ -877,14 +884,13 @@ class WriterCSV(WriterBase):
         :rtype: str
         """
         msg = []
-        for field in ('timestamp', 'collection', 'unit', 'item', 'event',
-                      'uuid', 'comment'):
+        for field in self._FIELDS:
             try:
                 value = kwargs[field]
                 msg.append(self._format_csv(value))
                 del kwargs[field]
             except KeyError:
-                pass
+                msg.append('""')
         try:
             tags = kwargs['tags']
             del kwargs['tags']
@@ -892,8 +898,10 @@ class WriterCSV(WriterBase):
             tags = {}
         assert isinstance(tags, dict)
         tags.update(kwargs)
-        msg.extend(",".join(self._format_csv("{}={}".format(k, v))
-                            for k, v in tags.items()))
+        pairs = sorted(tags.items(), key=lambda x: x[0])
+        msg.append(
+            self._format_csv(",".join(["{}={}".format(k, self._format_csv(v))
+                                       for k, v in pairs])))
         return ",".join(msg)
 
 
@@ -1028,9 +1036,9 @@ def format_value(value, tag=False):
     :rtype: str
     """
     if tag:
-        if isinstance(value, str):
-            return value.replace(' ', '-')
-        return value
+        if not isinstance(value, str):
+            value = str(value)
+        return value.replace(' ', '-')
     if isinstance(value, str):
         if value.startswith('"') and value.endswith('"'):
             return value
@@ -1049,9 +1057,10 @@ def format_dict(d, tag=False):
     :rtype: str
     """
     assert isinstance(d, dict)
+    pairs = sorted(d.items(), key=lambda x: x[0])
     return ",".join(
         '{}={}'.format(k, format_value(v, tag=tag))
-        for k, v in d.items())
+        for k, v in pairs)
 
 
 class HandleToLogging:
@@ -1089,6 +1098,13 @@ class HandleToLogging:
 
     def flush(self):
         """Flush the handle.
+
+        This is a no-op for the HandleToLogging object.
+        """
+        pass
+
+    def close(self):
+        """Close the handle.
 
         This is a no-op for the HandleToLogging object.
         """
