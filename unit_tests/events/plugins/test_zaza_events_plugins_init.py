@@ -14,10 +14,7 @@
 
 """Unit tests for zaza.events.plugins.__init__.py."""
 
-import datetime
 import mock
-import os
-import tempfile
 
 import unit_tests.utils as tests_utils
 
