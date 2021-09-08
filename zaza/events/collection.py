@@ -40,6 +40,7 @@ import collections
 from datetime import datetime
 import logging
 import tempfile
+import sys
 
 from zaza.global_options import get_option
 from zaza.utilities import ConfigurableMixin
@@ -446,7 +447,26 @@ def _parse_date(log_format, event):
             ts = ts[1:]
         if ts.endswith('"'):
             ts = ts[:-1]
-        return datetime.fromisoformat(ts)
+        return _fromisoformat(ts)
     else:
         ts = event.split(" ")[0]
-        return datetime.fromisoformat(ts)
+        return _fromisoformat(ts)
+
+
+def _fromisoformat(ts):
+    """Read the time from datetime.datetime.isoformat().
+
+    Python 3.6 and before doesn't have datetime.datetime.fromisoformat() so we
+    have to do it manually.
+
+    :param ts: the timestamp in ISO8601 format as produced by .isoformat()
+    :type ts: str
+    :returns: the datetime object
+    :rtype: datetime.datetime
+    """
+    if sys.version_info.major == 3 and sys.version_info.minor < 7:
+        try:
+            return datetime.strptime(ts, r"%Y-%m-%dT%H:%M:%S.%f")
+        except ValueError:
+            return datetime.strptime(ts, r"%Y-%m-%dT%H:%M:%S")
+    return datetime.fromisoformat(ts)

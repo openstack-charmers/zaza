@@ -623,3 +623,42 @@ class TestParseDate(tests_utils.BaseTestCase):
 
         dt = collection._parse_date(collection.LogFormats.LOG, event)
         self.assertEqual(ts, dt)
+
+
+class TestFromISOFormat(tests_utils.BaseTestCase):
+
+    def test__fromisoformat36(self):
+        self.patch('sys.version_info', name='mock_version_info')
+        self.mock_version_info.major = 3
+        self.mock_version_info.minor = 6
+        ts = datetime.datetime(2021, 1, 2, 10, 21, 50)
+        s = ts.isoformat()
+        res = collection._fromisoformat(s)
+        self.assertEqual(ts, res)
+
+    def test__fromisoformat36_float(self):
+        self.patch('sys.version_info', name='mock_version_info')
+        self.mock_version_info.major = 3
+        self.mock_version_info.minor = 6
+        ts = datetime.datetime(2021, 1, 2, 10, 21, 50, 150)
+        s = ts.isoformat()
+        res = collection._fromisoformat(s)
+        self.assertEqual(ts, res)
+
+    def test__fromisoformat37plus(self):
+        self.patch('sys.version_info', name='mock_version_info')
+        self.mock_version_info.major = 3
+        self.mock_version_info.minor = 7
+        ts = datetime.datetime(2021, 1, 2, 10, 21, 50)
+        s = ts.isoformat()
+        res = collection._fromisoformat(s)
+        self.assertEqual(ts, res)
+
+    def test__fromisoformat37plus_float(self):
+        self.patch('sys.version_info', name='mock_version_info')
+        self.mock_version_info.major = 3
+        self.mock_version_info.minor = 8
+        ts = datetime.datetime(2021, 1, 2, 10, 21, 50, 150)
+        s = ts.isoformat()
+        res = collection._fromisoformat(s)
+        self.assertEqual(ts, res)
