@@ -1,11 +1,10 @@
 charm_name: none
 gate_bundles:
-- magpie-xenial
-- magpie-bionic
-- magpie-focal
-dev_bundles:
-# magpie isn't hirsute ready yet.
-- magpie-hirsute
+# let's keep this list as short as possible, this is not a gate test for any of
+# the charms in the bundle but a test for Zaza's handling of model deployment/
+# destruction
+- first
+- second
 target_deploy_status:
   magpie:
     workload-status: active
@@ -18,4 +17,4 @@ tests:
 - zaza.charm_tests.noop.tests.NoopTest
 tests_options:
   force_deploy:
-    magpie-hirsute
+    second
