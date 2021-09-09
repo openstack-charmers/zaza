@@ -6,7 +6,19 @@ gate_bundles:
 - first
 - second
 target_deploy_status:
-  magpie:
+  magpie-xenial:
+    workload-status: active
+    workload-status-message-prefix: icmp ok, local hostname ok
+  magpie-bionic:
+    workload-status: active
+    workload-status-message-prefix: icmp ok, local hostname ok
+  magpie-focal:
+    workload-status: active
+    workload-status-message-prefix: icmp ok, local hostname ok
+  magpie-hirsute:
+    workload-status: active
+    workload-status-message-prefix: icmp ok, local hostname ok
+  magpie-impish:
     workload-status: active
     workload-status-message-prefix: icmp ok, local hostname ok
   ubuntu:
