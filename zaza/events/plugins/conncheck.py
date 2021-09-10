@@ -239,7 +239,6 @@ class ConnCheckManager(ConfigurableMixin):
          * <other> pip installable spec (e.g. git+https://...
          * file:<path locally>
         """
-        super().__init__(**kwargs)
         self.collection = None
         self.logs_dir = None
         self.tags = None
@@ -383,7 +382,7 @@ class ConnCheckManager(ConfigurableMixin):
         """
         if ':' not in spec:
             raise ValueError("The spec {} doesn't seem to contain a root?"
-                             .foramt(spec))
+                             .format(spec))
         root, _spec = spec.split(':', 1)
         try:
             handler_fn = self._spec_handlers[root]
@@ -408,6 +407,7 @@ class ConnCheckInstanceBase(ConfigurableMixin):
         :type kwargs: Dict[str, Any]
         """
         self.name = None
+        self.machine_or_unit_spec = None
         self.log_format = None
         self.config_file = "config.yaml"
         self.log_file = "conncheck.log"
@@ -557,8 +557,7 @@ class ConnCheckInstanceBase(ConfigurableMixin):
                 'interval': interval,
             }
         else:
-            raise ValueError("Can't write a spec for protocol: {}"
-                             .format(type_))
+            raise RuntimeError("Unreachable code")  # pragma: no cover
         self._speakers[id_] = spec
         self.write_configuration()
 
@@ -762,14 +761,14 @@ class ConnCheckInstanceJuju(ConnCheckInstanceBase):
          - sudo: whether to use sudo for ssh on the unit (default false)
          - user: which user to use; leave as None for default 'ubuntu'
         """
-        self.machine_or_unit_spec = machine_or_unit_spec
-        self._validate_spec()
         self.model = None
         self.default_space = None
         self.sudo = None
         self.user = None
         super().__init__(**kwargs)
+        self.machine_or_unit_spec = machine_or_unit_spec
         self.name = machine_or_unit_spec
+        self._validate_spec()
         self._ssh_fn = zaza.utilities.installers.make_juju_ssh_fn(
             self.machine_or_unit_spec, sudo=self.sudo, model=self.model)
         self._scp_fn = zaza.utilities.installers.make_juju_scp_fn(
@@ -870,7 +869,10 @@ class ConnCheckInstanceJuju(ConnCheckInstanceBase):
         :type cidr: str
         :returns: the address found.
         :rtype: str
-        :raises RuntimeError: if it's the 'wrong' type of juju unit.
+        :raises subprocess.CalledProcessError: if unit command fails
+        :raises NotImplementedError: if there are multiple addresses on the
+            unit
+        :raises ValueError: if the yaml from network-get is malformed.
         """
         try:
             # We have to juju run the network-get as it needs to be in the HOOK
@@ -884,7 +886,7 @@ class ConnCheckInstanceJuju(ConnCheckInstanceBase):
             raise
         result = yaml.safe_load(output)
         if isinstance(result, str):
-            return result
+            return result.strip()
 
         # it's obviously, not a bare string.
         logger.error("Mutliple results returned for getting address.\n%s",
