@@ -7,10 +7,6 @@ applications:
     series: hirsute
     charm: cs:~openstack-charmers-next/magpie
     num_units: 2
-  magpie-impish:
-    series: impish
-    charm: cs:~openstack-charmers-next/magpie
-    num_units: 2
   ubuntu:
     charm: cs:ubuntu
     num_units: 1

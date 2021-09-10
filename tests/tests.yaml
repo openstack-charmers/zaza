@@ -18,9 +18,6 @@ target_deploy_status:
   magpie-hirsute:
     workload-status: active
     workload-status-message-prefix: icmp ok, local hostname ok
-  magpie-impish:
-    workload-status: active
-    workload-status-message-prefix: icmp ok, local hostname ok
   ubuntu:
     workload-status-message-regex: "^$"
 configure:
