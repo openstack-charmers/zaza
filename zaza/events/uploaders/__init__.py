@@ -37,10 +37,8 @@ def upload_collection_by_config(collection, context=None):
     :type context: Optional[Dict[str, str]]
     """
     uploads = get_option('zaza-events.upload', [])
-    if isinstance(uploads, str):
-        uploads = (uploads, )
-    if not isinstance(uploads, Iterable):
-        logger.error("No where to upload logs? %s", uploads)
+    if isinstance(uploads, str) or not isinstance(uploads, Iterable):
+        logger.error("Config to upload logs is misconfigured? %s", uploads)
         return
     for upload in uploads:
         if not isinstance(upload, Mapping):

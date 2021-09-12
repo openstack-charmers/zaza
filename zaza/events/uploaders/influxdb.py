@@ -62,7 +62,7 @@ def upload(upload_spec, collection, context=None):
     raise_exceptions = upload_spec.get('raise-exceptions', False)
     user = upload_spec.get('user', None)
     password = upload_spec.get('password', None)
-    timestamp_resolution = upload_spec.get('timestamp-resolution', 'u')
+    timestamp_resolution = upload_spec.get('timestamp-resolution', 'us')
     batch_size = upload_spec.get('batch-size', 1000)
     if context is None:
         context = {}

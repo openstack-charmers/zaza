@@ -101,7 +101,6 @@ def cached(func):
     return wrapper
 
 
-# def expand_vars(env_deployment, value):
 def expand_vars(context, value):
     """Search the variable and see if variables need to be expanded.
 
@@ -119,7 +118,6 @@ def expand_vars(context, value):
     if not isinstance(value, str):
         return value
     value = os.path.expandvars(value)
-    # context = event_context_vars(env_deployment)
     for k, v in context.items():
         var = "{" + k + "}"
         if var in value:
