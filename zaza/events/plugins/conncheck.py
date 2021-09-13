@@ -621,8 +621,7 @@ class ConnCheckInstanceBase(ConfigurableMixin):
             "{home}/.venv/bin/conncheck -c {home}/{config} --log DEBUG"
             .format(home=conncheck_home_dir, config=self.config_file))
         self._systemd = zaza.utilities.installers.SystemdControl(
-            self._ssh_fn, self._scp_fn, "conncheck", systemd_cmd,
-            autostart=True)
+            self._ssh_fn, self._scp_fn, "conncheck", systemd_cmd)
         self._systemd.install()
         self._installed = True
 

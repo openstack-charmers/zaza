@@ -486,7 +486,6 @@ class SystemdControl:
         systemd_ctrl_file = self.SYSTEMD_FILE.format(
             name=self.name, exec_start=self.execute)
 
-        print(self._home, self._systemd_filename)
         remote_temp_file = os.path.join(self._home, self._systemd_filename)
         with tempfile.TemporaryDirectory() as td:
             fname = os.path.join(td, "control")
