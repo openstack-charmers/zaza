@@ -14,7 +14,6 @@
 
 """Unit tests for zaza.events.global_functions."""
 
-import datetime
 import mock
 
 import unit_tests.utils as tests_utils
@@ -68,4 +67,3 @@ class TestTestsIntegration(tests_utils.BaseTestCase):
             .return_value \
             .get_event_logger_instance.return_value = 'an-instance'
         self.assertEqual(gf.get_global_event_logger_instance(), 'an-instance')
-
