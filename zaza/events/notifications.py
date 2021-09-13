@@ -196,7 +196,7 @@ class EventsPlugin:
             context,
             get_option('zaza-events.log-collection-name', env_deployment.name))
         description = get_option('zaza-events.collection-description')
-        logs_dir_name = expand_vars(context, "{{bundle}}-{{date}}")
+        logs_dir_name = expand_vars(context, "{bundle}-{date}")
         try:
             logs_dir_base = self.logs_dir_base.name
         except AttributeError:
@@ -297,11 +297,6 @@ class EventsPlugin:
         The event (a NotifyEvents) is used as it's str version of the event
         logger.  A before or after is added if the NotifyType is BEFORE or
         AFTER.
-
-        TODO: There probably needs to be filtering as kwargs may end up having
-        params that just don't map to time-series events.  e.g. more work is
-        needed here (probably) to translate between notifications and
-        time-series events.
 
         Note: every NotifyEvents is also an z.e.types.Events event.  This
         converts from NotifyEvents to Events before calling log().
@@ -429,10 +424,6 @@ _convert_map = {
 
 def _convert_notify_kwargs_to_events_args(kwargs):
     """Convert the custom parameters into events args.
-
-    This also discards any 'unknown' arguments so that they do not end up in
-    the event (and thus potentially break uploaders).  Any non "str" values
-    left over are 'str'ed.
 
     :params kwargs: the key-value args provided for fields and tags
     :type kwargs: Dict[str, Any]
