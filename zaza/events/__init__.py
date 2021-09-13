@@ -53,7 +53,7 @@ from .types import (  # NOQA
     LogFormats,
     Events,
 )
-from .tests_integration import ( # NOQA
+from .global_functions import ( # NOQA
     get_global_events_logging_manager,
     get_global_event_logger_instance,
 )

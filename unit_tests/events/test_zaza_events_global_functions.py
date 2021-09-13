@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for zaza.events.tests_integration."""
+"""Unit tests for zaza.events.global_functions."""
 
 import datetime
 import mock
@@ -20,14 +20,14 @@ import mock
 import unit_tests.utils as tests_utils
 
 
-import zaza.events.tests_integration as ti
+import zaza.events.global_functions as gf
 
 
 class TestTestsIntegration(tests_utils.BaseTestCase):
 
     def setUp(self):
         super().setUp()
-        self.patch_object(ti, 'get_option', name='mock_get_option')
+        self.patch_object(gf, 'get_option', name='mock_get_option')
         self.mock_get_option.side_effect = self._get_option
         self._options = {}
 
@@ -38,34 +38,34 @@ class TestTestsIntegration(tests_utils.BaseTestCase):
             return default
 
     def test_get_global_events_logging_manager(self):
-        self.patch_object(ti, 'get_plugin_manager',
+        self.patch_object(gf, 'get_plugin_manager',
                           name='mock_get_plugin_manager')
         self.mock_get_plugin_manager.return_value = 'a-manager'
-        self.assertEqual(ti.get_global_events_logging_manager(), 'a-manager')
+        self.assertEqual(gf.get_global_events_logging_manager(), 'a-manager')
         self.mock_get_plugin_manager.assert_called_once_with('DEFAULT')
 
     def test_get_global_events_logging_manager_named(self):
-        self.patch_object(ti, 'get_plugin_manager',
+        self.patch_object(gf, 'get_plugin_manager',
                           name='mock_get_plugin_manager')
         self._options['zaza-events.modules.logging.logger-name'] = 'a-name'
         self.mock_get_plugin_manager.return_value = 'a-manager'
-        self.assertEqual(ti.get_global_events_logging_manager(), 'a-manager')
+        self.assertEqual(gf.get_global_events_logging_manager(), 'a-manager')
         self.mock_get_plugin_manager.assert_called_once_with('a-name')
 
     def test_get_global_events_logging_manager_by_collection(self):
-        self.patch_object(ti, 'get_plugin_manager',
+        self.patch_object(gf, 'get_plugin_manager',
                           name='mock_get_plugin_manager')
         self._options['zaza-events.collection-name'] = 'a-collection'
         self.mock_get_plugin_manager.return_value = 'a-manager'
-        self.assertEqual(ti.get_global_events_logging_manager(), 'a-manager')
+        self.assertEqual(gf.get_global_events_logging_manager(), 'a-manager')
         self.mock_get_plugin_manager.assert_called_once_with('a-collection')
 
     def test_get_global_event_logger_instance(self):
-        self.patch_object(ti, 'get_global_events_logging_manager',
+        self.patch_object(gf, 'get_global_events_logging_manager',
                           new=mock.MagicMock(),
                           name='mock_get_global_events_logging_manager')
         self.mock_get_global_events_logging_manager \
             .return_value \
             .get_event_logger_instance.return_value = 'an-instance'
-        self.assertEqual(ti.get_global_event_logger_instance(), 'an-instance')
+        self.assertEqual(gf.get_global_event_logger_instance(), 'an-instance')
 
