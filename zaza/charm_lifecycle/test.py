@@ -19,6 +19,7 @@ import logging
 import unittest
 import sys
 
+import zaza
 import zaza.model
 import zaza.global_options as global_options
 import zaza.charm_lifecycle.utils as utils
@@ -121,6 +122,7 @@ def test(model_name, tests, test_directory=None):
     utils.set_base_test_dir(test_dir=test_directory)
     zaza.model.set_juju_model(model_name)
     run_test_list(tests)
+    zaza.run_atexit_hooks()
 
 
 def parse_args(args):
