@@ -31,11 +31,7 @@ class LogFormats:
 # Events that are standardised.
 
 class _Events(enum.Enum):
-    """zaza.events as an enum for type safety.
-
-    Note: as this class is derivied from zaza.notifications.NotifyEvents it
-    also has those events as well.
-    """
+    """zaza.events as an enum for type safety."""
 
     # Core events
     START_TEST = "start"

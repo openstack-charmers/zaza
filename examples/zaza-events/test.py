@@ -47,17 +47,10 @@ conncheck_manager = zaza.events.plugins.conncheck.get_plugin_manager()
 # Note that this sets the collection on the conncheck_manager instance.
 collection.add_logging_manager(conncheck_manager)
 
-# Hack for my stuff
-# use a directory for conncheck
-home = os.path.expandvars("$HOME")
-if home == "/home/alex":
-    conncheck_source = (
-        "file:/home/alex/Projects/Canonical/git/github.com/openstack-charmers/"
-        "conncheck")
-else:
-    conncheck_source = (
-        "file:/home/ubuntu/git/github.com/openstack-charmers/"
-        "conncheck")
+# Set the source for the conncheck library; download it first!
+conncheck_source = (
+    "file:/home/ubuntu/git/github.com/openstack-charmers/"
+    "conncheck")
 conncheck_manager.configure(module_source=conncheck_source)
 assert conncheck_manager.manager.module_source == conncheck_source
 

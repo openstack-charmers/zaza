@@ -106,8 +106,6 @@ def expand_vars(context, value):
 
     This expands ${ENV} and {context} variables in a :param:`value` parameter.
 
-    # :param env_deployment: the deployment parameters.
-    # :type env_deployment: environmentdeploy
     :param context: a context of dictionary keys for filling in values
     :type context: Dict[str, str]
     :param value: the value to do variable expansion on.
@@ -119,7 +117,7 @@ def expand_vars(context, value):
         return value
     value = os.path.expandvars(value)
     for k, v in context.items():
-        var = "{" + k + "}"
+        var = "{" + k.strip() + "}"
         if var in value:
             value = value.replace(var, v)
     return value

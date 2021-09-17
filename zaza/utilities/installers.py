@@ -132,7 +132,8 @@ def install_module_in_venv(
     :type python: str
     :param venv_dir: The name of the virtualenv at the destination path.
     :type venv_dir: str
-    :param install_virtualenv: Install the virtualenv on the target if needed.
+    :param install_virtualenv: Install the virtualenv utility on the target if
+        needed.
     :type install_virtualenv: bool
     :param run_user: The user that will run the module (needed for sudo to
         copy/install files for that user).
@@ -471,7 +472,7 @@ class SystemdControl:
     def _home(self):
         if self._home_var is not None:
             return self._home_var
-        self._home_var = self.ssh_fn("echo $HOME").strip()
+        self._home_var = user_directory(self.ssh_fn)
         return self._home_var
 
     def install(self):
