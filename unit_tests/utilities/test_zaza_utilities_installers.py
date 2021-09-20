@@ -337,7 +337,7 @@ class TestSystemdControl(tests_utils.BaseTestCase):
         self.sc._home_var = None
         self.assertEqual(self.sc._home, "/home/ubuntu")
         self.assertEqual(self.sc._home_var, "/home/ubuntu")
-        self.mock_ssh_fn.assert_called_once_with("echo $HOME")
+        self.mock_ssh_fn.assert_called_once_with(['echo', '$HOME'])
 
     def test_install(self):
         mock_ttr = mock.Mock()
