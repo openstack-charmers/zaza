@@ -1,3 +1,4 @@
+pyparsing<3.0.0  # pin for aodhclient which is held for py35
 aiounittest
 async_generator
 juju
