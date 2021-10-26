@@ -27,7 +27,7 @@ def parse_arg(options, arg, multiargs=False):
     :param arg: Argument attribute key
     :type arg: string
     :param multiargs: More than one arugment or not
-    :type multiargs: boolean
+    :type multiargs: bool
     :returns: Argparse atrribute value
     :rtype: string
     """

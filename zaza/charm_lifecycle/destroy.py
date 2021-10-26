@@ -35,7 +35,6 @@ def destroy(model_name):
     """
     machines = model.get_status()["machines"]
     zaza.controller.destroy_model(model_name)
-    # get the keystone overcloud
     if juju_utils.get_provider_type() == "openstack":
         # only import openstack_provider if it's needed.  This avoids forcing
         # zaza to have dependencies for providers that the user isn't using.

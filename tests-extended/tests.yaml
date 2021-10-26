@@ -1,0 +1,46 @@
+charm_name: none
+gate_bundles:
+- conncheck-focal
+
+target_deploy_status:
+  ubuntu:
+    workload-status-message-regex: "^$"
+
+tests:
+- zaza.charm_tests.conncheck.tests.TestConncheckIntegration
+
+tests_options:
+  plugins:
+    - zaza.plugins.events.configure
+  zaza-events:
+    log-format: InfluxDB
+    keep-logs: false
+    collection-name: DEFAULT
+    collection-description: ""
+    raise-exceptions: true
+    log-collection-name: "testdb-{bundle}-{date}"
+    modules:
+      - conncheck:
+          source: "file:/home/ubuntu/git/github.com/openstack-charmers/conncheck"
+          raise-exceptions: true
+      - logging:
+          logger-name: DEFAULT
+          log-to-stdout: false
+          log-to-python-logging: true
+          python-logging-level: info
+          logger-name: DEFAULT
+          raise-exceptions: true
+    upload:
+      - type: InfluxDB
+        url: ${TEST_INFLUXDB_URL}
+        # user: ${TEST_INFLUXDB_USER}
+        # password: ${TEST_INFLUXDB_PASSWORD}
+        database: testdb
+        timestamp-resolution: ns
+    #tags:
+      #tag-name: tag-value
+    #fields:
+      #date: "{date}"
+    #instrument:
+      #test-classes: true
+      #test-function: true

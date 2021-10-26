@@ -28,6 +28,8 @@ import zaza.charm_lifecycle.prepare as prepare
 import zaza.charm_lifecycle.deploy as deploy
 import zaza.charm_lifecycle.test as test
 import zaza.model
+from zaza.notifications import notify_around, NotifyEvents
+import zaza.plugins
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
 
@@ -117,9 +119,6 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
             deployment.model_name,
             test_directory=test_directory)
 
-    force = force or utils.is_config_deploy_forced_for_bundle(
-        deployment.bundle)
-
     for deployment in env_deployment.model_deploys:
         # Before deploy
         before_deploy.before_deploy(
@@ -129,13 +128,16 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
 
     try:
         for deployment in env_deployment.model_deploys:
+            force_ = force or utils.is_config_deploy_forced_for_bundle(
+                deployment.bundle)
+
             deploy.deploy(
                 os.path.join(
                     utils.get_bundle_dir(),
                     '{}.yaml'.format(deployment.bundle)),
                 deployment.model_name,
                 model_ctxt=model_aliases,
-                force=force,
+                force=force_,
                 test_directory=test_directory)
 
         # When deploying bundles with cross model relations, hooks may be
@@ -144,8 +146,10 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
         for deployment in env_deployment.model_deploys:
             logging.info("Waiting for {} to settle".format(
                 deployment.model_name))
-            zaza.model.block_until_all_units_idle(
-                model_name=deployment.model_name)
+            with notify_around(NotifyEvents.WAIT_MODEL_SETTLE,
+                               model_name=deployment.model_name):
+                zaza.model.block_until_all_units_idle(
+                    model_name=deployment.model_name)
 
         for deployment in env_deployment.model_deploys:
             configure.configure(
@@ -263,6 +267,11 @@ def func_test_runner(keep_last_model=False, keep_all_models=False,
         else:
             bundle_key = 'gate_bundles'
         environment_deploys = utils.get_environment_deploys(bundle_key)
+
+    # Now inform any plugins of the environment deploys.
+    zaza.plugins.find_and_configure_plugins(environment_deploys)
+
+    # Now run the deploys
     last_test = environment_deploys[-1].name
     for env_deployment in environment_deploys:
         preserve_model = DESTROY_MODEL
@@ -274,8 +283,9 @@ def func_test_runner(keep_last_model=False, keep_all_models=False,
         elif keep_faulty_model:
             preserve_model = KEEP_FAULTY_MODEL
 
-        run_env_deployment(env_deployment, keep_model=preserve_model,
-                           force=force, test_directory=test_directory)
+        with notify_around(NotifyEvents.BUNDLE, env_deployment=env_deployment):
+            run_env_deployment(env_deployment, keep_model=preserve_model,
+                               force=force, test_directory=test_directory)
 
 
 def parse_args(args):

@@ -36,6 +36,7 @@ python-swiftclient
 tenacity
 paramiko
 python-libmaas
+requests<2.26  # pin for py3.5 support
 # Documentation requirements
 sphinx
 sphinxcontrib-asyncio

@@ -166,7 +166,7 @@ def set_option(option, value, override=False, use_list=True):
         Note, for existing dictionary when creating new keys, we can have int
         keys.
     :param override: if True, override values into keys.
-    :type override: boolean
+    :type override: bool
     """
     keys = option.split('.')
     last_index = len(keys) - 1
@@ -240,7 +240,7 @@ def get_option(option, default=None, raise_exception=False):
     :type default: ANY
     :param raise_exception: raises a KeyError if the true and option isn't
         found.
-    :type raise_exception: boolean
+    :type raise_exception: bool
     :raises: KeyError if key is not found and raise_exception is true
     :returns: ANY
     """

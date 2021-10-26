@@ -19,10 +19,15 @@ import sys
 
 import zaza.model
 import zaza.charm_lifecycle.utils as utils
+from zaza.notifications import (
+    notify_around,
+    NotifyEvents,
+)
 import zaza.utilities.cli as cli_utils
 import zaza.utilities.run_report as run_report
 
 
+@notify_around(NotifyEvents.CONFIGURE)
 def run_configure_list(functions):
     """Run the configure scripts.
 
@@ -33,9 +38,11 @@ def run_configure_list(functions):
     :type tests: ['zaza.charms_tests.svc.setup', ...]
     """
     for func in functions:
-        run_report.register_event_start('Configure {}'.format(func))
-        utils.get_class(func)()
-        run_report.register_event_finish('Configure {}'.format(func))
+        with notify_around(NotifyEvents.CONFIGURE_FUNCTION, function=func):
+            # TODO: change run_report to use zaza.notifications
+            run_report.register_event_start('Configure {}'.format(func))
+            utils.get_class(func)()
+            run_report.register_event_finish('Configure {}'.format(func))
 
 
 def configure(model_name, functions, test_directory=None):
