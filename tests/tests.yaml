@@ -26,4 +26,5 @@ tests:
 - zaza.charm_tests.noop.tests.NoopTest
 tests_options:
   force_deploy:
+    first
     second
