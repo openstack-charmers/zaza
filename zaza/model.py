@@ -40,6 +40,11 @@ from zaza import sync_wrapper
 import zaza.utilities.generic as generic_utils
 import zaza.utilities.exceptions as zaza_exceptions
 
+# Default for the Juju MAX_FRAME_SIZE to be 256MB to stop
+# "RPC: Connection closed, reconnecting" errors and then a failure in the log.
+# See https://github.com/juju/python-libjuju/issues/458 for more details
+JUJU_MAX_FRAME_SIZE = 2**30
+
 CURRENT_MODEL = None
 MODEL_ALIASES = {}
 
@@ -130,7 +135,10 @@ async def deployed(model_name=None):
     """
     # Create a Model instance. We need to connect our Model to a Juju api
     # server before we can use it.
-    model = Model()
+    # NOTE(tinwood): Due to https://github.com/juju/python-libjuju/issues/458
+    # set the max frame size to something big to stop
+    # "RPC: Connection closed, reconnecting" messages and then failures.
+    model = Model(max_frame_size=JUJU_MAX_FRAME_SIZE)
     if not model_name:
         # Connect to the currently active Juju model
         await model.connect_current()
@@ -195,7 +203,10 @@ async def run_in_model(model_name):
     :returns: The juju Model object correcsponding to model_name
     :rtype: Iterator[:class:'juju.Model()']
     """
-    model = Model()
+    # NOTE(tinwood): Due to https://github.com/juju/python-libjuju/issues/458
+    # set the max frame size to something big to stop
+    # "RPC: Connection closed, reconnecting" messages and then failures.
+    model = Model(max_frame_size=JUJU_MAX_FRAME_SIZE)
     if not model_name:
         model_name = await async_get_juju_model()
     await model.connect_model(model_name)
@@ -1675,7 +1686,10 @@ async def async_get_current_model():
     :returns: String curenet model name
     :rtype: str
     """
-    model = Model()
+    # NOTE(tinwood): Due to https://github.com/juju/python-libjuju/issues/458
+    # set the max frame size to something big to stop
+    # "RPC: Connection closed, reconnecting" messages and then failures.
+    model = Model(max_frame_size=JUJU_MAX_FRAME_SIZE)
     await model.connect()
     model_name = model.info.name
     await model.disconnect()
