@@ -43,7 +43,6 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.machine2_mock = MachineMock()
         self.machine2_mock[self.key] = self.key_data
 
-
         def make_get_public_address(ip):
             async def _get_public_address():
                 return ip
