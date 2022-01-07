@@ -511,5 +511,5 @@ def get_application_ip(application, model_name=None):
         unit = model.get_units(
             application,
             model_name=model_name)[0]
-        ip = unit.public_address
+        ip = model.get_unit_public_address(unit)
     return ip

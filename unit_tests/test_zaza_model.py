@@ -159,12 +159,24 @@ class TestModel(ut_utils.BaseTestCase):
         self.machine3 = mock.MagicMock(status='active')
         self.machine7 = mock.MagicMock(status='active')
         self.unit1 = mock.MagicMock()
-        self.unit1.public_address = 'ip1'
+
+        def make_get_public_address(ip):
+            async def _get_public_address():
+                return ip
+
+            return _get_public_address
+
+        def fail_on_use():
+            raise RuntimeError("Don't use this property.")
+
+        self.unit1.public_address = property(fail_on_use)
+        self.unit1.get_public_address = make_get_public_address('ip1')
         self.unit1.name = 'app/2'
         self.unit1.entity_id = 'app/2'
         self.unit1.machine = self.machine3
         self.unit2 = mock.MagicMock()
-        self.unit2.public_address = 'ip2'
+        self.unit2.public_address = property(fail_on_use)
+        self.unit2.get_public_address = make_get_public_address('ip2')
         self.unit2.name = 'app/4'
         self.unit2.entity_id = 'app/4'
         self.unit2.machine = self.machine7
