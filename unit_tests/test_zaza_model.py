@@ -535,6 +535,9 @@ class TestModel(ut_utils.BaseTestCase):
             model.get_lead_unit_name('app', 'model'),
             'app/4')
 
+    def test_get_unit_public_address(self):
+        self.assertEqual(model.get_unit_public_address(self.unit1), 'ip1')
+
     def test_get_lead_unit_ip(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'get_units')
