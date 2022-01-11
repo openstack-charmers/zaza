@@ -28,7 +28,6 @@ tests_options:
           log-to-stdout: false
           log-to-python-logging: true
           python-logging-level: info
-          logger-name: DEFAULT
           raise-exceptions: true
     upload:
       - type: InfluxDB
