@@ -664,29 +664,7 @@ async def async_get_lead_unit_name(application_name, model_name=None):
 get_lead_unit_name = sync_wrapper(async_get_lead_unit_name)
 
 
-def get_unit_public_address(unit):
-    """Get the public address of a the unit.
-
-    The libjuju library, in theory, supports a unit.public_address attribute
-    that provides the publick address of the unit.  However, when the unit is
-    an OpenStack VM, there is a race and it's possible it will be None.
-    Therefore, there is a 'get_public_address()' funtion on unit that does
-    provide the function.  See [1].
-
-    1. https://github.com/juju/python-libjuju/issues/551
-
-    :param unit: The libjuju unit object to get the public address for.
-    :type unit: juju.Unit
-    :returns: the IP address of the unit.
-    :rtype: str
-    """
-    async def _get(unit_):
-        return await unit_.get_public_address()
-
-    return sync_wrapper(_get)(unit)
-
-
-async def async_get_app_ips(application_name, model_name=None):
+def get_app_ips(application_name, model_name=None):
     """Return public address of all units of an application.
 
     :param model_name: Name of model to query.
@@ -696,11 +674,8 @@ async def async_get_app_ips(application_name, model_name=None):
     :returns: List of ip addresses
     :rtype: [str, str,...]
     """
-    return [await u.get_public_address()
+    return [u.public_address
             for u in get_units(application_name, model_name=model_name)]
-
-
-get_app_ips = sync_wrapper(async_get_app_ips)
 
 
 async def async_get_lead_unit_ip(application_name, model_name=None):
@@ -714,8 +689,8 @@ async def async_get_lead_unit_ip(application_name, model_name=None):
     :rtype: str
     :raises: zaza.utilities.exceptions.JujuError
     """
-    return await (await async_get_lead_unit(
-        application_name, model_name)).get_public_address()
+    return (await async_get_lead_unit(
+        application_name, model_name)).public_address
 
 
 get_lead_unit_ip = sync_wrapper(async_get_lead_unit_ip)
