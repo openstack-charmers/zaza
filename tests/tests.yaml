@@ -24,6 +24,7 @@ configure:
 - zaza.charm_tests.noop.setup.basic_setup
 tests:
 - zaza.charm_tests.noop.tests.NoopTest
+- zaza.charm_tests.libjuju.tests.RegressionTest
 tests_options:
   force_deploy:
     second
