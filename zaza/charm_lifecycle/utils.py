@@ -23,7 +23,10 @@ import time
 import sys
 import yaml
 
+from string import Template
+
 import zaza.global_options
+import zaza.utilities.deployment_env as deployment_env
 
 
 BUNDLE_DIR = "./tests/bundles/"
@@ -31,6 +34,7 @@ DEFAULT_TEST_DIR = "./tests"
 DEFAULT_CONFIG_YAML = "tests.yaml"
 DEFAULT_TEST_CONFIG = "./{}/{}".format(DEFAULT_TEST_DIR, DEFAULT_CONFIG_YAML)
 DEFAULT_MODEL_ALIAS = "default_alias"
+DEFAULT_MODEL_NAME = 'zaza-$UUID'
 DEFAULT_DEPLOY_NAME = 'default{}'
 
 RAW_BUNDLE = "raw-bundle"
@@ -486,7 +490,10 @@ def generate_model_name():
     :returns: Model name
     :rtype: str
     """
-    return 'zaza-{}'.format(str(uuid.uuid4())[-12:])
+    model_name_fmt = deployment_env.get_setup_file_contents().get(
+        "model_name", DEFAULT_MODEL_NAME)
+    tpl = Template(model_name_fmt)
+    return tpl.safe_substitute({"UUID": str(uuid.uuid4())[-12:]})
 
 
 def check_output_logging(cmd):

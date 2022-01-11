@@ -162,11 +162,17 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
                 {'alias': 'bundle'}),
             expect)
 
-    def test_generate_model_name(self):
+    @mock.patch('zaza.utilities.deployment_env.get_setup_file_contents')
+    def test_generate_model_name(self, get_setup_file_contents):
+        get_setup_file_contents.return_value = {}
         self.patch_object(lc_utils.uuid, "uuid4")
         self.uuid4.return_value = "longer-than-12characters"
         self.assertEqual(lc_utils.generate_model_name(),
                          "zaza-12characters")
+
+        get_setup_file_contents.return_value = {'model_name': 'mymodel-$UUID'}
+        self.assertEqual(lc_utils.generate_model_name(),
+                         "mymodel-12characters")
 
     def test_get_charm_config(self):
         self.patch("builtins.open",
