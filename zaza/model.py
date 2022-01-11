@@ -685,9 +685,10 @@ async def async_get_app_ips(application_name, model_name=None):
     :returns: List of ip addresses
     :rtype: [str, str,...]
     """
-    return [await u.get_public_address()
-            for u in await async_get_units(
-                application_name, model_name=model_name)]
+    addresses = []
+    for u in await async_get_units(application_name, model_name=model_name):
+        addresses.append(await u.get_public_address())
+    return addresses
 
 
 get_app_ips = sync_wrapper(async_get_app_ips)

@@ -28,3 +28,4 @@ tests:
 tests_options:
   force_deploy:
     second
+    third

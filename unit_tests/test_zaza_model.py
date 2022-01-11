@@ -556,8 +556,12 @@ class TestModel(ut_utils.BaseTestCase):
 
     def test_get_app_ips(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
-        self.patch_object(model, 'get_units')
-        self.get_units.return_value = self.units
+        self.patch_object(model, 'async_get_units')
+
+        async def mock_async_aget_units(*args, **kwargs):
+            return self.units
+
+        self.async_get_units.side_effect = mock_async_aget_units
         self.assertEqual(model.get_app_ips('model', 'app'), ['ip1', 'ip2'])
 
     def test_run_on_unit(self):

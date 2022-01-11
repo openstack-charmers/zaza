@@ -1,5 +1,6 @@
 aiounittest
 async_generator
+kubernetes<18.0.0; python_version < '3.6' # pined, as juju uses kubernetes
 juju
 juju_wait
 PyYAML>=3.0
@@ -18,6 +19,7 @@ Jinja2>=2.6  # BSD License (3 clause)
 six>=1.9.0
 dnspython>=1.12.0
 psutil>=1.1.1,<2.0.0
+oslo.config<6.9.0;python_version < '3.6'  # pin for py3.5 support
 oslo.context<3.0.0;python_version < '3.6'  # pin for py3.5 support
 osprofiler<3.0.0;python_version < '3.6'  # pin for py3.5 support
 python-openstackclient>=3.14.0

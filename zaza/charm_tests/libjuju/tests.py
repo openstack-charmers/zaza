@@ -39,4 +39,3 @@ class RegressionTest(unittest.TestCase):
         ips = zaza.model.get_app_ips('ubuntu')
         for ip in ips:
             self.assertIsNotNone(ip)
-

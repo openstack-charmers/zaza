@@ -13,4 +13,3 @@
 # limitations under the License.
 
 """Collection of regression tests checking zaza/libjuju integration."""
-
