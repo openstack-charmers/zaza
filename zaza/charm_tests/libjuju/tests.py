@@ -25,17 +25,28 @@ import zaza.model
 class RegressionTest(unittest.TestCase):
     """Regression Tests."""
 
-    def test_get_unit_public_address(self):
+    @classmethod
+    def setUpClass(cls):
+        """Run class setup."""
+        super().setUpClass()
+        cls._model = zaza.model.get_juju_model()
+        logging.info("model is %s", cls._model)
+
+    def test_01_get_app_ips(self):
+        """Verify that get_app_ips() doesn't invoke to async loops."""
+        logging.info('Verify that get_app_ips() works.')
+        ips = zaza.model.get_app_ips('ubuntu', model_name=self._model)
+        for ip in ips:
+            logging.info("Ip found %s", ip)
+            self.assertIsNotNone(ip)
+
+    def test_02_get_unit_public_address(self):
         """Verify get_unit_public_address()."""
         logging.info('Verify that get_unit_public_address() function works.')
         units = zaza.model.get_units('ubuntu')
-        ips = [zaza.model.get_unit_public_address(unit) for unit in units]
+        logging.info('units found: %s', units)
+        ips = [zaza.model.get_unit_public_address(unit, model_name=self._model)
+               for unit in units]
         for ip in ips:
-            self.assertIsNotNone(ip)
-
-    def test_get_app_ips(self):
-        """Verify that get_app_ips() doesn't invoke to async loops."""
-        logging.info('Verify that get_app_ips() works.')
-        ips = zaza.model.get_app_ips('ubuntu')
-        for ip in ips:
+            logging.info("Ip found %s", ip)
             self.assertIsNotNone(ip)

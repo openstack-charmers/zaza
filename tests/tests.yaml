@@ -5,6 +5,7 @@ gate_bundles:
 # destruction
 - first
 - second
+- third
 target_deploy_status:
   magpie-xenial:
     workload-status: active
