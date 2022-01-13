@@ -657,7 +657,7 @@ def validate_unit_process_ids(expected, actual):
     return True
 
 
-async def check_call(cmd):
+async def check_call(cmd, log_stdout=True, log_stderr=True):
     """Asynchronous function to check a subprocess call.
 
     :param cmd: Command to execute
@@ -666,10 +666,10 @@ async def check_call(cmd):
     :rtype: None
     :raises: subprocess.CalledProcessError if returncode !=0
     """
-    await check_output(cmd)
+    await check_output(cmd, log_stdout=log_stdout, log_stderr=log_stderr)
 
 
-async def check_output(cmd):
+async def check_output(cmd, log_stdout=True, log_stderr=True):
     """Asynchronous function to run a subprocess and get the output.
 
     Note, as the code raises an Exception on returncode != 0, 'Code' in the
@@ -677,6 +677,10 @@ async def check_output(cmd):
 
     :param cmd: Command to execute
     :type cmd: List[str]
+    :param log_stdout: Whether to log stdout on success, defaults to True
+    :type log_stdout: bool
+    :param log_stderr: Whether to log stderr on success, defaults to True
+    :type log_stderr: bool
     :returns: {'Code': '', 'Stderr': '', 'Stdout': ''}
     :rtype: dict
     :raises: subprocess.CalledProcessError if returncode !=0
@@ -691,11 +695,15 @@ async def check_output(cmd):
     if proc.returncode != 0:
         logging.warn("STDOUT: {}".format(stdout))
         logging.warn("STDERR: {}".format(stderr))
-        raise subprocess.CalledProcessError(proc.returncode, cmd)
+        raise subprocess.CalledProcessError(
+            returncode=proc.returncode,
+            cmd=cmd,
+            output=stdout,
+            stderr=stderr)
     else:
-        if stderr:
+        if stderr and log_stderr:
             logging.info("STDERR: {} ({})".format(stderr, ' '.join(cmd)))
-        if stdout:
+        if stdout and log_stdout:
             logging.info("STDOUT: {} ({})".format(stdout, ' '.join(cmd)))
     return {
         'Code': str(proc.returncode),
