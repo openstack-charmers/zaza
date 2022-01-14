@@ -2,3 +2,5 @@ ignore:
   - "unit_tests/*"
   - "unit_tests/utilities/*"
   - "unit_tests/**/*"
+  - "scripts/*"
+  - "zaza/charm_tests/**/*"

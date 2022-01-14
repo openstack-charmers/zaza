@@ -5,6 +5,7 @@ gate_bundles:
 # destruction
 - first
 - second
+- third
 target_deploy_status:
   magpie-xenial:
     workload-status: active
@@ -24,7 +25,9 @@ configure:
 - zaza.charm_tests.noop.setup.basic_setup
 tests:
 - zaza.charm_tests.noop.tests.NoopTest
+- zaza.charm_tests.libjuju.tests.RegressionTest
 tests_options:
   force_deploy:
     first
     second
+    third

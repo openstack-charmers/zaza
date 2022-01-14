@@ -31,6 +31,7 @@ except ImportError:
 import copy
 import concurrent
 import mock
+import yaml
 
 import unit_tests.utils as ut_utils
 from juju import loop
@@ -159,12 +160,24 @@ class TestModel(ut_utils.BaseTestCase):
         self.machine3 = mock.MagicMock(status='active')
         self.machine7 = mock.MagicMock(status='active')
         self.unit1 = mock.MagicMock()
-        self.unit1.public_address = 'ip1'
+
+        def make_get_public_address(ip):
+            async def _get_public_address():
+                return ip
+
+            return _get_public_address
+
+        def fail_on_use():
+            raise RuntimeError("Don't use this property.")
+
+        self.unit1.public_address = property(fail_on_use)
+        self.unit1.get_public_address = make_get_public_address('ip1')
         self.unit1.name = 'app/2'
         self.unit1.entity_id = 'app/2'
         self.unit1.machine = self.machine3
         self.unit2 = mock.MagicMock()
-        self.unit2.public_address = 'ip2'
+        self.unit2.public_address = property(fail_on_use)
+        self.unit2.get_public_address = make_get_public_address('ip2')
         self.unit2.name = 'app/4'
         self.unit2.entity_id = 'app/4'
         self.unit2.machine = self.machine7
@@ -523,12 +536,106 @@ class TestModel(ut_utils.BaseTestCase):
             model.get_lead_unit_name('app', 'model'),
             'app/4')
 
+    def test_get_unit_public_address(self):
+        async def mock_fallback(*args, **kwargs):
+            return 'fip'
+
+        async def mock_libjuju(*args, **kwargs):
+            return 'ljip'
+
+        self.patch_object(model,
+                          'async_get_unit_public_address__fallback',
+                          name='mock_fallback')
+        self.patch_object(model,
+                          'async_get_unit_public_address__libjuju',
+                          name='mock_libjuju')
+        self.mock_fallback.side_effect = mock_fallback
+        self.mock_libjuju.side_effect = mock_libjuju
+
+        _env = {"ZAZA_FEATURE_BUG472": ""}
+        with mock.patch.dict(model.os.environ, _env):
+            self.assertEqual(model.get_unit_public_address(
+                self.unit1, model_name='a-model'), 'fip')
+            self.mock_fallback.assert_called_once_with(
+                self.unit1, model_name='a-model')
+            self.mock_libjuju.assert_not_called()
+        _env = {"ZAZA_FEATURE_BUG472": "1"}
+        self.mock_fallback.reset_mock()
+        with mock.patch.dict(model.os.environ, _env):
+            self.assertEqual(model.get_unit_public_address(self.unit1), 'ljip')
+            self.mock_libjuju.assert_called_once_with(
+                self.unit1, model_name=None)
+            self.mock_fallback.assert_not_called()
+
+    def test_get_unit_public_address__libjuju(self):
+        sync_get_unit_public_address__libjuju = model.sync_wrapper(
+            model.async_get_unit_public_address__libjuju)
+        self.assertEqual(
+            sync_get_unit_public_address__libjuju(
+                self.unit1, model_name='a-model'), 'ip1')
+
+    def test_get_unit_public_address__fallback(self):
+        self.patch_object(model, 'logging', name='mock_logging')
+        sync_get_unit_public_address__fallback = model.sync_wrapper(
+            model.async_get_unit_public_address__fallback)
+
+        async def mock_async_get_juju_model():
+            return 'a-model'
+
+        self.patch_object(model, 'async_get_juju_model')
+        self.async_get_juju_model.side_effect = mock_async_get_juju_model
+
+        status = yaml.safe_dump({
+            'applications': {
+                'an-app': {
+                    'units': {
+                        'an-app/0': {
+                            'public-address': '2.3.4.5'
+                        }
+                    }
+                }
+            }
+        })
+
+        async def mock_check_output(*args, **kwargs):
+            return {'Stdout': status}
+
+        self.patch_object(
+            model.generic_utils, 'check_output', name='async_check_output')
+        self.async_check_output.side_effect = mock_check_output
+
+        mock_unit = mock.Mock()
+        mock_p_name = mock.PropertyMock(return_value='an-app/0')
+        type(mock_unit).name = mock_p_name
+        self.assertEqual(
+            sync_get_unit_public_address__fallback(
+                mock_unit, model_name='b-model'), '2.3.4.5')
+        self.async_check_output.assert_called_once_with(
+            "juju status --format=yaml -m b-model".split(), log_stderr=False,
+            log_stdout=False)
+        mock_p_name = mock.PropertyMock(return_value='an-app/1')
+        type(mock_unit).name = mock_p_name
+
+        self.async_check_output.reset_mock()
+        self.assertEqual(
+            sync_get_unit_public_address__fallback(mock_unit), None)
+        self.async_check_output.assert_called_once_with(
+            "juju status --format=yaml -m a-model".split(), log_stderr=False,
+            log_stdout=False)
+
     def test_get_lead_unit_ip(self):
-        self.patch_object(model, 'get_juju_model', return_value='mname')
-        self.patch_object(model, 'get_units')
-        self.get_units.return_value = self.units
-        self.patch_object(model, 'Model')
-        self.Model.return_value = self.Model_mock
+        async def mock_async_get_lead_unit(*args, **kwargs):
+            return [self.unit2]
+
+        async def mock_async_get_unit_public_address(*args):
+            return 'ip2'
+
+        self.patch_object(
+            model, 'async_get_lead_unit', side_effect=mock_async_get_lead_unit)
+        self.patch_object(
+            model,
+            'async_get_unit_public_address',
+            side_effect=mock_async_get_unit_public_address)
         self.assertEqual(
             model.get_lead_unit_ip('app', 'model'),
             'ip2')
@@ -562,10 +669,31 @@ class TestModel(ut_utils.BaseTestCase):
             model.get_unit_from_name('bad_name', model_name='mname')
 
     def test_get_app_ips(self):
-        self.patch_object(model, 'get_juju_model', return_value='mname')
-        self.patch_object(model, 'get_units')
-        self.get_units.return_value = self.units
-        self.assertEqual(model.get_app_ips('model', 'app'), ['ip1', 'ip2'])
+        # self.patch_object(model, 'get_juju_model', return_value='mname')
+
+        async def mock_async_get_units(*args, **kwargs):
+            return self.units
+
+        async def mock_async_get_unit_public_address(unit, **kwargs):
+            if unit is self.unit1:
+                return 'ip1'
+            elif unit is self.unit2:
+                return 'ip2'
+            return None
+
+        self.patch_object(model, 'async_get_units',
+                          side_effect=mock_async_get_units)
+        self.patch_object(
+            model,
+            'async_get_unit_public_address',
+            side_effect=mock_async_get_unit_public_address)
+
+        self.assertEqual(model.get_app_ips('app', 'model'), ['ip1', 'ip2'])
+        self.async_get_units.assert_called_once_with(
+            'app', model_name='model')
+        self.async_get_unit_public_address.assert_has_calls([
+            mock.call(self.unit1, model_name='model'),
+            mock.call(self.unit2, model_name='model')])
 
     def test_run_on_unit(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')

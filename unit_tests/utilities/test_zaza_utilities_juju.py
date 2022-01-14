@@ -43,19 +43,32 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.machine2_mock = MachineMock()
         self.machine2_mock[self.key] = self.key_data
 
+        def make_get_public_address(ip):
+            async def _get_public_address():
+                return ip
+
+            return _get_public_address
+
+        def fail_on_use():
+            raise RuntimeError("Don't use this property.")
+
         self.unit0 = "app/0"
         self.unit0_data = {"machine": self.machine0}
         self.unit0_mock = mock.MagicMock()
         self.unit0_mock.entity_id = self.unit0
         self.unit0_mock.data = {'machine-id': self.machine0}
-        self.unit0_mock.public_address = '10.0.0.11'
+        self.unit0_mock.public_address = property(fail_on_use)
+        self.unit0_mock.get_public_address = make_get_public_address(
+            '10.0.0.11')
 
         self.unit1 = "app/1"
         self.unit1_data = {"machine": self.machine1}
         self.unit1_mock = mock.MagicMock()
         self.unit1_mock.entity_id = self.unit1
         self.unit1_mock.data = {'machine-id': self.machine1}
-        self.unit1_mock.public_address = '10.0.0.1'
+        self.unit1_mock.public_address = property(fail_on_use)
+        self.unit1_mock.get_public_address = make_get_public_address(
+            '10.0.0.1')
 
         self.unit2 = "app/2"
         self.unit2_data = {"machine": self.machine2}
@@ -406,6 +419,7 @@ class TestJujuUtils(ut_utils.BaseTestCase):
             juju_utils.get_application_ip('app'),
             '10.0.0.10')
         self.model.get_application_config.return_value = {}
+        self.model.get_unit_public_address.return_value = '10.0.0.1'
         self.assertEqual(
             juju_utils.get_application_ip('app'),
             '10.0.0.1')

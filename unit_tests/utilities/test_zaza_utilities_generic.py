@@ -13,7 +13,10 @@
 # limitations under the License.
 
 import mock
+import subprocess
+
 import unit_tests.utils as ut_utils
+import zaza
 from zaza.utilities import generic as generic_utils
 import zaza.utilities.exceptions as zaza_exceptions
 
@@ -573,3 +576,58 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         }
         ret = generic_utils.validate_unit_process_ids(expected, actual)
         self.assertTrue(ret)
+
+    def test_check_call(self):
+
+        async def async_check_output(*args, **kwargs):
+            return "hello"
+
+        self.patch_object(
+            generic_utils, 'check_output', side_effect=async_check_output)
+        check_call = zaza.sync_wrapper(generic_utils.check_call)
+        check_call("a command")
+        self.check_output.assert_called_once_with(
+            'a command', log_stdout=True, log_stderr=True)
+        self.check_output.reset_mock()
+        check_call("b command", log_stdout=False)
+        self.check_output.assert_called_once_with(
+            'b command', log_stdout=False, log_stderr=True)
+        self.check_output.reset_mock()
+        check_call("c command", log_stderr=False)
+        self.check_output.assert_called_once_with(
+            'c command', log_stdout=True, log_stderr=False)
+
+    def test_check_output(self):
+        self.patch_object(generic_utils, 'logging', name='mock_logging')
+
+        async def mock_communicate():
+            return (b"output log", b"error log")
+
+        mock_proc = mock.Mock(
+            communicate=mock_communicate,
+            returncode=0)
+
+        async def mock_create_subprocess_exec(*args, **kwargs):
+            return mock_proc
+
+        self.patch_object(generic_utils.asyncio, 'create_subprocess_exec',
+                          side_effect=mock_create_subprocess_exec)
+        check_call = zaza.sync_wrapper(generic_utils.check_output)
+        expected = {
+            'Code': str(mock_proc.returncode),
+            'Stderr': "error log",
+            'Stdout': "output log",
+        }
+        self.assertEqual(check_call(['a', 'command']), expected)
+        # check for raising an error
+        mock_proc.returncode = 5
+        expected = {
+            'Code': str(mock_proc.returncode),
+            'Stderr': "error log",
+            'Stdout': "output log",
+        }
+        self.subprocess.CalledProcessError = subprocess.CalledProcessError
+        try:
+            check_call(['a', 'command'])
+        except subprocess.CalledProcessError:
+            pass

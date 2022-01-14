@@ -1,0 +1,5 @@
+applications:
+  ubuntu:
+    charm: cs:ubuntu
+    num_units: 10
+
