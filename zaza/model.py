@@ -350,7 +350,7 @@ scp_to_unit = sync_wrapper(async_scp_to_unit)
 async def async_scp_to_all_units(application_name, source, destination,
                                  model_name=None, user='ubuntu', proxy=False,
                                  scp_opts=''):
-    """Transfer files from to all units of an application.
+    """Transfer files to all units of an application.
 
     :param model_name: Name of model unit is in
     :type model_name: str
@@ -378,7 +378,7 @@ scp_to_all_units = sync_wrapper(async_scp_to_all_units)
 
 async def async_scp_from_unit(unit_name, source, destination, model_name=None,
                               user='ubuntu', proxy=False, scp_opts=''):
-    """Transfer files from to unit_name in model_name.
+    """Transfer files from unit_name in model_name.
 
     :param model_name: Name of model unit is in
     :type model_name: str
