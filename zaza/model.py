@@ -22,6 +22,7 @@ mostly via libjuju. Async function also provice a non-async alternative via
 import asyncio
 from async_generator import async_generator, yield_, asynccontextmanager
 import collections
+import datetime
 import logging
 import os
 import re
@@ -505,6 +506,39 @@ async def async_get_unit_time(unit_name, model_name=None, timeout=None):
     return int(out['Stdout'])
 
 get_unit_time = sync_wrapper(async_get_unit_time)
+
+
+async def async_get_systemd_service_active_time(unit_name, service,
+                                                model_name=None, timeout=None):
+    r"""Return the time that the given service was last active.
+
+    Note: The service does not have to be currently running, the time returned
+          relates to the last time the systemd service entered an 'active'
+          state.
+
+    :param unit_name: Name of unit to run action on
+    :type unit_name: str
+    :param service: Name of service to check active time
+    :type service: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param timeout: Time to wait for status to be achieved
+    :type timeout: int
+    """
+    cmd = "systemctl show {} --property=ActiveEnterTimestamp".format(service)
+    out = await async_run_on_unit(
+        unit_name=unit_name,
+        command=cmd,
+        model_name=model_name,
+        timeout=timeout)
+    str_time = out['Stdout'].rstrip().replace('ActiveEnterTimestamp=', '')
+    start_time = datetime.datetime.strptime(
+        str_time,
+        '%a %Y-%m-%d %H:%M:%S %Z')
+    return start_time
+
+get_systemd_service_active_time = sync_wrapper(
+    async_get_systemd_service_active_time)
 
 
 async def async_get_unit_service_start_time(unit_name, service,
