@@ -30,6 +30,7 @@ except ImportError:
 
 import copy
 import concurrent
+import datetime
 import mock
 import yaml
 
@@ -1593,6 +1594,28 @@ class TestModel(ut_utils.BaseTestCase):
         self.async_run_on_unit.assert_called_once_with(
             unit_name='app/2',
             command="date +'%s'",
+            model_name=None,
+            timeout=None
+        )
+
+    def test_get_systemd_service_active_time(self):
+        async def _run_on_unit(
+            unit_name,
+            command,
+            model_name=None,
+            timeout=None
+        ):
+            return {
+                'Stdout': 'ActiveEnterTimestamp=Fri 2022-01-14 13:32:24 UTC'}
+        self.patch_object(model, 'async_run_on_unit')
+        self.async_run_on_unit.side_effect = _run_on_unit
+        self.assertEqual(
+            model.get_systemd_service_active_time('app/2', 'mysvc1'),
+            datetime.datetime(2022, 1, 14, 13, 32, 24))
+        cmd = r"systemctl show mysvc1 --property=ActiveEnterTimestamp"
+        self.async_run_on_unit.assert_called_once_with(
+            unit_name='app/2',
+            command=cmd,
             model_name=None,
             timeout=None
         )
