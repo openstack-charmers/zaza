@@ -2230,7 +2230,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         model.add_storage('ceph-osd/0', 'label', 'pool', 101)
         self.subprocess.check_output.assert_called_once_with(
             ['juju', 'add-storage', 'ceph-osd/0', '-m', self.model_name,
-              'label=pool,101GB'], stderr=mock.ANY)
+             'label=pool,101GB'], stderr=mock.ANY)
 
     def test_detach_storage(self):
         self.patch_object(model, 'get_juju_model',
