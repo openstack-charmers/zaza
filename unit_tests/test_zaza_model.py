@@ -2223,6 +2223,33 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             ["juju", "attach-resource", "-m", self.model_name,
              _application, "{}={}".format(_resource_name, _resource_path)])
 
+    def test_add_storage(self):
+        self.patch_object(model, 'get_juju_model',
+                          return_value=self.model_name)
+        self.patch_object(model, 'subprocess')
+        model.add_storage('ceph-osd/0', 'label', 'pool', 101)
+        self.subprocess.check_output.assert_called_once_with(
+            ['juju', 'add-storage', 'ceph-osd/0', '-m', self.model_name,
+              'label=pool,101GB'], stderr=mock.ANY)
+
+    def test_detach_storage(self):
+        self.patch_object(model, 'get_juju_model',
+                          return_value=self.model_name)
+        self.patch_object(model, 'subprocess')
+        model.detach_storage('storage', force=True)
+        self.subprocess.check_call.assert_called_once_with(
+            ['juju', 'detach-storage', '-m', self.model_name,
+             'storage', '--force'])
+
+    def test_remove_storage(self):
+        self.patch_object(model, 'get_juju_model',
+                          return_value=self.model_name)
+        self.patch_object(model, 'subprocess')
+        model.remove_storage('storage', force=True, destroy=False)
+        self.subprocess.check_call.assert_called_once_with(
+            ['juju', 'remove-storage', 'storage', '-m',
+             self.model_name, '--force', '--no-destroy'])
+
 
 class AsyncModelTests(aiounittest.AsyncTestCase):
 

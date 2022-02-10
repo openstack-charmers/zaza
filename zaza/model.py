@@ -2870,3 +2870,76 @@ async def async_get_cloud_data(credential_name=None, model_name=None):
             credential[1])
 
 get_cloud_data = sync_wrapper(async_get_cloud_data)
+
+
+def add_storage(unit, label, pool, size, model=None):
+    """Add storage to a Juju unit.
+
+    :param unit: The unit name (i.e: ceph-osd/0)
+    :type unit: str
+
+    :param label: The storage label (i.e: osd-devices)
+    :type label: str
+
+    :param pool: The pool on which to allocate the storage (i.e: cinder)
+    :type pool: str
+
+    :param size: The size in GB of the storage to attach.
+    :type size: int
+
+    :param model: The model name, or None, for the current model.
+    :type model: Option[str]
+
+    :returns: The name of the allocated storage.
+    """
+    model = model or get_juju_model()
+    rv = subprocess.check_output(['juju', 'add-storage', unit, '-m', model,
+                                  '{}={},{}'.format(label, pool,
+                                                    str(size) + 'GB')],
+                                 stderr=subprocess.STDOUT)
+    return rv.decode('UTF-8').replace('added storage ', '').split(' ')[0]
+
+
+def detach_storage(storage_name, model=None, force=False):
+    """Detach previously allocated Juju storage.
+
+    :param storage_name: The name of the allocated storage, as returned by
+        a call to 'add_storage'.
+    :type storage_name: str
+
+    :param model: The model name, or None, for the current model.
+    :type model: Option[str]
+
+    :param force: Whether to forcefully detach the storage.
+    :type force: bool
+    """
+    model = model or get_juju_model()
+    cmd = ['juju', 'detach-storage', '-m', model, storage_name]
+    if force:
+        cmd.append('--force')
+    subprocess.check_call(cmd)
+
+
+def remove_storage(storage_name, model=None, force=False, destroy=True):
+    """Remove Juju storage.
+
+    :param storage_name: The name of the previously allocated Juju storage.
+    :type storage_name: str
+
+    :param model: The model name, or None, for the current model.
+    :type model: Option[str]
+
+    :param force: If False (default), require that the storage be detached
+                  before it can be removed.
+    :type force: bool
+
+    :param destroy: Whether to destroy the storage.
+    :type destroy: bool
+    """
+    model = model or get_juju_model()
+    cmd = ['juju', 'remove-storage', storage_name, '-m', model]
+    if force:
+        cmd.append('--force')
+    if not destroy:
+        cmd.append('--no-destroy')
+    subprocess.check_call(cmd)
