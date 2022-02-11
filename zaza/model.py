@@ -2891,6 +2891,7 @@ def add_storage(unit, label, pool, size, model=None):
     :type model: Option[str]
 
     :returns: The name of the allocated storage.
+    :rtype: str
     """
     model = model or get_juju_model()
     rv = subprocess.check_output(['juju', 'add-storage', unit, '-m', model,
