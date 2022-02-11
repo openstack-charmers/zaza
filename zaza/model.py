@@ -190,6 +190,49 @@ def get_unit_from_name(unit_name, model=None, model_name=None):
     return unit
 
 
+# A collection of model name -> libjuju models associations; use to either
+# instantiate or handout a model, or start a new one.
+ModelRefs = {}
+
+
+async def get_model_memo(model_name):
+    model = None
+    if model_name in ModelRefs:
+        model = ModelRefs[model_name]
+        if is_model_disconnected(model):
+            try:
+                await model.disconnect()
+            except Exception:
+                pass
+            model = None
+            del ModelRefs[model_name]
+    if model is None:
+        # NOTE(tinwood): Due to
+        # https://github.com/juju/python-libjuju/issues/458 set the max frame
+        # size to something big to stop "RPC: Connection closed, reconnecting"
+        # messages and then failures.
+        model = Model(max_frame_size=JUJU_MAX_FRAME_SIZE)
+        await model.connect(model_name)
+        ModelRefs[model_name] = model
+    return model
+
+
+async def remove_model_memo(model_name):
+    global ModelRefs
+    try:
+        model = ModelRefs[model_name]
+        del ModelRefs[model_name]
+        await model.disconnect()
+    except Exception:
+        pass
+
+
+async def remove_models_memo():
+    model_names = list(ModelRefs.keys())
+    for model_name in model_names:
+        await remove_model_memo(model_name)
+
+
 @asynccontextmanager
 @async_generator
 async def run_in_model(model_name):
@@ -199,6 +242,15 @@ async def run_in_model(model_name):
            async with run_in_model(model_name) as model:
                model.do_something()
 
+    Note: that this function re-uses an existing Model connection as zaza (now)
+    tries to keep the model connected for the entire run that it is needed.
+    This is so that libjuju objects connected to the model continue to be
+    updated and that associated methods on those objects continue to function.
+
+    Use zaza.model.connect_model(model_name) and
+    zaza.model.disconnect_mode(model_name) to control the lifetime of
+    connecting to a model.
+
     :param model_name: Name of model to run function in
     :type model_name: str
     :returns: The juju Model object correcsponding to model_name
@@ -207,14 +259,20 @@ async def run_in_model(model_name):
     # NOTE(tinwood): Due to https://github.com/juju/python-libjuju/issues/458
     # set the max frame size to something big to stop
     # "RPC: Connection closed, reconnecting" messages and then failures.
-    model = Model(max_frame_size=JUJU_MAX_FRAME_SIZE)
+    # model = Model(max_frame_size=JUJU_MAX_FRAME_SIZE)
+    # if not model_name:
+        # model_name = await async_get_juju_model()
+    # await model.connect_model(model_name)
+    # try:
+        # await yield_(model)
+    # finally:
+        # await model.disconnect()
     if not model_name:
         model_name = await async_get_juju_model()
-    await model.connect_model(model_name)
-    try:
-        await yield_(model)
-    finally:
-        await model.disconnect()
+    model = await get_model_memo(model_name)
+    # This doesn't need to be a generator as we now keep models alive until
+    # they are disconnected.
+    await yield_(model)
 
 
 def is_model_disconnected(model):
@@ -269,6 +327,10 @@ async def block_until_auto_reconnect_model(*conditions,
 
     Note that conditions are just passed as an unamed list in the function call
     to make it work more like the more simple 'block_until' function.
+
+    Note: conditions must capture libjuju objects in closures as the model may
+    change if it is disconnected. The closures should refetch the juju objects
+    from the model as needed.
 
     :param model: the model to use
     :type model: :class:'juju.Model()'
@@ -592,6 +654,7 @@ async def async_get_unit_service_start_time(unit_name, service,
 get_unit_service_start_time = sync_wrapper(async_get_unit_service_start_time)
 
 
+# FIXME: this is unsafe as it closes the model and returns the libjuju object
 async def async_get_application(application_name, model_name=None):
     """Return an application object.
 
@@ -608,6 +671,7 @@ async def async_get_application(application_name, model_name=None):
 get_application = sync_wrapper(async_get_application)
 
 
+# FIXME: this is unsafe as it closes the model and returns the libjuju object
 async def async_get_units(application_name, model_name=None):
     """Return all the units of a given application.
 
@@ -624,6 +688,7 @@ async def async_get_units(application_name, model_name=None):
 get_units = sync_wrapper(async_get_units)
 
 
+# FIXME: this is unsafe as it closes the model and returns the libjuju object
 async def async_get_machines(application_name, model_name=None):
     """Return all the machines of a given application.
 
@@ -656,6 +721,7 @@ def get_first_unit_name(application_name, model_name=None):
     return get_units(application_name, model_name=model_name)[0].name
 
 
+# FIXME: this is unsafe as it closes the model and returns the libjuju object
 async def async_get_lead_unit(application_name, model_name=None):
     """Return the leader unit for a given application.
 
@@ -695,6 +761,7 @@ async def async_get_lead_unit_name(application_name, model_name=None):
 get_lead_unit_name = sync_wrapper(async_get_lead_unit_name)
 
 
+# FIXME: this is unsafe as it takes a libjuju model
 async def async_get_unit_public_address(unit, model_name=None):
     """Get the public address of a unit.
 
@@ -721,6 +788,7 @@ async def async_get_unit_public_address(unit, model_name=None):
 get_unit_public_address = sync_wrapper(async_get_unit_public_address)
 
 
+# FIXME: this is unsafe as it takes a libjuju model
 async def async_get_unit_public_address__libjuju(unit, model_name=None):
     """Get the public address of a unit.
 
@@ -743,6 +811,7 @@ async def async_get_unit_public_address__libjuju(unit, model_name=None):
     return await unit.get_public_address()
 
 
+# FIXME: This should probably pass the unit.name
 async def async_get_unit_public_address__fallback(unit, model_name=None):
     """Get the public address of a unit via juju status shell command.
 
@@ -954,6 +1023,8 @@ class ActionFailed(Exception):
         super(ActionFailed, self).__init__(message)
 
 
+# FIXME: this is unsafe as it closes the model and returns the libjuju object
+# Essentially, it returns the libjuju object after the model is closed.
 async def async_run_action(unit_name, action_name, model_name=None,
                            action_params=None, raise_on_failure=False):
     """Run action on given unit.
@@ -990,6 +1061,7 @@ async def async_run_action(unit_name, action_name, model_name=None,
 run_action = sync_wrapper(async_run_action)
 
 
+# FIXME: this is unsafe as it closes the model and returns the libjuju object
 async def async_run_action_on_leader(application_name, action_name,
                                      model_name=None, action_params=None,
                                      raise_on_failure=False):
@@ -1031,6 +1103,7 @@ run_action_on_leader = sync_wrapper(async_run_action_on_leader)
 
 
 async def async_run_action_on_units(units, action_name, action_params=None,
+# FIXME: this is unsafe as it closes the model and returns the libjuju object
                                     model_name=None, raise_on_failure=False,
                                     timeout=600):
     """Run action on list of unit in parallel.
@@ -1169,6 +1242,7 @@ def units_with_wl_status_state(model, state):
     return matching_units
 
 
+# FIXME: uses blocking subprocess call in async function.
 async def async_resolve_units(application_name=None, wait=True, timeout=60,
                               erred_hook=None, model_name=None):
     """Mark all the errored units as resolved or limit to an application.
