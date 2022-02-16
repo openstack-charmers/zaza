@@ -209,7 +209,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         _filename = "filename"
         self.yaml_read_patch(_yaml, _yaml_dict)
 
-        self.assertTrue(
+        self.assertFalse(
             lc_deploy.is_local_overlay_enabled_in_bundle(_filename))
         self._open.assert_called_once_with(_filename, "r")
         self.yaml.safe_load.assert_called_once_with(_yaml)
