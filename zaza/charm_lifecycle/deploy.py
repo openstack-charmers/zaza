@@ -240,9 +240,14 @@ def is_local_overlay_enabled_in_bundle(bundle):
     """Check the bundle to see if a local overlay should be applied.
 
     Read the bundle and look for LOCAL_OVERLAY_ENABLED_KEY and return
-    its value if present otherwise return True. This allows a bundle
-    to disable adding the local overlay which points the bundle at
+    its value if present otherwise return False. This allows a bundle
+    to enable adding the local overlay which points the bundle at
     the local charm.
+
+    NOTE: this has changed; it used to default to True when most bundles didn't
+    explicitly specify the charm for the local charm being tested.  Now, every
+    bundle needs to be explicit about whether to enable the local overlay, or
+    specify the charm by directory or charmcraft .charm file.
 
     :param bundle: Name of bundle being deployed
     :type bundle: str
@@ -250,7 +255,7 @@ def is_local_overlay_enabled_in_bundle(bundle):
     :rtype: bool
     """
     with open(bundle, 'r') as stream:
-        return yaml.safe_load(stream).get(LOCAL_OVERLAY_ENABLED_KEY, True)
+        return yaml.safe_load(stream).get(LOCAL_OVERLAY_ENABLED_KEY, False)
 
 
 def should_render_local_overlay(bundle):
