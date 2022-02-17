@@ -386,13 +386,16 @@ def deploy(bundle, model, wait=True, model_ctxt=None, force=False,
         zaza.model.set_juju_model(model)
         deploy_ctxt = deployment_env.get_deployment_context()
         timeout = int(deploy_ctxt.get('TEST_DEPLOY_TIMEOUT', '3600'))
+        max_resolve_count = int(deploy_ctxt.get('TEST_MAX_RESOLVE_COUNT', 0))
         logging.info("Timeout for deployment to settle set to: {}".format(
             timeout))
+        logging.info("Maximum resolve count for deployment set to: {}".format(
+            max_resolve_count))
         with notify_around(NotifyEvents.WAIT_MODEL_SETTLE, model=model):
             zaza.model.wait_for_application_states(
                 model,
                 test_config.get('target_deploy_status', {}),
-                timeout=timeout)
+                timeout=timeout, max_resolve_count=max_resolve_count)
         run_report.register_event_finish('Wait for Deployment')
 
 
