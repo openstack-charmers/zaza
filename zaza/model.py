@@ -1116,6 +1116,7 @@ class UnitError(Exception):
         """Set units in error state in messgae and raise."""
         message = "Units {} in error state".format(
             ','.join([u.entity_id for u in units]))
+        self.units = units
         super(UnitError, self).__init__(message)
 
 
@@ -1365,8 +1366,21 @@ def is_unit_idle(unit):
     return False
 
 
+def is_unit_errored_from_install_hook(unit):
+    """Return True if the unit is in error state from the install hook.
+
+    :param unit: the unit to test
+    :type unit: :class:'juju.unit.Unit'
+    :returns: True if the unit is in the failed state and the workload status
+              message indicates the install hook failed.
+    :rtype: bool
+    """
+    return unit.workload_status == 'error' and \
+        unit.workload_status_message == 'hook failed: "install"'
+
+
 async def async_wait_for_application_states(model_name=None, states=None,
-                                            timeout=2700):
+                                            timeout=2700, max_resolve_count=0):
     """Wait for model to achieve the desired state.
 
     Check the workload status and workload status message for every unit of
@@ -1413,6 +1427,12 @@ async def async_wait_for_application_states(model_name=None, states=None,
     :type states: dict
     :param timeout: Time to wait for status to be achieved
     :type timeout: int
+    :param max_resolve_count: Maximum number of times a unit can be resolved
+        when it is in the error state. This only applies to install hook
+        failures and is considered a temporary hack to work around underlying
+        provider networking issues.
+    :type max_resolve_count: int
+
     """
     logging.info("Waiting for application states to reach targeted states.")
     # Implementation note: model.block_until() can throw
@@ -1454,6 +1474,11 @@ async def async_wait_for_application_states(model_name=None, states=None,
                     "'workload-status-message-prefix' instead.", application)
 
         logging.info("Now checking workload status and status messages")
+
+        # Store the units and how many times they've been resolved for
+        # installation failures. If a unit has been resolved 3 times,
+        # then this will fail hard.
+        resolve_counts = collections.defaultdict(int)
         while True:
             # now we sleep to allow progress to be made in the libjuju futures
             await asyncio.sleep(2)
@@ -1511,26 +1536,55 @@ async def async_wait_for_application_states(model_name=None, states=None,
                                 unit_state="not idle",
                                 approved_states=["idle"]))
                         continue
-                    ok = check_unit_workload_status(
-                        model, unit, check_wl_statuses)
-                    all_okay = all_okay and ok
-                    if not ok and timed_out:
-                        issues.append(
-                            timeout_msg.format(
-                                unit_name=unit.entity_id,
-                                gate_attr='workload status',
-                                unit_state=unit.workload_status,
-                                approved_states=check_wl_statuses))
-                    ok = check_unit_workload_status_message(
-                        model, unit, prefixes=prefixes, regex=check_regex)
-                    all_okay = all_okay and ok
-                    if not ok and timed_out:
-                        issues.append(
-                            timeout_msg.format(
-                                unit_name=unit.entity_id,
-                                gate_attr='workload status message',
-                                unit_state=unit.workload_status_message,
-                                approved_states=prefixes))
+
+                    try:
+                        ok = check_unit_workload_status(
+                            model, unit, check_wl_statuses)
+                        all_okay = all_okay and ok
+                        if not ok and timed_out:
+                            issues.append(
+                                timeout_msg.format(
+                                    unit_name=unit.entity_id,
+                                    gate_attr='workload status',
+                                    unit_state=unit.workload_status,
+                                    approved_states=check_wl_statuses))
+                        ok = check_unit_workload_status_message(
+                            model, unit, prefixes=prefixes, regex=check_regex)
+                        all_okay = all_okay and ok
+                        if not ok and timed_out:
+                            issues.append(
+                                timeout_msg.format(
+                                    unit_name=unit.entity_id,
+                                    gate_attr='workload status message',
+                                    unit_state=unit.workload_status_message,
+                                    approved_states=prefixes))
+                    except UnitError as e:
+                        # Check to see if this error is "resolvable" and try
+                        # again.
+                        # Note: since the UnitError can be raised for any unit
+                        # in any of the calls to the check_unit_* invocations
+                        # (which in turn call check_model_for_hard_errors),
+                        # we need to check all the units captured in the
+                        # UnitError as the current unit may not be the one in
+                        # error
+                        for u in e.units:
+                            if not is_unit_errored_from_install_hook(u):
+                                raise
+
+                            resolve_counts[u.name] += 1
+                            if resolve_counts[u.name] > max_resolve_count:
+                                raise
+
+                            logging.warning("Unit %s is in error state. "
+                                            "Attempt number %d to resolve" %
+                                            (u.name, resolve_counts[u.name]))
+                            await async_resolve_units(
+                                application_name=unit.application,
+                                erred_hook='install'
+                            )
+
+                        all_okay = False
+
                 # if not all states are okay, continue to the next one.
                 if not(all_okay):
                     continue
