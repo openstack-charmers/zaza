@@ -1582,6 +1582,9 @@ async def async_wait_for_application_states(model_name=None, states=None,
                                 application_name=unit.application,
                                 erred_hook='install'
                             )
+                            # now we sleep to allow some time for libjuju
+                            # async tasks to catch up.
+                            await asyncio.sleep(5)
 
                         all_okay = False
 
