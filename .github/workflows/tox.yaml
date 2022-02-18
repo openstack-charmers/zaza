@@ -57,12 +57,14 @@ jobs:
         set -euxo pipefail
         mkdir logs
         tox -e func | tee logs/tox-output.txt
-        juju status -m $(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/) | tee logs/juju-status.txt
     - name: crashdump on failure
       if: failure()
       run: |
-        set -euxo pipefail
-        juju crashdump -o logs/
+        set -eux
+        juju models
+        model=$(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/)
+        juju status -m $model | tee logs/juju-status.txt
+        juju crashdump -m $model -o logs/
     - name: upload logs on failure
       if: failure()
       uses: actions/upload-artifact@v2
