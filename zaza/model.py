@@ -1582,9 +1582,12 @@ async def async_wait_for_application_states(model_name=None, states=None,
                                 application_name=unit.application,
                                 erred_hook='install'
                             )
-                            # now we sleep to allow some time for libjuju
-                            # async tasks to catch up.
-                            await asyncio.sleep(5)
+                            # wait until the unit is executing. 60 seconds
+                            # seems like a reasonable timeout
+                            await async_block_until_unit_wl_status(
+                                u.name, 'error', model_name, negate_match=True,
+                                timeout=60
+                            )
 
                         all_okay = False
 
