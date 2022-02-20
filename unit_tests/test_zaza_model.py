@@ -1196,6 +1196,7 @@ class TestModel(ut_utils.BaseTestCase):
     def test_wait_for_application_states_retries_no_success(self):
         self.patch_object(model, 'check_model_for_hard_errors')
         self.patch_object(model, 'async_resolve_units')
+        self.patch_object(model, 'async_block_until_unit_wl_status')
         self.patch_object(model, 'check_unit_workload_status')
 
         def unit_wl_status(_model, unit, states):
@@ -1220,6 +1221,7 @@ class TestModel(ut_utils.BaseTestCase):
     def test_wait_for_application_states_retries_non_retryable(self):
         self.patch_object(model, 'check_model_for_hard_errors')
         self.patch_object(model, 'async_resolve_units')
+        self.patch_object(model, 'async_block_until_unit_wl_status')
         self.patch_object(model, 'check_unit_workload_status')
 
         def unit_wl_status(_model, unit, states):
@@ -1240,9 +1242,11 @@ class TestModel(ut_utils.BaseTestCase):
                                               max_resolve_count=3)
             self.assertFalse(self.system_ready)
         self.async_resolve_units.assert_not_called()
+        self.async_block_until_unit_wl_status.assert_not_called()
 
     def test_wait_for_application_states_retries_with_success(self):
         self.patch_object(model, 'check_model_for_hard_errors')
+        self.patch_object(model, 'async_block_until_unit_wl_status')
         self.patch_object(model, 'async_resolve_units')
         self.patch_object(model, 'check_unit_workload_status')
         count = 0
@@ -1270,6 +1274,12 @@ class TestModel(ut_utils.BaseTestCase):
         model.wait_for_application_states('modelname', timeout=500,
                                           max_resolve_count=3)
         self.assertEquals(self.async_resolve_units.call_count, 2)
+        self.async_block_until_unit_wl_status.has_calls(
+            mock.call('app/2', 'error', 'model', negate_match=True,
+                      timeout=60),
+            mock.call('app/2', 'error', 'model', negate_match=True,
+                      timeout=60),
+        )
 
     def test_wait_for_application_states_blocked_ok(self):
         self._application_states_setup({
