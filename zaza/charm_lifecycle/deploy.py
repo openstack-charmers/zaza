@@ -272,7 +272,10 @@ def should_render_local_overlay(bundle):
         DEFAULT_OVERLAY_TEMPLATE_DIR,
         "{}.j2".format(LOCAL_OVERLAY_TEMPLATE_NAME))
     charm_name = utils.get_charm_config().get('charm_name', None)
-    if os.path.isfile(overlay) or charm_name:
+    if os.path.isfile(overlay):
+        # If there is an explicit local overlay template file, use it.
+        return True
+    if charm_name:
         # Check for an override in the bundle.
         # Note: the default is True if the LOCAL_OVERLAY_ENABLED_KEY
         # is not present.
