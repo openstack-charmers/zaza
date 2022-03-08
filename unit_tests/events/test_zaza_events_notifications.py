@@ -136,9 +136,9 @@ class TestEventsPlugin(tests_utils.BaseTestCase):
             ],
             run_in_series=True
         )
-        now = datetime.datetime(2021, 1, 2, 10, 21, 50, 150)
-        self.patch('datetime.datetime', name='mock_datetime')
-        self.mock_datetime.now.return_value = now
+        self.patch('datetime.datetime', name='mock_datetime',
+                   spec=datetime.datetime)
+        self.mock_datetime.now().timestamp.return_value = 42
 
     def _get_option(self, key, default=None):
         try:
@@ -176,7 +176,7 @@ class TestEventsPlugin(tests_utils.BaseTestCase):
         self.mock_collection.configure.assert_called_once_with(
             collection='some-logs',
             description='nice-description',
-            logs_dir='/a/tmp-zaza-events/conncheck-focal-1609582910000150us')
+            logs_dir='/a/tmp-zaza-events/conncheck-focal-42000000us')
         self.mock_events.log.assert_called_once_with(
             notifications.Events.START_TEST, comment="Starting some-logs")
 
@@ -337,7 +337,7 @@ class TestEventsPlugin(tests_utils.BaseTestCase):
         self.mock_upload_collection_by_config.assert_called_once_with(
             self.mock_collection,
             context={
-                'date': '1609582910000150us',
+                'date': '42000000us',
                 'bundle': 'conncheck-focal'
             }
         )
@@ -472,4 +472,4 @@ class TestEventsPlugin(tests_utils.BaseTestCase):
             run_in_series=True
         )
         self.assertEqual(notifications.event_context_vars(env_deployment),
-                         {'bundle': 'default1', 'date': '1609582910000150us'})
+                         {'bundle': 'default1', 'date': '42000000us'})
