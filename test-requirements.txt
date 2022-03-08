@@ -1,0 +1,20 @@
+aiounittest
+flake8>=2.2.4
+flake8-docstrings
+flake8-per-file-ignores
+pydocstyle<4.0.0
+coverage
+mock>=1.2
+# For some reason the PyPi distributed wheel of nose differ from the one on
+# GitHub, and it does not work with Python 3.10.
+nose>=1.3.7;python_version<'3.10'
+git+https://github.com/nose-devs/nose.git@release_1.3.7#egg=nose;python_version=='3.10'
+
+# TODO: these requirements should be mocked out in unit_tests/__init__.py
+async_generator
+jinja2
+keystoneauth1
+oslo.config
+python-novaclient
+tenacity
+juju

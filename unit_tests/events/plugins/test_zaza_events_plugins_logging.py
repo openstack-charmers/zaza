@@ -953,13 +953,14 @@ class TestWriterLineProtocol(tests_utils.BaseTestCase):
     def test_write_with_timestamp(self):
         self.patch_object(logging.WriterBase, 'write', name='mock_super_write')
         w_lp = logging.WriterLineProtocol(self.mock_handle)
-        ts = datetime.datetime(2021, 1, 2, 10, 21, 50)
+        ts = mock.MagicMock(spec=datetime.datetime)
+        ts.timestamp.return_value = 42
         w_lp.write(timestamp=ts, collection='a-collection', unit='a-unit',
                    item='an-item', random='r', this='that')
         self.mock_super_write.assert_called_once_with(
             newline=True, fields=dict(unit='a-unit', item='an-item'),
             collection='a-collection', random='r', this='that',
-            timestamp='1609582910000000us')
+            timestamp='42000000us')
 
     def test_write_with_no_timestamp(self):
         self.patch_object(logging.WriterBase, 'write', name='mock_super_write')
