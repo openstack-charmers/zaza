@@ -127,7 +127,7 @@ def _concat_model_alias_maps(data):
     """
     new_data = {DEFAULT_MODEL_ALIAS: []}
     for item in data:
-        if isinstance(item, collections.Mapping):
+        if isinstance(item, collections.abc.Mapping):
             new_data.update(item)
         else:
             new_data[DEFAULT_MODEL_ALIAS].append(item)
@@ -155,7 +155,7 @@ def get_deployment_type(deployment_directive):
     """
     if isinstance(deployment_directive, str):
         return RAW_BUNDLE
-    if isinstance(deployment_directive, collections.Mapping):
+    if isinstance(deployment_directive, collections.abc.Mapping):
         if len(deployment_directive) == 1:
             first_value = deployment_directive[list(deployment_directive)[0]]
             if isinstance(first_value, list):
