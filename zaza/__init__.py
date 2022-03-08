@@ -33,11 +33,17 @@ def run(*steps):
     """
     if not steps:
         return
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+    except AttributeError:
+        # Remove once support for Python 3.6 is dropped
+        loop = asyncio.get_event_loop()
 
     for step in steps:
         task = loop.create_task(step)
-        loop.run_until_complete(asyncio.wait([task], loop=loop))
+        loop.run_until_complete(asyncio.wait([task]))
 
         # Let's also cancel any remaining tasks:
         while True:

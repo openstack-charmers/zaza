@@ -258,8 +258,7 @@ async def block_until_auto_reconnect_model(*conditions,
                                            model=None,
                                            aconditions=None,
                                            timeout=None,
-                                           wait_period=0.5,
-                                           loop=None):
+                                           wait_period=0.5):
     """Async block on the model until conditions met.
 
     This function doesn't use model.block_until() which unfortunately raises
@@ -283,8 +282,6 @@ async def block_until_auto_reconnect_model(*conditions,
     :type timeout: float
     :param wait_period: The time to sleep between checking the conditions.
     :type wait_period: float
-    :param loop: The event loop to use
-    :type loop: An event loop
     :raises: TimeoutError if the conditions never match (assuming timeout is
         not None).
     """
@@ -315,10 +312,10 @@ async def block_until_auto_reconnect_model(*conditions,
             if all((not is_model_disconnected(model), result, aresult)):
                 return
             else:
-                await asyncio.sleep(wait_period, loop=loop)
+                await asyncio.sleep(wait_period)
 
     # finally wait for all the conditions to be true
-    await asyncio.wait_for(_block(), timeout, loop=loop)
+    await asyncio.wait_for(_block(), timeout)
 
 
 async def async_scp_to_unit(unit_name, source, destination, model_name=None,
@@ -1793,8 +1790,7 @@ async def async_get_current_model():
 get_current_model = sync_wrapper(async_get_current_model)
 
 
-async def async_block_until(*conditions, timeout=None, wait_period=0.5,
-                            loop=None):
+async def async_block_until(*conditions, timeout=None, wait_period=0.5):
     """Return only after all async conditions are true.
 
     Based on juju.utils.block_until which currently does not support
@@ -1806,8 +1802,6 @@ async def async_block_until(*conditions, timeout=None, wait_period=0.5,
     :type timeout: float
     :param wait_period: Time to wait between re-assessing conditions.
     :type wait_period: float
-    :param loop: The event loop to use
-    :type loop: An event loop
     """
     async def _block():
         while True:
@@ -1818,8 +1812,8 @@ async def async_block_until(*conditions, timeout=None, wait_period=0.5,
             if all(evaluated):
                 return
             else:
-                await asyncio.sleep(wait_period, loop=loop)
-    await asyncio.wait_for(_block(), timeout, loop=loop)
+                await asyncio.sleep(wait_period)
+    await asyncio.wait_for(_block(), timeout)
 
 
 block_until = sync_wrapper(async_block_until)

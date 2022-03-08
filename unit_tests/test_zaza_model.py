@@ -403,8 +403,8 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch('asyncio.sleep', name='mock_sleep', new=mock.AsyncMock())
 
     def _wrapper_block_until_auto_reconnect_model(
-            self, *conditions, aconditions=None, timeout=None, wait_period=0.5,
-            loop=None):
+            self, *conditions, aconditions=None, timeout=None,
+            wait_period=0.5):
 
         async def _wrapper():
             async with model.run_in_model('modelname') as mymodel:
@@ -413,8 +413,7 @@ class TestModel(ut_utils.BaseTestCase):
                     aconditions=aconditions,
                     timeout=timeout,
                     wait_period=wait_period,
-                    model=mymodel,
-                    loop=loop)
+                    model=mymodel)
 
         self._wrapper = _wrapper
 
@@ -459,9 +458,9 @@ class TestModel(ut_utils.BaseTestCase):
         condition = mock.Mock()
         condition.side_effect = [False, True]
         self._wrapper_block_until_auto_reconnect_model(
-            condition, wait_period=1.5, loop='myloop')
+            condition, wait_period=1.5)
         loop.run(self._wrapper())
-        self.mock_sleep.assert_awaited_with(1.5, loop='myloop')
+        self.mock_sleep.assert_awaited_with(1.5)
 
     def test_scp_to_unit(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
