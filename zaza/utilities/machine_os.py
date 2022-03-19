@@ -49,6 +49,24 @@ def load_kernel_module(unit_name, module_name, module_arguments=None,
     zaza.utilities.juju.remote_run(unit_name, cmd, model_name=model_name)
 
 
+def _systemd_detect_virt(unit_name, args, model_name=None):
+    """Run systemd-detect-virt with argument on unit.
+
+    :param unit_name: Name of unit to operate on
+    :type unit_name: str
+    :param args: Arguments to pass to the command
+    :type args: List[str]
+    :param model_name: Name of model to query
+    :type model_name: Optional[str]
+    """
+    cmd = 'systemd-detect-virt ' + ' '.join(args)
+    try:
+        zaza.utilities.juju.remote_run(unit_name, cmd, model_name=model_name)
+        return True
+    except zaza.model.CommandRunFailed:
+        return False
+
+
 def is_container(unit_name, model_name=None):
     """Check whether the machine the unit is running on is a container.
 
@@ -57,12 +75,19 @@ def is_container(unit_name, model_name=None):
     :param model_name: Name of model to query
     :type model_name: Optional[str]
     """
-    cmd = 'systemd-detect-virt --container'
-    try:
-        zaza.utilities.juju.remote_run(unit_name, cmd, model_name=model_name)
-        return True
-    except zaza.model.CommandRunFailed:
-        return False
+    return _systemd_detect_virt(unit_name, ['--container'],
+                                model_name=model_name)
+
+
+def is_vm(unit_name, model_name=None):
+    """Check whether the machine the unit is running on is a virtual machine.
+
+    :param unit_name: Name of unit to operate on
+    :type unit_name: str
+    :param model_name: Name of model to query
+    :type model_name: Optional[str]
+    """
+    return _systemd_detect_virt(unit_name, ['--vm'], model_name=model_name)
 
 
 def add_netdevsim(unit_name, device_id, port_count, model_name=None):
