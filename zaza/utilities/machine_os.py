@@ -13,8 +13,13 @@
 # limitations under the License.
 """Tools for directly augmenting deployed machine operating system."""
 
+import logging
+
+import zaza.charm_lifecycle.utils
 import zaza.model
+import zaza.utilities.generic
 import zaza.utilities.juju
+import zaza.utilities.machine_os
 
 
 def install_modules_extra(unit_name, model_name=None):
@@ -163,3 +168,96 @@ def disable_vfio_unsafe_noiommu_mode(unit, model_name=None):
     :raises: AssertionError, zaza.model.CommandRunFailed
     """
     _set_vfio_unsafe_noiommu_mode(unit, False, model_name=model_name)
+
+
+HV_APPLICATION_KEY = 'hypervisor_application'
+
+
+def get_hv_application():
+    """Get hypervisor application from test definition configure options.
+
+    :returns: Name of hypervisor application, if configured.
+    :rtype: Optional[str]
+    """
+    config_options = zaza.charm_lifecycle.utils.get_config_options()
+    return config_options.get(HV_APPLICATION_KEY)
+
+
+def reboot_hvs(units=None):
+    """Reboot hypervisors.
+
+    :param units: List of units we should operate on.
+                  Default is to reboot all units of the configured hypervisor
+                  application.
+    :type units: Optional[List[juju.unit.Unit]]
+    """
+    hv_application = get_hv_application()
+    if not hv_application:
+        logging.warning(
+            'Not rebooting any units, no application name '
+            'configured (configure_options: ["{}"])'
+            .format(HV_APPLICATION_KEY))
+        return
+    units = units or zaza.model.get_units(hv_application)
+    for unit in units:
+        zaza.utilities.generic.reboot(unit.name)
+        zaza.model.block_until_unit_wl_status(unit.name, "unknown")
+    target_deploy_status = zaza.charm_lifecycle.utils.get_charm_config().get(
+        'target_deploy_status', {})
+    zaza.model.wait_for_application_states(
+        states=target_deploy_status)
+
+
+def enable_hugepages(unit, nr_hugepages, model_name=None):
+    """Enable boot time allocation of hugepages.
+
+    :param unit: Unit to operate on
+    :type unit: juju.unit.Unit
+    :param nr_hugepages: Number of 1G hugepages to request
+    :type nr_hugepages: int
+    :param model_name: Name of model to query
+    :type model_name: Optional[str]
+    :raises: AssertionError, zaza.model.CommandRunFailed
+    """
+    cmd = (
+        'echo \'GRUB_CMDLINE_LINUX_DEFAULT='
+        '"default_hugepagesz=1G hugepagesz=1G hugepages={}"\' '
+        '> /etc/default/grub.d/99-zaza-hugepages.cfg && '
+        'update-grub'
+        .format(nr_hugepages))
+    zaza.utilities.juju.remote_run(
+        unit.name, cmd, model_name=model_name, fatal=True)
+
+    reboot_hvs([unit])
+
+    cmd = 'cat /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages'
+    result = zaza.utilities.juju.remote_run(
+        unit.name, cmd, model_name=model_name, fatal=True).rstrip()
+    assert int(result) == nr_hugepages, (
+        'Unable to acquire the requested number of hugepages ({} != {})'
+        .format(result, nr_hugepages))
+
+
+def disable_hugepages(unit, model_name=None):
+    """Disable boot time allocation of hugepages.
+
+    :param unit: Unit to operate on
+    :type unit: juju.unit.Unit
+    :param model_name: Name of model to query
+    :type model_name: Optional[str]
+    :raises: AssertionError, zaza.model.CommandRunFailed
+    """
+    cmd = (
+        'rm /etc/default/grub.d/99-zaza-hugepages.cfg && '
+        'update-grub')
+    result = zaza.utilities.juju.remote_run(
+        unit.name, cmd, model_name=model_name, fatal=True)
+
+    reboot_hvs([unit])
+
+    cmd = 'cat /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages'
+    result = zaza.utilities.juju.remote_run(
+        unit.name, cmd, model_name=model_name, fatal=True).rstrip()
+    assert int(result) == 0, (
+        'Unable to disable hugepages ({} != 0)'
+        .format(result))
