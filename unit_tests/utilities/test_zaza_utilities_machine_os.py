@@ -49,6 +49,21 @@ class TestUtils(ut_utils.BaseTestCase):
         self.assertTrue(
             machine_os_utils.is_container('unit', model_name='model'))
 
+    def test_is_vm(self):
+        self.patch_object(machine_os_utils.zaza.utilities.juju, 'remote_run')
+
+        def _raise_exception(*_, **__):
+            raise zaza.model.CommandRunFailed(
+                '', {'Code': '0', 'Stdout': '', 'Stderr': ''})
+        self.remote_run.side_effect = _raise_exception
+        self.assertFalse(
+            machine_os_utils.is_vm('unit', model_name='model'))
+        self.remote_run.assert_called_once_with(
+            'unit', 'systemd-detect-virt --vm', model_name='model')
+        self.remote_run.side_effect = None
+        self.assertTrue(
+            machine_os_utils.is_container('unit', model_name='model'))
+
     def test_add_netdevsim(self):
         self.patch_object(machine_os_utils, 'install_modules_extra')
         self.patch_object(machine_os_utils, 'load_kernel_module')
