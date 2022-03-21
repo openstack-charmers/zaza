@@ -33,13 +33,16 @@ def destroy(model_name):
     :param model: Name of model to remove
     :type bundle: str
     """
-    machines = model.get_status()["machines"]
-    zaza.controller.destroy_model(model_name)
     if juju_utils.get_provider_type() == "openstack":
         # only import openstack_provider if it's needed.  This avoids forcing
         # zaza to have dependencies for providers that the user isn't using.
         import zaza.utilities.openstack_provider as op
+        machines = model.get_status()["machines"]
+        op.report_machine_errors(model_name, machines)
+        zaza.controller.destroy_model(model_name)
         op.clean_up_instances(model_name, machines)
+    else:
+        zaza.controller.destroy_model(model_name)
 
 
 def parse_args(args):

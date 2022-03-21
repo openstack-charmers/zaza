@@ -36,10 +36,14 @@ class TestCharmLifecycleDestroy(ut_utils.BaseTestCase):
                           return_value={'machines': "the-machines"})
         self.patch_object(lc_destroy.juju_utils, 'get_provider_type',
                           return_value="openstack")
+        self.patch("zaza.utilities.openstack_provider.report_machine_errors",
+                   name='report_machine_errors')
         self.patch("zaza.utilities.openstack_provider.clean_up_instances",
                    name='clean_up_instances')
         lc_destroy.destroy('doomed')
         self.destroy_model.assert_called_once_with('doomed')
+        self.report_machine_errors.assert_called_once_with(
+            'doomed', 'the-machines')
         self.clean_up_instances.assert_called_once_with(
             'doomed', 'the-machines')
 
