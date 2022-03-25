@@ -455,7 +455,8 @@ def is_config_deploy_forced_for_bundle(
     config = get_charm_config(yaml_file, fatal)
     try:
         return bundle_name in config['tests_options']['force_deploy']
-    except KeyError:
+    # Type error is if the force_deploy is present, but with no list
+    except (KeyError, TypeError):
         pass
     return False
 
