@@ -248,6 +248,9 @@ class TestModel(ut_utils.BaseTestCase):
         async def _connect_model(model_name):
             return model_name
 
+        async def _connect_current():
+            pass
+
         async def _disconnect():
             return
 
@@ -265,6 +268,7 @@ class TestModel(ut_utils.BaseTestCase):
 
         self.Model_mock.connect.side_effect = _connect
         self.Model_mock.connect_model.side_effect = _connect_model
+        self.Model_mock.connect_current.side_effect = _connect_current
         self.Model_mock.disconnect.side_effect = _disconnect
         self.Model_mock.applications = self.mymodel.applications
         self.Model_mock.units = {
@@ -318,6 +322,24 @@ class TestModel(ut_utils.BaseTestCase):
         self.environ.__getitem__.side_effect = KeyError
         self.assertEqual(model.get_juju_model(), 'modelsmodel')
         self.async_get_current_model.assert_called_once()
+
+    def test_deployed_no_model_name(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+
+        self.assertEqual(model.sync_deployed(), ['app'])
+        self.Model_mock.connect_current.assert_called_once_with()
+        self.Model_mock.connect_model.assert_not_called()
+        self.Model_mock.disconnect.assert_called_once_with()
+
+    def test_deployed_with_model_name(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+
+        self.assertEqual(model.sync_deployed('a-model'), ['app'])
+        self.Model_mock.connect_current.assert_not_called()
+        self.Model_mock.connect_model.assert_called_once_with('a-model')
+        self.Model_mock.disconnect.assert_called_once_with()
 
     def test_set_juju_model_aliases(self):
         model.set_juju_model_aliases({'alias1': 'model1', 'alias2': 'model2'})
