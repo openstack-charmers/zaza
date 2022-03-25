@@ -209,7 +209,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         _filename = "filename"
         self.yaml_read_patch(_yaml, _yaml_dict)
 
-        self.assertTrue(
+        self.assertFalse(
             lc_deploy.is_local_overlay_enabled_in_bundle(_filename))
         self._open.assert_called_once_with(_filename, "r")
         self.yaml.safe_load.assert_called_once_with(_yaml)
@@ -253,7 +253,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
 
         # File exists bundle overrides False
         self.is_local_overlay_enabled_in_bundle.return_value = False
-        self.assertFalse(lc_deploy.should_render_local_overlay(_bundle))
+        self.assertTrue(lc_deploy.should_render_local_overlay(_bundle))
 
         # No file, charm_name present
         self.isfile.return_value = False
@@ -313,6 +313,11 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.render_local_overlay.return_value = '/tmp/local-overlay.yaml'
         self.patch_object(lc_deploy, 'render_overlay')
         self.render_overlay.side_effect = lambda x, y, model_ctxt: RESP[x]
+        self.patch_object(
+            lc_deploy.os.path,
+            'isfile',
+            return_value=True)
+        self.isfile.return_value = False
         self.assertEqual(
             lc_deploy.render_overlays('mybundles/mybundle.yaml', '/tmp'),
             ['/tmp/mybundle.yaml'])
