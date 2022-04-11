@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import unittest.mock as mock
+
 import unit_tests.utils as ut_utils
 import zaza.utilities.machine_os as machine_os_utils
 
@@ -80,3 +82,53 @@ class TestUtils(ut_utils.BaseTestCase):
             'echo "10 2" > /sys/bus/netdevsim/new_device')
         self.remote_run.assert_called_once_with(
             'unit', cmd, model_name='model')
+
+    def test__set_vfio_unsafe_noiommu_mode(self):
+        self.patch_object(machine_os_utils.zaza.utilities.juju, 'remote_run')
+        self.remote_run.return_value = 'Y'
+        unit = mock.MagicMock()
+        unit.name = 'aUnit'
+
+        with self.assertRaises(AssertionError):
+            machine_os_utils._set_vfio_unsafe_noiommu_mode(unit, False)
+
+        self.remote_run.return_value = 'N'
+
+        with self.assertRaises(AssertionError):
+            machine_os_utils._set_vfio_unsafe_noiommu_mode(unit, True)
+
+        self.remote_run.reset_mock()
+        self.remote_run.return_value = 'Y\n'
+        expect = (
+            'echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode '
+            '&& cat /sys/module/vfio/parameters/enable_unsafe_noiommu_mode')
+        machine_os_utils._set_vfio_unsafe_noiommu_mode(unit, True)
+        self.remote_run.assert_called_once_with(
+            'aUnit', expect, model_name=None, fatal=True)
+
+        self.remote_run.reset_mock()
+        self.remote_run.return_value = 'N\n'
+        expect = (
+            'echo 0 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode '
+            '&& cat /sys/module/vfio/parameters/enable_unsafe_noiommu_mode')
+        machine_os_utils._set_vfio_unsafe_noiommu_mode(unit, False)
+        self.remote_run.assert_called_once_with(
+            'aUnit', expect, model_name=None, fatal=True)
+
+    def test_enable_vfio_unsafe_noiommu_mode(self):
+        self.patch_object(machine_os_utils, '_set_vfio_unsafe_noiommu_mode')
+        unit = mock.MagicMock()
+        unit.name = 'aUnit'
+        machine_os_utils.enable_vfio_unsafe_noiommu_mode(unit,
+                                                         model_name='aModel')
+        self._set_vfio_unsafe_noiommu_mode.assert_called_once_with(
+            unit, True, model_name='aModel')
+
+    def test_disable_vfio_unsafe_noiommu_mode(self):
+        self.patch_object(machine_os_utils, '_set_vfio_unsafe_noiommu_mode')
+        unit = mock.MagicMock()
+        unit.name = 'aUnit'
+        machine_os_utils.disable_vfio_unsafe_noiommu_mode(unit,
+                                                          model_name='aModel')
+        self._set_vfio_unsafe_noiommu_mode.assert_called_once_with(
+            unit, False, model_name='aModel')

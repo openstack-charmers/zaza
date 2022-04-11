@@ -115,3 +115,51 @@ def add_netdevsim(unit_name, device_id, port_count, model_name=None):
         'eni{}np{}'.format(device_id, port)
         for port in range(1, port_count + 1)
     ]
+
+
+def _set_vfio_unsafe_noiommu_mode(unit, enable, model_name=None):
+    """Enable or disable unsafe NOIOMMU mode in VFIO drver.
+
+    :param unit: Unit to operate on
+    :type unit: juju.unit.Unit
+    :param enable: Set to True if you want to enable, False otherwise
+    :type enable: bool
+    :param model_name: Name of model to query
+    :type model_name: Optional[str]
+    :raises: AssertionError, zaza.model.CommandRunFailed
+    """
+    expected_result = 'Y' if enable else 'N'
+    value = 1 if enable else 0
+    cmd = (
+        'echo {} > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode '
+        '&& cat /sys/module/vfio/parameters/enable_unsafe_noiommu_mode'
+        .format(value))
+    result = zaza.utilities.juju.remote_run(
+        unit.name, cmd, model_name=model_name, fatal=True).rstrip()
+    assert result == expected_result, (
+        'Unable to set requested mode for VFIO drvier ({} != {})'
+        .format(result, expected_result))
+
+
+def enable_vfio_unsafe_noiommu_mode(unit, model_name=None):
+    """Enable unsafe NOIOMMU mode in VFIO driver.
+
+    :param unit: Unit to operate on
+    :type unit: juju.unit.Unit
+    :param model_name: Name of model to query
+    :type model_name: Optional[str]
+    :raises: AssertionError, zaza.model.CommandRunFailed
+    """
+    _set_vfio_unsafe_noiommu_mode(unit, True, model_name=model_name)
+
+
+def disable_vfio_unsafe_noiommu_mode(unit, model_name=None):
+    """Disable unsafe NOIOMMU mode in VFIO driver.
+
+    :param unit: Unit to operate on
+    :type unit: juju.unit.Unit
+    :param model_name: Name of model to query
+    :type model_name: Optional[str]
+    :raises: AssertionError, zaza.model.CommandRunFailed
+    """
+    _set_vfio_unsafe_noiommu_mode(unit, False, model_name=model_name)
