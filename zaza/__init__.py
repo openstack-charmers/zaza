@@ -12,6 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# __NOTE__
+#
+# Whenever this file is changed, make sure to update the copy of it in
+# ``zaza-openstack-tests``.
+#
+# The ``zaza`` and ``zaza-openstack-tests`` projects are related, and currently
+# the latter is installed as a package inside the former.  As a consequence
+# ``zaza-openstack-tests`` needs to carry a copy of this file
+# (``zaza/__init__.py``) as this file will be overwritten by the copy in
+# ``zaza-openstack-tests`` on install.
+#
+# We of course want a better solution to this, but in the interest of time
+# this note is left here until we get around to fixing it properly.
+#
+# __NOTE__
+
 """Functions to support converting async function to a sync equivalent."""
 import asyncio
 import logging
