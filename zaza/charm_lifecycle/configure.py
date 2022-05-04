@@ -95,4 +95,5 @@ def main():
             funcs = config_steps.get(model_alias, [])
         configure(model_name, funcs)
     run_report.output_event_report()
+    zaza.clean_up_libjuju_thread()
     asyncio.get_event_loop().close()

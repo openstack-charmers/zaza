@@ -198,4 +198,5 @@ def main():
             tests,
             test_directory=args.test_directory)
     run_report.output_event_report()
+    zaza.clean_up_libjuju_thread()
     asyncio.get_event_loop().close()

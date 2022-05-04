@@ -64,3 +64,4 @@ def main():
     args = parse_args(sys.argv[1:])
     cli_utils.setup_logging(log_level=args.loglevel.upper())
     destroy(args.model_name)
+    zaza.clean_up_libjuju_thread()

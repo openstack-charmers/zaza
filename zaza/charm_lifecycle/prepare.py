@@ -72,3 +72,4 @@ def main():
     logging.info('model_name: {}'.format(args.model_name))
     prepare(args.model_name, test_directory=args.test_directory)
     run_report.output_event_report()
+    zaza.clean_up_libjuju_thread()

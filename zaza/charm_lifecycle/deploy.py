@@ -450,3 +450,4 @@ def main():
         force=args.force,
         test_directory=args.test_directory)
     run_report.output_event_report()
+    zaza.clean_up_libjuju_thread()
