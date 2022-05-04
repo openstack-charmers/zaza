@@ -20,6 +20,7 @@ import os
 import sys
 import yaml
 
+import zaza
 import zaza.charm_lifecycle.before_deploy as before_deploy
 import zaza.charm_lifecycle.configure as configure
 import zaza.charm_lifecycle.destroy as destroy
@@ -381,4 +382,5 @@ def main():
         force=args.force,
         test_directory=args.test_directory)
     run_report.output_event_report()
+    zaza.clean_up_libjuju_thread()
     asyncio.get_event_loop().close()

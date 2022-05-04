@@ -38,15 +38,23 @@ from pkgutil import extend_path
 from sys import version_info
 
 
-
-
 __path__ = extend_path(__path__, __name__)
 
+# This flag is for testing, but can be used to control whether libjuju runs in
+# a background thread or is simplified.
+RUN_LIBJUJU_IN_THREAD = True
 
 # Hold the libjuju thread so we can interact with it.
 _libjuju_thread = None
 _libjuju_loop = None
-_libjuju_run = True
+_libjuju_run = False
+
+# Timeout for loop to close.  This is set to 30 seconds.  If there is a non
+# async all in the async thread then it could stall the thread for more than 30
+# seconds (e.g. an errant subprocess call).  This will cause a runtime error if
+# the timeout is exceeded.  This shouldn't normally be the case as there is
+# only one 'start' and 'stop' of the thread during a zaza runtime
+LOOP_CLOSE_TIMEOUT = 30.0
 
 
 def get_or_create_libjuju_thread():
@@ -57,18 +65,26 @@ def get_or_create_libjuju_thread():
     """
     global _libjuju_thread, _libjuju_loop, _libjuju_run
     if _libjuju_thread is None:
-        _libjuju_thread = threading.Thread(target=libjuju_thread_run)
         _libjuju_run = True
+        _libjuju_thread = threading.Thread(target=libjuju_thread_run)
         _libjuju_thread.start()
         # There's a race hazard for _libjuju_loop becoming available, so let's
         # wait for that to happen.
-        while _libjuju_loop is None:
-            pass
+        now = time.time()
+        while True:
+            if (_libjuju_loop is not None and _libjuju_loop.is_running()):
+                break
+            time.sleep(.01)
+            # allow 5 seconds for thead to start
+            if time.time() > now + 5.0:
+                raise RuntimeError("Async thread didn't start!")
     return _libjuju_thread
 
 
 def libjuju_thread_run():
-    """The thread that contains the runtime for libjuju asyncio futures.
+    """Run the libjuju async thread.
+
+    The thread that contains the runtime for libjuju asyncio futures.
 
     zaza runs libjuju in a background thread so that it can make progress as
     needed with the model(s) that are connect.  The sync functions run in the
@@ -128,30 +144,39 @@ def libjuju_thread_run():
 
 
 def join_libjuju_thread():
-    """Stop and cleanup the asyncio tasks on the loop, and then join it.
-    """
+    """Stop and cleanup the asyncio tasks on the loop, and then join it."""
     global _libjuju_thread, _libjuju_loop, _libjuju_run
     if _libjuju_thread is not None:
         logging.debug("stopping the event loop")
         _libjuju_run = False
+        # wait up to 30 seconds for loop to close.
+        now = time.time()
         while not(_libjuju_loop.is_closed()):
             logging.debug("Closing ...")
-            time.sleep(.5)
+            time.sleep(.1)
+            if time.time() > now + LOOP_CLOSE_TIMEOUT:
+                raise RuntimeError(
+                    "Exceeded {} seconds for loop to close"
+                    .format(LOOP_CLOSE_TIMEOUT))
         logging.debug("joining the loop")
         _libjuju_thread.join(timeout=30.0)
         if _libjuju_thread.is_alive():
             logging.error("The thread didn't die")
             raise RuntimeError(
                 "libjuju async thread didn't finish after 30seconds")
+        _libjuju_thread = None
 
 
 def clean_up_libjuju_thread():
-    """Clean up the libjuju thread and any models that are still running.
-    """
-    # circular import; tricky to remove
-    from . import model
-    sync_wrapper(model.remove_models_memo)()
-    join_libjuju_thread()
+    """Clean up the libjuju thread and any models that are still running."""
+    global _libjuju_loop, _libjuju_run
+    if _libjuju_loop is not None:
+        # circular import; tricky to remove
+        from . import model
+        sync_wrapper(model.remove_models_memo)()
+        join_libjuju_thread()
+        _libjuju_run = False
+        _libjuju_loop = None
 
 
 def sync_wrapper(f, timeout=None):
@@ -171,13 +196,19 @@ def sync_wrapper(f, timeout=None):
     """
     def _wrapper(*args, **kwargs):
         global _libjuju_loop
+
         async def _runner():
             return await f(*args, **kwargs)
 
+        if not RUN_LIBJUJU_IN_THREAD:
+            # run it in this thread's event loop:
+            loop = asyncio.get_event_loop()
+            return loop.run_until_complete(_runner())
+
         # ensure that the thread is created
+        get_or_create_libjuju_thread()
         assert _libjuju_loop is not None and _libjuju_loop.is_running(), \
-            ("Background thread must be running, was "
-             "get_or_create_libjuju_thread() called?")
+            "Background thread must be running by now, so this is a bug"
 
         # Submit the coroutine to a given loop
         future = asyncio.run_coroutine_threadsafe(_runner(), _libjuju_loop)
@@ -187,9 +218,6 @@ def sync_wrapper(f, timeout=None):
             logging.error(
                 'The coroutine took too long, cancelling the task...')
             future.cancel()
-            raise
-        except Exception as exc:
-            logging.error(f'The coroutine raised an exception: {exc!r}')
             raise
 
     return _wrapper

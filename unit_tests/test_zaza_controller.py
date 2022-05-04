@@ -18,6 +18,11 @@ import unittest
 import unit_tests.utils as ut_utils
 
 import zaza.controller as controller
+import zaza
+
+
+def tearDownModule():
+    zaza.clean_up_libjuju_thread()
 
 
 class TestController(ut_utils.BaseTestCase):

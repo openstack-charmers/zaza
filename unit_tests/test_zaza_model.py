@@ -35,9 +35,13 @@ import mock
 import yaml
 
 import unit_tests.utils as ut_utils
-from juju import loop
 
 import zaza.model as model
+import zaza
+
+
+def tearDownModule():
+    zaza.clean_up_libjuju_thread()
 
 
 FAKE_STATUS = {
@@ -97,12 +101,6 @@ EXECUTING_STATUS = {
 
 
 class TestModel(ut_utils.BaseTestCase):
-
-    def tearDown(self):
-        super(TestModel, self).tearDown()
-        # Clear cached model name
-        model.CURRENT_MODEL = None
-        model.MODEL_ALIASES = {}
 
     def setUp(self):
         super(TestModel, self).setUp()
@@ -255,7 +253,7 @@ class TestModel(ut_utils.BaseTestCase):
         async def _disconnect():
             return
 
-        async def _connect():
+        async def _connect(*args):
             return
 
         async def _ctrl_connect():
@@ -282,6 +280,15 @@ class TestModel(ut_utils.BaseTestCase):
         self.Controller_mock.connect.side_effect = _ctrl_connect
         self.Controller_mock.add_model.side_effect = _ctrl_add_model
         self.Controller_mock.destroy_models.side_effect = _ctrl_destroy_models
+
+        # Setup async runner, and clear the models known about
+        model.ModelRefs = {}
+
+    def tearDown(self):
+        # Clear cached model name
+        model.CURRENT_MODEL = None
+        model.MODEL_ALIASES = {}
+        super(TestModel, self).tearDown()
 
     def test_get_juju_model(self):
         self.patch_object(model.os, 'environ')
@@ -372,9 +379,7 @@ class TestModel(ut_utils.BaseTestCase):
         async def _wrapper():
             async with model.run_in_model('modelname') as mymodel:
                 return mymodel
-        self.assertEqual(loop.run(_wrapper()), self.Model_mock)
-        self.Model_mock.connect_model.assert_called_once_with('modelname')
-        self.Model_mock.disconnect.assert_called_once_with()
+        self.assertEqual(model.sync_wrapper(_wrapper)(), self.Model_mock)
 
     def test_run_in_model_exception(self):
         self.patch_object(model, 'Model')
@@ -384,9 +389,7 @@ class TestModel(ut_utils.BaseTestCase):
             async with model.run_in_model('modelname'):
                 raise Exception
         with self.assertRaises(Exception):
-            loop.run(_wrapper())
-        self.Model_mock.connect_model.assert_called_once_with('modelname')
-        self.Model_mock.disconnect.assert_called_once_with()
+            model.sync_wrapper(_wrapper)()
 
     def _mocks_for_block_until_auto_reconnect_model(
             self, is_connected=True, is_open=True):
@@ -407,13 +410,13 @@ class TestModel(ut_utils.BaseTestCase):
             wait_period=0.5):
 
         async def _wrapper():
-            async with model.run_in_model('modelname') as mymodel:
-                await model.block_until_auto_reconnect_model(
-                    *conditions,
-                    aconditions=aconditions,
-                    timeout=timeout,
-                    wait_period=wait_period,
-                    model=mymodel)
+            mymodel = await model.get_model('modelname')
+            await model.block_until_auto_reconnect_model(
+                *conditions,
+                aconditions=aconditions,
+                timeout=timeout,
+                wait_period=wait_period,
+                model=mymodel)
 
         self._wrapper = _wrapper
 
@@ -421,22 +424,17 @@ class TestModel(ut_utils.BaseTestCase):
         self._mocks_for_block_until_auto_reconnect_model(True, True)
         self._wrapper_block_until_auto_reconnect_model(
             lambda: True)
-        loop.run(self._wrapper())
-        # The _wrapper() uses run_in_model which calls connect_model() and
-        # disconnect() once.
-        self.Model_mock.disconnect.assert_called_once_with()
-        self.Model_mock.connect_model.assert_called_once_with('modelname')
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            model.sync_wrapper(self._wrapper)()
 
     def test_block_until_auto_reconnect_model_disconnected_sync(self):
         self._mocks_for_block_until_auto_reconnect_model([False, True], True)
         self._wrapper_block_until_auto_reconnect_model(
             lambda: True)
-        loop.run(self._wrapper())
-        # model.disconnect and model.connect should've each have been called
-        # twice, once for run_in_model, and once each for the disconnection.
-        self.Model_mock.disconnect.assert_has_calls([mock.call(), mock.call()])
-        self.Model_mock.connect_model.has_calls([mock.call('modelname'),
-                                                 mock.call('modelname')])
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            model.sync_wrapper(self._wrapper)()
+        self.Model_mock.disconnect.assert_has_calls([mock.call()])
+        self.Model_mock.connect_model.has_calls([mock.call('modelname')])
 
     def test_block_until_auto_reconnect_model_disconnected_async(self):
         self._mocks_for_block_until_auto_reconnect_model(
@@ -446,12 +444,10 @@ class TestModel(ut_utils.BaseTestCase):
             return True
         self._wrapper_block_until_auto_reconnect_model(
             aconditions=[_async_true])
-        loop.run(self._wrapper())
-        # model.disconnect and model.connect should've each have been called
-        # twice, once for run_in_model, and once each for the disconnection.
-        self.Model_mock.disconnect.assert_has_calls([mock.call(), mock.call()])
-        self.Model_mock.connect_model.has_calls([mock.call('modelname'),
-                                                 mock.call('modelname')])
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            model.sync_wrapper(self._wrapper)()
+        self.Model_mock.disconnect.assert_has_calls([mock.call()])
+        self.Model_mock.connect_model.has_calls([mock.call('modelname')])
 
     def test_block_until_auto_reconnect_model_blocks_till_true(self):
         self._mocks_for_block_until_auto_reconnect_model(True, True)
@@ -459,7 +455,8 @@ class TestModel(ut_utils.BaseTestCase):
         condition.side_effect = [False, True]
         self._wrapper_block_until_auto_reconnect_model(
             condition, wait_period=1.5)
-        loop.run(self._wrapper())
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            model.sync_wrapper(self._wrapper)()
         self.mock_sleep.assert_awaited_with(1.5)
 
     def test_scp_to_unit(self):
@@ -468,7 +465,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        model.scp_to_unit('app/1', '/tmp/src', '/tmp/dest')
+        model.scp_to_unit('app/2', '/tmp/src', '/tmp/dest')
         self.unit1.scp_to.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
 
@@ -488,7 +485,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        model.scp_from_unit('app/1', '/tmp/src', '/tmp/dest')
+        model.scp_from_unit('app/2', '/tmp/src', '/tmp/dest')
         self.unit1.scp_from.assert_called_once_with(
             '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
 
@@ -932,11 +929,16 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        self.patch_object(model, 'get_unit_from_name')
+        self.patch_object(model, 'async_get_unit_from_name')
         units = {
             'app/1': self.unit1,
             'app/2': self.unit2}
-        self.get_unit_from_name.side_effect = lambda x, y: units[x]
+
+        async def _async_get_unit_from_name(x, *args):
+            nonlocal units
+            return units[x]
+
+        self.async_get_unit_from_name.side_effect = _async_get_unit_from_name
         self.run_action.status = 'completed'
         model.run_action_on_units(
             ['app/1', 'app/2'],
@@ -958,7 +960,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.run_action.status = 'running'
         with self.assertRaises(AsyncTimeoutError):
             model.run_action_on_units(
-                ['app/1'],
+                ['app/2'],
                 'backup',
                 action_params={'backup_dir': '/dev/null'},
                 timeout=0.1)
@@ -976,7 +978,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.run_action.status = 'failed'
         with self.assertRaises(model.ActionFailed):
             model.run_action_on_units(
-                ['app/1'],
+                ['app/2'],
                 'backup',
                 raise_on_failure=True,
                 action_params={'backup_dir': '/dev/null'})
@@ -1030,7 +1032,8 @@ class TestModel(ut_utils.BaseTestCase):
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Unit is ready'})
-        units = model.units_with_wl_status_state(self.Model_mock, 'active')
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            units = model.units_with_wl_status_state(self.Model_mock, 'active')
         self.assertTrue(len(units) == 2)
         self.assertIn(self.unit1, units)
         self.assertIn(self.unit2, units)
@@ -1039,7 +1042,8 @@ class TestModel(ut_utils.BaseTestCase):
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Unit is ready'})
-        units = model.units_with_wl_status_state(self.Model_mock, 'active')
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            units = model.units_with_wl_status_state(self.Model_mock, 'active')
         self.assertTrue(len(units) == 0)
 
     def test_machines_in_state(self):
@@ -1069,128 +1073,140 @@ class TestModel(ut_utils.BaseTestCase):
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Unit is ready'})
-        self.assertTrue(
-            model.check_unit_workload_status(self.Model_mock,
-                                             self.unit1, ['active']))
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            self.assertTrue(
+                model.check_unit_workload_status(self.Model_mock,
+                                                 self.unit1, ['active']))
 
     def test_check_unit_workload_status_no_match(self):
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Unit is ready'})
-        self.assertFalse(
-            model.check_unit_workload_status(self.Model_mock,
-                                             self.unit1, ['active']))
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            self.assertFalse(
+                model.check_unit_workload_status(self.Model_mock,
+                                                 self.unit1, ['active']))
 
     def test_check_unit_workload_status_multi(self):
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Unit is ready'})
-        self.assertTrue(
-            model.check_unit_workload_status(
-                self.Model_mock,
-                self.unit1, ['active', 'blocked']))
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            self.assertTrue(
+                model.check_unit_workload_status(
+                    self.Model_mock,
+                    self.unit1, ['active', 'blocked']))
 
     def test_check_unit_workload_status_message_message(self):
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Unit is ready'})
-        self.assertTrue(
-            model.check_unit_workload_status_message(self.Model_mock,
-                                                     self.unit1,
-                                                     message='Unit is ready'))
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            self.assertTrue(
+                model.check_unit_workload_status_message(
+                    self.Model_mock, self.unit1, message='Unit is ready'))
 
     def test_check_unit_workload_status_message_message_not_found(self):
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Something else'})
-        self.assertFalse(
-            model.check_unit_workload_status_message(self.Model_mock,
-                                                     self.unit1,
-                                                     message='Unit is ready'))
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            self.assertFalse(
+                model.check_unit_workload_status_message(
+                    self.Model_mock, self.unit1, message='Unit is ready'))
 
     def test_check_unit_workload_status_message_prefix(self):
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Unit is ready (OSD Count 23)'})
-        self.assertTrue(
-            model.check_unit_workload_status_message(
-                self.Model_mock,
-                self.unit1,
-                prefixes=['Readyish', 'Unit is ready']))
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            self.assertTrue(
+                model.check_unit_workload_status_message(
+                    self.Model_mock,
+                    self.unit1,
+                    prefixes=['Readyish', 'Unit is ready']))
 
     def test_check_unit_workload_status_message_prefix_new(self):
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message-prefix': 'Unit is ready (OSD Count 23)'})
-        self.assertTrue(
-            model.check_unit_workload_status_message(
-                self.Model_mock,
-                self.unit1,
-                prefixes=['Readyish', 'Unit is ready']))
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            self.assertTrue(
+                model.check_unit_workload_status_message(
+                    self.Model_mock,
+                    self.unit1,
+                    prefixes=['Readyish', 'Unit is ready']))
 
     def test_check_unit_workload_status_message_prefix_no_match(self):
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'On my holidays'})
-        self.assertFalse(
-            model.check_unit_workload_status_message(
-                self.Model_mock,
-                self.unit1,
-                prefixes=['Readyish', 'Unit is ready']))
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            self.assertFalse(
+                model.check_unit_workload_status_message(
+                    self.Model_mock,
+                    self.unit1,
+                    prefixes=['Readyish', 'Unit is ready']))
 
     def test_check_unit_workload_status_message_regex(self):
         self.patch_object(model, 'check_model_for_hard_errors')
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'On my holidays'})
-        self.assertTrue(
-            model.check_unit_workload_status_message(
-                self.Model_mock,
-                self.unit1,
-                regex=r"my\sholiday.$"))
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            self.assertTrue(
+                model.check_unit_workload_status_message(
+                    self.Model_mock,
+                    self.unit1,
+                    regex=r"my\sholiday.$"))
 
     def test_is_unit_errored_from_install_hook(self):
         self._application_states_setup({
             'workload-status': 'error',
             'workload-status-message': 'hook failed: "install"'})
-        self.assertTrue(
-            model.is_unit_errored_from_install_hook(self.unit1))
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            self.assertTrue(
+                model.is_unit_errored_from_install_hook(self.unit1))
 
     def test_is_unit_errored_from_install_hook_not_install_hook(self):
         self._application_states_setup({
             'workload-status': 'error',
             'workload-status-message': 'hook failed: "config-changed"'})
-        self.assertFalse(
-            model.is_unit_errored_from_install_hook(self.unit1))
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            self.assertFalse(
+                model.is_unit_errored_from_install_hook(self.unit1))
 
     def test_is_unit_errored_from_install_hook_not_error(self):
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'waiting on the sunset'})
-        self.assertFalse(
-            model.is_unit_errored_from_install_hook(self.unit1))
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            self.assertFalse(
+                model.is_unit_errored_from_install_hook(self.unit1))
 
     def test_wait_for_application_states(self):
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Unit is ready'})
-        model.wait_for_application_states('modelname', timeout=1)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            model.wait_for_application_states('modelname', timeout=1)
         self.assertTrue(self.system_ready)
 
     def test_wait_for_application_states_errored_unit(self):
         self._application_states_setup({
             'workload-status': 'error',
             'workload-status-message': 'Unit is ready'})
-        with self.assertRaises(model.UnitError):
-            model.wait_for_application_states('modelname', timeout=1)
-            self.assertFalse(self.system_ready)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            with self.assertRaises(model.UnitError):
+                model.wait_for_application_states('modelname', timeout=1)
+                self.assertFalse(self.system_ready)
 
     def test_wait_for_application_states_retries_no_success(self):
         self.patch_object(model, 'check_model_for_hard_errors')
@@ -1211,11 +1227,12 @@ class TestModel(ut_utils.BaseTestCase):
             'workload-status-message': 'hook failed: "install"'})
         type(self.unit2).workload_status = 'active'
         type(self.unit2).workload_status_message = 'Unit is ready'
-        with self.assertRaises(model.UnitError):
-            model.wait_for_application_states('modelname', timeout=1,
-                                              max_resolve_count=3)
-            self.assertFalse(self.system_ready)
-        self.assertEquals(self.async_resolve_units.call_count, 3)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            with self.assertRaises(model.UnitError):
+                model.wait_for_application_states('modelname', timeout=1,
+                                                  max_resolve_count=3)
+                self.assertFalse(self.system_ready)
+            self.assertEquals(self.async_resolve_units.call_count, 3)
 
     def test_wait_for_application_states_retries_non_retryable(self):
         self.patch_object(model, 'check_model_for_hard_errors')
@@ -1236,10 +1253,11 @@ class TestModel(ut_utils.BaseTestCase):
             'workload-status-message': 'hook failed: "config-changed"'})
         type(self.unit2).workload_status = 'active'
         type(self.unit2).workload_status_message = 'Unit is ready'
-        with self.assertRaises(model.UnitError):
-            model.wait_for_application_states('modelname', timeout=1,
-                                              max_resolve_count=3)
-            self.assertFalse(self.system_ready)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            with self.assertRaises(model.UnitError):
+                model.wait_for_application_states('modelname', timeout=1,
+                                                  max_resolve_count=3)
+                self.assertFalse(self.system_ready)
         self.async_resolve_units.assert_not_called()
         self.async_block_until_unit_wl_status.assert_not_called()
 
@@ -1270,48 +1288,52 @@ class TestModel(ut_utils.BaseTestCase):
         type(self.unit2).workload_status = 'active'
         type(self.unit2).workload_status_message = 'Unit is ready'
 
-        model.wait_for_application_states('modelname', timeout=500,
-                                          max_resolve_count=3)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            model.wait_for_application_states('modelname', timeout=500,
+                                              max_resolve_count=3)
         self.assertEquals(self.async_resolve_units.call_count, 2)
-        self.async_block_until_unit_wl_status.has_calls(
-            mock.call('app/2', 'error', 'model', negate_match=True,
+        self.async_block_until_unit_wl_status.assert_has_calls([
+            mock.call('app/2', 'error', 'modelname', negate_match=True,
                       timeout=60),
-            mock.call('app/2', 'error', 'model', negate_match=True,
+            mock.call('app/2', 'error', 'modelname', negate_match=True,
                       timeout=60),
-        )
+        ])
 
     def test_wait_for_application_states_blocked_ok(self):
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Unit is ready'})
-        model.wait_for_application_states(
-            'modelname',
-            states={'app': {
-                'workload-status': 'blocked'}},
-            timeout=1)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            model.wait_for_application_states(
+                'modelname',
+                states={'app': {
+                    'workload-status': 'blocked'}},
+                timeout=1)
         self.assertTrue(self.system_ready)
 
     def test_wait_for_application_states_bespoke_msg(self):
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Sure, I could do something'})
-        model.wait_for_application_states(
-            'modelname',
-            states={'app': {
-                'workload-status-message': 'Sure, I could do something'}},
-            timeout=1)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            model.wait_for_application_states(
+                'modelname',
+                states={'app': {
+                    'workload-status-message': 'Sure, I could do something'}},
+                timeout=1)
         self.assertTrue(self.system_ready)
 
     def test_wait_for_application_states_bespoke_msg_blocked_ok(self):
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Sure, I could do something'})
-        model.wait_for_application_states(
-            'modelname',
-            states={'app': {
-                'workload-status': 'blocked',
-                'workload-status-message': 'Sure, I could do something'}},
-            timeout=1)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            model.wait_for_application_states(
+                'modelname',
+                states={'app': {
+                    'workload-status': 'blocked',
+                    'workload-status-message': 'Sure, I could do something'}},
+                timeout=1)
         self.assertTrue(self.system_ready)
 
     def test_wait_for_application_states_idle_timeout(self):
@@ -1319,8 +1341,9 @@ class TestModel(ut_utils.BaseTestCase):
             'agent-status': 'executing',
             'workload-status': 'blocked',
             'workload-status-message': 'Sure, I could do something'})
-        with self.assertRaises(model.ModelTimeout) as timeout:
-            model.wait_for_application_states('modelname', timeout=-2)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            with self.assertRaises(model.ModelTimeout) as timeout:
+                model.wait_for_application_states('modelname', timeout=-2)
         self.assertEqual(
             timeout.exception.args[0],
             "Work state not achieved within timeout.")
@@ -1330,8 +1353,9 @@ class TestModel(ut_utils.BaseTestCase):
             'agent-status': 'executing',
             'workload-status': 'blocked',
             'workload-status-message': 'Sure, I could do something'})
-        with self.assertRaises(model.ModelTimeout) as timeout:
-            model.wait_for_application_states('modelname', timeout=-3)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            with self.assertRaises(model.ModelTimeout) as timeout:
+                model.wait_for_application_states('modelname', timeout=-3)
         self.assertEqual(
             timeout.exception.args[0],
             "Work state not achieved within timeout.")
@@ -1346,14 +1370,15 @@ class TestModel(ut_utils.BaseTestCase):
             'workload-status-message': 'Unit is ready'})
         # override to zero units
         self.mymodel.applications['app'].units = []
-        model.wait_for_application_states(
-            'modelname',
-            states={
-                'app': {
-                    'num-expected-units': 0,
-                }
-            },
-            timeout=-1)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            model.wait_for_application_states(
+                'modelname',
+                states={
+                    'app': {
+                        'num-expected-units': 0,
+                    }
+                },
+                timeout=-1)
 
     def test_wait_for_application_states_zero_units_expect_one(self):
         self._application_states_setup({
@@ -1361,15 +1386,16 @@ class TestModel(ut_utils.BaseTestCase):
             'workload-status-message': 'Unit is ready'})
         # override to zero units
         self.mymodel.applications['app'].units = []
-        with self.assertRaises(model.ModelTimeout):
-            model.wait_for_application_states(
-                'modelname',
-                states={
-                    'app': {
-                        'num-expected-units': 1,
-                    }
-                },
-                timeout=-1)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            with self.assertRaises(model.ModelTimeout):
+                model.wait_for_application_states(
+                    'modelname',
+                    states={
+                        'app': {
+                            'num-expected-units': 1,
+                        }
+                    },
+                    timeout=-1)
 
     def test_wait_for_application_states_zero_units_none_set(self):
         self._application_states_setup({
@@ -1377,10 +1403,11 @@ class TestModel(ut_utils.BaseTestCase):
             'workload-status-message': 'Unit is ready'})
         # override to zero units
         self.mymodel.applications['app'].units = []
-        with self.assertRaises(model.ModelTimeout):
-            model.wait_for_application_states(
-                'modelname',
-                timeout=1)
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            with self.assertRaises(model.ModelTimeout):
+                model.wait_for_application_states(
+                    'modelname',
+                    timeout=1)
 
     def test_get_current_model(self):
         self.patch_object(model, 'Model')
@@ -1584,7 +1611,7 @@ class TestModel(ut_utils.BaseTestCase):
             if not rc:
                 raise AsyncTimeoutError
 
-        async def _get_status():
+        async def _get_status(*args):
             return self.juju_status
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
@@ -1607,7 +1634,7 @@ class TestModel(ut_utils.BaseTestCase):
             if not rc:
                 raise AsyncTimeoutError
 
-        async def _get_status():
+        async def _get_status(*args):
             return self.juju_status
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
@@ -1996,7 +2023,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             if not rc:
                 raise AsyncTimeoutError
 
-        async def _get_status():
+        async def _get_status(*args):
             return self.juju_status
 
         self.patch_object(model, 'Model')
@@ -2022,7 +2049,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             if not rc:
                 raise AsyncTimeoutError
 
-        async def _get_status():
+        async def _get_status(*args):
             return self.juju_status
 
         (self.juju_status.applications[self.application]
@@ -2056,7 +2083,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             if not rc:
                 raise AsyncTimeoutError
 
-        async def _get_status():
+        async def _get_status(*args):
             return self.juju_status
 
         self.patch_object(model, 'Model')
@@ -2084,7 +2111,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             if not rc:
                 raise AsyncTimeoutError
 
-        async def _get_status():
+        async def _get_status(*args):
             return self.juju_status
 
         self.patch_object(model, 'Model')
@@ -2109,7 +2136,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             if not rc:
                 raise AsyncTimeoutError
 
-        async def _get_status():
+        async def _get_status(*args):
             return self.juju_status
 
         self.patch_object(model, 'Model')
@@ -2135,7 +2162,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             if not rc:
                 raise AsyncTimeoutError
 
-        async def _get_status():
+        async def _get_status(*args):
             return self.juju_status
 
         self.patch_object(model, 'Model')
@@ -2161,7 +2188,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             if not rc:
                 raise AsyncTimeoutError
 
-        async def _get_status():
+        async def _get_status(*args):
             return self.juju_status
 
         self.patch_object(model, 'Model')
@@ -2192,38 +2219,38 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
         self.patch_object(model, 'units_with_wl_status_state')
         self.unit1.workload_status_message = 'hook failed: "update-status"'
         self.units_with_wl_status_state.return_value = [self.unit1]
-        self.patch_object(model, 'subprocess')
+        self.patch_object(model.generic_utils, 'check_output')
         self.block_until_auto_reconnect_model.side_effect = _block_until
 
     def test_resolve_units(self):
         self.resolve_units_mocks()
         model.resolve_units(wait=False)
-        self.subprocess.check_output.assert_called_once_with(
+        self.check_output.assert_called_once_with(
             ['juju', 'resolved', '-m', 'testmodel', 'app/2'])
 
     def test_resolve_units_no_match(self):
         self.resolve_units_mocks()
         model.resolve_units(application_name='foo', wait=False)
-        self.assertFalse(self.subprocess.check_output.called)
+        self.assertFalse(self.check_output.called)
 
     def test_resolve_units_wait_timeout(self):
         self.resolve_units_mocks()
         self.unit1.workload_status = 'error'
         with self.assertRaises(AsyncTimeoutError):
             model.resolve_units(wait=True, timeout=0.1)
-        self.subprocess.check_output.assert_called_once_with(
+        self.check_output.assert_called_once_with(
             ['juju', 'resolved', '-m', 'testmodel', 'app/2'])
 
     def test_resolve_units_erred_hook(self):
         self.resolve_units_mocks()
         model.resolve_units(wait=False, erred_hook='update-status')
-        self.subprocess.check_output.assert_called_once_with(
+        self.check_output.assert_called_once_with(
             ['juju', 'resolved', '-m', 'testmodel', 'app/2'])
 
     def test_resolve_units_erred_hook_no_match(self):
         self.resolve_units_mocks()
         model.resolve_units(erred_hook='foo', wait=False)
-        self.assertFalse(self.subprocess.check_output.called)
+        self.assertFalse(self.check_output.called)
 
     def test_wait_for_agent_status(self):
         async def _block_until(f, timeout=None, model=None):
@@ -2392,7 +2419,6 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
             ['juju', 'run', '--machine=1', '--', 'test'])
 
     async def test_run_on_machine_with_timeout(self):
-        # self.patch_object(model.generic_utils, 'check_call')
         with mock.patch.object(
             model.generic_utils,
             'check_output'
@@ -2402,7 +2428,6 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
             ['juju', 'run', '--machine=1', '--timeout=20m', '--', 'test'])
 
     async def test_run_on_machine_with_model(self):
-        # self.patch_object(model.generic_utils, 'check_call')
         with mock.patch.object(
             model.generic_utils,
             'check_output'
@@ -2473,10 +2498,9 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
         model_mock.applications = {
             'app': {
                 'units': FAKE_STATUS['units']}}
-        with mock.patch.object(model, 'run_in_model'):
-            with mock.patch.object(model, 'async_get_status',
-                                   return_value=model_mock):
-                pmap = await model.async_get_principle_sub_map()
+        with mock.patch.object(model, 'async_get_status',
+                               return_value=model_mock):
+            pmap = await model.async_get_principle_sub_map()
         self.assertEqual(
             pmap,
             {
@@ -2491,18 +2515,17 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
                 'units': FAKE_STATUS['units']},
             'dsql': {
                 'units': {}}}
-        with mock.patch.object(model, 'run_in_model'):
-            with mock.patch.object(model, 'async_get_status',
-                                   return_value=model_mock):
-                unita = await model.async_get_principle_unit('app-hacluster/0')
-                unitb = await model.async_get_principle_unit('absent-app/0')
+        with mock.patch.object(model, 'async_get_status',
+                               return_value=model_mock):
+            unita = await model.async_get_principle_unit('app-hacluster/0')
+            unitb = await model.async_get_principle_unit('absent-app/0')
         self.assertEqual(unita, 'app/0')
         self.assertIsNone(unitb)
 
     async def test_async_get_cloud_data(self):
-        with mock.patch.object(model, 'run_in_model'):
-            with mock.patch.object(
-                    model.juju.client.jujudata, 'FileJujuData') as juju_data:
+        with mock.patch.object(
+                model.juju.client.jujudata, 'FileJujuData') as juju_data:
+            with mock.patch.object(model, 'get_model'):
                 juju_data().load_credential.return_value = (
                     'fake-cred-name', 'fake-cred')
                 result = await model.async_get_cloud_data()
