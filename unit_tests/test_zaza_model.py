@@ -391,6 +391,65 @@ class TestModel(ut_utils.BaseTestCase):
         with self.assertRaises(Exception):
             model.sync_wrapper(_wrapper)()
 
+    def test_get_model_memo(self):
+        self.patch_object(model, 'ModelRefs', new={'modelname': self.mymodel})
+        self.patch_object(model, 'is_model_disconnected', return_value=False)
+
+        async def _wrapper():
+            return await model.get_model_memo('modelname')
+
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            mymodel = model.sync_wrapper(_wrapper)()
+            self.assertEqual(mymodel, self.mymodel)
+
+    def test_get_model_memo_disconnected(self):
+        async def _connect(*args):
+            return
+
+        Model_mock = mock.MagicMock()
+        Model_mock.connect.side_effect = _connect
+        self.patch_object(model, 'ModelRefs', new={'modelname': self.mymodel})
+        self.patch_object(model, 'is_model_disconnected', return_value=True)
+        self.patch_object(model, 'Model')
+        self.Model.return_value = Model_mock
+
+        async def _wrapper():
+            return await model.get_model_memo('modelname')
+
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            mymodel = model.sync_wrapper(_wrapper)()
+            self.assertEqual(mymodel, Model_mock)
+            self.mymodel.disconnect.assert_called_once_with()
+            self.assertEqual(self.ModelRefs['modelname'], Model_mock)
+
+    def test_remove_model_memo_doesnt_exist(self):
+        async def _wrapper():
+            await model.remove_model_memo('no-model-name')
+
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            model.sync_wrapper(_wrapper)()
+
+    def test_ensure_model_connected_exception(self):
+        self.patch_object(model, 'is_model_disconnected', return_value=True)
+
+        async def _disconnect_exception():
+            raise Exception("Disconnected")
+
+        async def _connect_model(*args):
+            return
+
+        self.mymodel.disconnect.side_effect = _disconnect_exception
+        self.mymodel.connect_model.side_effect = _connect_model
+
+        async def _wrapper():
+            await model.ensure_model_connected(self.mymodel)
+
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            mymodel = model.sync_wrapper(_wrapper)()
+            self.mymodel.disconnect.assert_called_once_with()
+            self.mymodel.connect_model.assert_called_once_with(
+                self.mymodel.info.name)
+
     def _mocks_for_block_until_auto_reconnect_model(
             self, is_connected=True, is_open=True):
         self.patch_object(model, 'logging')
