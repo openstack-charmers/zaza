@@ -23,6 +23,7 @@ class TestCharmLifecycleTest(ut_utils.BaseTestCase):
     def test_run_test_list(self):
         self.patch_object(lc_test, 'run_unittest')
         self.patch_object(lc_test, 'run_direct')
+        self.patch_object(lc_test, 'run_direct_with_args')
         self.patch_object(lc_test.utils, 'get_class')
 
         class TestClassOne():
@@ -37,23 +38,37 @@ class TestCharmLifecycleTest(ut_utils.BaseTestCase):
             def run(self):
                 return
 
+        class TestClassThree():
+
+            test_runner = 'direct_with_args'
+
+            def run(self, args):
+                return
+
         test_classes = {
             'TestClassOne': TestClassOne,
-            'TestClassTwo': TestClassTwo}
+            'TestClassTwo': TestClassTwo,
+            'TestClassThree': TestClassThree}
         self.get_class.side_effect = lambda x: test_classes[x]
-        lc_test.run_test_list(['TestClassOne', 'TestClassTwo'])
+        lc_test.run_test_list(['TestClassOne', 'TestClassTwo',
+                               'TestClassThree;arg1'])
         self.run_unittest.assert_called_once_with(
             TestClassOne,
             'TestClassOne')
         self.run_direct.assert_called_once_with(
             TestClassTwo,
             'TestClassTwo')
+        self.run_direct_with_args.assert_called_once_with(
+            TestClassThree,
+            'TestClassThree;arg1',
+            ['arg1'])
 
     def test_get_test_runners(self):
         self.assertEqual(
             lc_test.get_test_runners(),
             {
                 'direct': lc_test.run_direct,
+                'direct_with_args': lc_test.run_direct_with_args,
                 'unittest': lc_test.run_unittest}),
 
     def test_run_unittest(self):
@@ -72,6 +87,11 @@ class TestCharmLifecycleTest(ut_utils.BaseTestCase):
         test_class2_mock = mock.MagicMock()
         lc_test.run_direct(test_class2_mock, 'class name')
         test_class2_mock().run.assert_called_once_with()
+
+    def test_run_direct_with_args(self):
+        test_class2_mock = mock.MagicMock()
+        lc_test.run_direct_with_args(test_class2_mock, 'class name', ['arg1'])
+        test_class2_mock().run.assert_called_once_with(['arg1'])
 
     def test_test(self):
         self.patch_object(lc_test, 'run_test_list')
