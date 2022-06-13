@@ -92,9 +92,12 @@ def main():
             if args.configfuncs:
                 funcs = args.configfuncs
             else:
+                # NOTE: get_config_steps need to have test-directory set
+                utils.set_base_test_dir(test_dir=args.test_directory)
                 config_steps = utils.get_config_steps()
                 funcs = config_steps.get(model_alias, [])
-            configure(model_name, funcs)
+
+            configure(model_name, funcs, args.test_directory)
         run_report.output_event_report()
     finally:
         zaza.clean_up_libjuju_thread()
