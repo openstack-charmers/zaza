@@ -31,10 +31,10 @@ class UpgradeCharmsToPath(object):
         """
         Upgrade the named charm(s) to a locally defined "name.charm" file.
 
-        :param charms: LIst of charms to upgrade
+        :param charms: List of charms to upgrade
         :type charms: List[str]
-        :returns: Nothing
-        :rtype: None
+        :returns: Status of charm upgrade test
+        :rtype: bool
         """
         logging.info("Performing a charm upgrade on: {}".format(charms))
         cwd = os.getcwd()
@@ -42,3 +42,4 @@ class UpgradeCharmsToPath(object):
             charm_path = cwd + '/' + charm + '.charm'
             logging.debug("Upgrading {} to {}".format(charm, charm_path))
             model.upgrade_charm(charm, path=charm_path)
+        return True
