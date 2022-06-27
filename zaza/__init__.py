@@ -50,7 +50,7 @@ _libjuju_loop = None
 _libjuju_run = False
 
 # Timeout for loop to close.  This is set to 30 seconds.  If there is a non
-# async all in the async thread then it could stall the thread for more than 30
+# async call in the async thread then it could stall the thread for more than 30
 # seconds (e.g. an errant subprocess call).  This will cause a runtime error if
 # the timeout is exceeded.  This shouldn't normally be the case as there is
 # only one 'start' and 'stop' of the thread during a zaza runtime
