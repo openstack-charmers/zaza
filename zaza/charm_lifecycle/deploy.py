@@ -443,11 +443,14 @@ def main():
     if args.force:
         logging.warn("Using the --force argument for 'juju deploy'. Note "
                      "that this disables juju checks for compatibility.")
-    deploy(
-        args.bundle,
-        args.model,
-        wait=args.wait,
-        force=args.force,
-        test_directory=args.test_directory)
-    run_report.output_event_report()
-    zaza.clean_up_libjuju_thread()
+    try:
+        deploy(
+            args.bundle,
+            args.model,
+            wait=args.wait,
+            force=args.force,
+            test_directory=args.test_directory)
+        run_report.output_event_report()
+    finally:
+        zaza.clean_up_libjuju_thread()
+        asyncio.get_event_loop().close()

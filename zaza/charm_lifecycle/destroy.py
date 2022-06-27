@@ -63,5 +63,8 @@ def main():
     """Cleanup after test run."""
     args = parse_args(sys.argv[1:])
     cli_utils.setup_logging(log_level=args.loglevel.upper())
-    destroy(args.model_name)
-    zaza.clean_up_libjuju_thread()
+    try:
+        destroy(args.model_name)
+    finally:
+        zaza.clean_up_libjuju_thread()
+        asyncio.get_event_loop().close()

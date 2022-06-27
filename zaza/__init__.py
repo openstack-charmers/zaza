@@ -78,6 +78,8 @@ def get_or_create_libjuju_thread():
             # allow 5 seconds for thead to start
             if time.time() > now + 5.0:
                 raise RuntimeError("Async thread didn't start!")
+        # enable async subprocess calls in the libjuju thread to work
+        asyncio.get_child_watcher().attach_loop(_libjuju_loop)
     return _libjuju_thread
 
 
@@ -148,6 +150,9 @@ def join_libjuju_thread():
     global _libjuju_thread, _libjuju_loop, _libjuju_run
     if _libjuju_thread is not None:
         logging.debug("stopping the event loop")
+        # remove the child watcher (that was for subprocess calls) when
+        # dropping the thread.
+        asyncio.get_child_watcher().attach_loop(None)
         _libjuju_run = False
         # wait up to 30 seconds for loop to close.
         now = time.time()

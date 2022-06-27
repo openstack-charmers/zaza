@@ -151,18 +151,25 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
                                model_name=deployment.model_name):
                 zaza.model.block_until_all_units_idle(
                     model_name=deployment.model_name)
+            logging.info("Model {} has settled".format(
+                deployment.model_name))
 
         for deployment in env_deployment.model_deploys:
+            logging.info("configuring {}".format(deployment.model_name))
             configure.configure(
                 deployment.model_name,
                 config_steps.get(deployment.model_alias, []),
                 test_directory=test_directory)
+            logging.info("Finished configuring {}"
+                         .format(deployment.model_name))
 
         for deployment in env_deployment.model_deploys:
+            logging.info("Testing {}".format(deployment.model_name))
             test.test(
                 deployment.model_name,
                 test_steps.get(deployment.model_alias, []),
                 test_directory=test_directory)
+            logging.info("Finished testing {}".format(deployment.model_name))
 
     except zaza.model.ModelTimeout:
         failure_report(model_aliases, show_juju_status=True)
@@ -372,15 +379,17 @@ def main():
     if args.force:
         logging.warn("Using the --force argument for 'juju deploy'. Note "
                      "that this disables juju checks for compatibility.")
-    func_test_runner(
-        keep_last_model=args.keep_last_model,
-        keep_all_models=args.keep_all_models,
-        keep_faulty_model=args.keep_faulty_model,
-        smoke=args.smoke,
-        dev=args.dev,
-        bundles=args.bundles,
-        force=args.force,
-        test_directory=args.test_directory)
-    run_report.output_event_report()
-    zaza.clean_up_libjuju_thread()
-    asyncio.get_event_loop().close()
+    try:
+        func_test_runner(
+            keep_last_model=args.keep_last_model,
+            keep_all_models=args.keep_all_models,
+            keep_faulty_model=args.keep_faulty_model,
+            smoke=args.smoke,
+            dev=args.dev,
+            bundles=args.bundles,
+            force=args.force,
+            test_directory=args.test_directory)
+        run_report.output_event_report()
+    finally:
+        zaza.clean_up_libjuju_thread()
+        asyncio.get_event_loop().close()
