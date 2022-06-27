@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Run deploy phase."""
+import asyncio
 import argparse
 import jinja2
 import logging

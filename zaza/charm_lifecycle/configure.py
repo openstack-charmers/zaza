@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """Run configuration phase."""
-import asyncio
 import argparse
+import asyncio
 import sys
 
 import zaza.model

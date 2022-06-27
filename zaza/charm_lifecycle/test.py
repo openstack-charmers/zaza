@@ -13,11 +13,11 @@
 # limitations under the License.
 
 """Run test phase."""
-import asyncio
 import argparse
+import asyncio
 import logging
-import unittest
 import sys
+import unittest
 
 import zaza.model
 import zaza.global_options as global_options

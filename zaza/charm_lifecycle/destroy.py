@@ -14,6 +14,7 @@
 
 """Run destroy phase."""
 import argparse
+import asyncio
 import sys
 
 import zaza.controller
