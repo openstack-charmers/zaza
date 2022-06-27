@@ -50,9 +50,9 @@ _libjuju_loop = None
 _libjuju_run = False
 
 # Timeout for loop to close.  This is set to 30 seconds.  If there is a non
-# async call in the async thread then it could stall the thread for more than 30
-# seconds (e.g. an errant subprocess call).  This will cause a runtime error if
-# the timeout is exceeded.  This shouldn't normally be the case as there is
+# async call in the async thread then it could stall the thread for more than
+# 30 seconds (e.g. an errant subprocess call).  This will cause a runtime error
+# if the timeout is exceeded.  This shouldn't normally be the case as there is
 # only one 'start' and 'stop' of the thread during a zaza runtime
 LOOP_CLOSE_TIMEOUT = 30.0
 
@@ -89,7 +89,7 @@ def libjuju_thread_run():
     The thread that contains the runtime for libjuju asyncio futures.
 
     zaza runs libjuju in a background thread so that it can make progress as
-    needed with the model(s) that are connect.  The sync functions run in the
+    needed with the model(s) that are connected.  The sync functions run in the
     foreground thread, and the asyncio libjuju functions run in the background
     thread. `run_coroutine_threadsafe` is used to cross from sync to asyncio
     code in the background thread to enable access to the libjuju.
