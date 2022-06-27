@@ -90,7 +90,8 @@ def main():
     cli_utils.setup_logging(log_level=args.loglevel.upper())
     funcs = args.configfuncs or utils.get_charm_config()['before_deploy']
     try:
-        before_deploy(args.model_name, funcs, test_directory=args.test_directory)
+        before_deploy(
+            args.model_name, funcs, test_directory=args.test_directory)
         run_report.output_event_report()
     finally:
         zaza.clean_up_libjuju_thread()

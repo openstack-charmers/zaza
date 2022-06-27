@@ -445,7 +445,7 @@ class TestModel(ut_utils.BaseTestCase):
             await model.ensure_model_connected(self.mymodel)
 
         with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            mymodel = model.sync_wrapper(_wrapper)()
+            model.sync_wrapper(_wrapper)()
             self.mymodel.disconnect.assert_called_once_with()
             self.mymodel.connect_model.assert_called_once_with(
                 self.mymodel.info.name)
