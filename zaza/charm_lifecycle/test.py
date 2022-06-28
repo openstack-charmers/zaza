@@ -28,6 +28,7 @@ import zaza.utilities.run_report as run_report
 
 UNITTEST = 'unittest'
 DIRECT = 'direct'
+DIRECT_WITH_ARGS = 'direct_with_args'
 
 
 class Stream2Logger():
@@ -56,7 +57,9 @@ def get_test_runners():
     """
     return {
         UNITTEST: run_unittest,
-        DIRECT: run_direct}
+        DIRECT: run_direct,
+        DIRECT_WITH_ARGS: run_direct_with_args
+    }
 
 
 def run_unittest(testcase, test_name):
@@ -102,6 +105,32 @@ def run_direct(testcase, test_name):
         run_report.register_event_finish('Test {}'.format(test_name))
 
 
+def run_direct_with_args(testcase, test_name, args=None):
+    """Test runner for standalone tests.
+
+    Test runner for tests which are not written with any particular test
+    framework. They should expose a 'run' method which will be called to
+    execute the test. The 'run' method will be called with 'args'.
+
+    :param testcase: Class that encapsulates the test to be run.
+    :type testcase: Class
+    :param test_name: Name of the test for logging.
+    :type test_name: str
+    :param args: Additional arguments passed via test config
+    :type args: list[str]
+    """
+    if args is None:
+        args = []
+    # note if the assert fails, the events will be:
+    #   (NotifyEvents.TEST_CASE, NotifyType.BEFORE)
+    #   (NotifyEvents.TEST_CASE, NotifyEvents.EXCEPTION)
+    with notify_around(NotifyEvents.TEST_CASE, testcase=testcase,
+                       test_name=test_name):
+        test_run = testcase().run(args)
+        assert test_run, "Test run failed"
+        run_report.register_event_finish('Test {}'.format(test_name))
+
+
 def run_test_list(tests):
     """Run each test in the list using the appropriate test runner.
 
@@ -113,14 +142,19 @@ def run_test_list(tests):
     :type tests: List
     """
     for _testcase in tests:
+        _testcase_split, *args = _testcase.split(';')
         run_report.register_event_start('Test {}'.format(_testcase))
         logging.info('## Running Test {} ##'.format(_testcase))
-        testcase = utils.get_class(_testcase)
+        testcase = utils.get_class(_testcase_split)
         try:
             runner = testcase.test_runner
         except AttributeError:
             runner = UNITTEST
-        get_test_runners()[runner](testcase, _testcase)
+        test_runner = get_test_runners()[runner]
+        if args:
+            test_runner(testcase, _testcase, args)
+        else:
+            test_runner(testcase, _testcase)
 
 
 def test(model_name, tests, test_directory=None):
