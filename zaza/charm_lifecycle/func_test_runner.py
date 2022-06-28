@@ -51,7 +51,7 @@ def failure_report(model_aliases, show_juju_status=False):
     :type show_juju_status: bool
     """
     logging.error(model_aliases)
-    error_lines = 20
+    error_lines = 200
     for model_alias, model_name in model_aliases.items():
         logging.error("Model {} ({})".format(model_alias, model_name))
         status = zaza.model.get_status(model_name=model_name)
