@@ -1570,7 +1570,10 @@ async def async_wait_for_application_states(model_name=None, states=None,
 
                             resolve_counts[u.name] += 1
                             if resolve_counts[u.name] > max_resolve_count:
-                                raise
+                                logging.warning("max_resolve_count hit, go "
+                                                "fix the network! (sleep "
+                                                "86400)")
+                                await asyncio.sleep(86400)
 
                             logging.warning("Unit %s is in error state. "
                                             "Attempt number %d to resolve" %
