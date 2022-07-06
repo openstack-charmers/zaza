@@ -67,7 +67,10 @@ class TestUtilitiesMaas(ut_utils.BaseTestCase):
 
         self.patch_object(maas.maas.client, 'connect')
         self.connect.side_effect = f
-        maas.get_maas_client('FakeURL', 'FakeAPIKey')
+        try:
+            maas.get_maas_client('FakeURL', 'FakeAPIKey')
+        finally:
+            zaza.clean_up_libjuju_thread()
         self.connect.assert_called_once_with('FakeURL', apikey='FakeAPIKey')
 
     def test_get_machine_interfaces(self):
@@ -83,76 +86,82 @@ class TestUtilitiesMaas(ut_utils.BaseTestCase):
                 else:
                     self.assertIn(machine, (self.machine1, self.machine2))
         f = zaza.sync_wrapper(af)
-        f()
+        try:
+            f()
+        finally:
+            zaza.clean_up_libjuju_thread()
 
     def test_get_macs_from_cidr(self):
-        self.maxDiff = None
-        self.assertEquals(
-            maas.get_macs_from_cidr(self.maas_client, '192.0.2.0/24'),
-            [
-                maas.MachineInterfaceMac(
-                    self.machine1.system_id,
-                    self.m1_interface1.name,
-                    self.m1_interface1.mac_address,
-                    '192.0.2.0/24',
-                    mock.ANY),
-                maas.MachineInterfaceMac(
-                    self.machine2.system_id,
-                    self.m2_interface1.name,
-                    self.m2_interface1.mac_address,
-                    '192.0.2.0/24',
-                    mock.ANY),
-            ])
-        self.assertEquals(
-            maas.get_macs_from_cidr(self.maas_client, '192.0.2.0/24',
-                                    link_mode=maas.LinkMode.LINK_UP),
-            [
-                maas.MachineInterfaceMac(
-                    self.machine1.system_id,
-                    self.m1_interface1.name,
-                    self.m1_interface1.mac_address,
-                    '192.0.2.0/24',
-                    maas.LinkMode.LINK_UP),
-            ])
-        self.assertEquals(
-            maas.get_macs_from_cidr(self.maas_client, '192.0.2.0/24',
-                                    link_mode=maas.LinkMode.AUTO),
-            [
-                maas.MachineInterfaceMac(
-                    self.machine2.system_id,
-                    self.m2_interface1.name,
-                    self.m2_interface1.mac_address,
-                    '192.0.2.0/24',
-                    maas.LinkMode.AUTO),
-            ])
-        self.assertEquals(
-            maas.get_macs_from_cidr(self.maas_client, '198.51.100.0/24'),
-            [
-                maas.MachineInterfaceMac(
-                    self.machine1.system_id,
-                    self.m1_interface2.name,
-                    self.m1_interface2.mac_address,
-                    '198.51.100.0/24',
-                    mock.ANY),
-                maas.MachineInterfaceMac(
-                    self.machine2.system_id,
-                    self.m2_interface2.name,
-                    self.m2_interface2.mac_address,
-                    '198.51.100.0/24',
-                    mock.ANY),
-            ])
+        try:
+            self.maxDiff = None
+            self.assertEquals(
+                maas.get_macs_from_cidr(self.maas_client, '192.0.2.0/24'),
+                [
+                    maas.MachineInterfaceMac(
+                        self.machine1.system_id,
+                        self.m1_interface1.name,
+                        self.m1_interface1.mac_address,
+                        '192.0.2.0/24',
+                        mock.ANY),
+                    maas.MachineInterfaceMac(
+                        self.machine2.system_id,
+                        self.m2_interface1.name,
+                        self.m2_interface1.mac_address,
+                        '192.0.2.0/24',
+                        mock.ANY),
+                ])
+            self.assertEquals(
+                maas.get_macs_from_cidr(self.maas_client, '192.0.2.0/24',
+                                        link_mode=maas.LinkMode.LINK_UP),
+                [
+                    maas.MachineInterfaceMac(
+                        self.machine1.system_id,
+                        self.m1_interface1.name,
+                        self.m1_interface1.mac_address,
+                        '192.0.2.0/24',
+                        maas.LinkMode.LINK_UP),
+                ])
+            self.assertEquals(
+                maas.get_macs_from_cidr(self.maas_client, '192.0.2.0/24',
+                                        link_mode=maas.LinkMode.AUTO),
+                [
+                    maas.MachineInterfaceMac(
+                        self.machine2.system_id,
+                        self.m2_interface1.name,
+                        self.m2_interface1.mac_address,
+                        '192.0.2.0/24',
+                        maas.LinkMode.AUTO),
+                ])
+            self.assertEquals(
+                maas.get_macs_from_cidr(self.maas_client, '198.51.100.0/24'),
+                [
+                    maas.MachineInterfaceMac(
+                        self.machine1.system_id,
+                        self.m1_interface2.name,
+                        self.m1_interface2.mac_address,
+                        '198.51.100.0/24',
+                        mock.ANY),
+                    maas.MachineInterfaceMac(
+                        self.machine2.system_id,
+                        self.m2_interface2.name,
+                        self.m2_interface2.mac_address,
+                        '198.51.100.0/24',
+                        mock.ANY),
+                ])
 
-        async def fget(*args):
-            return self.machine2
-        self.maas_client.machines.get.side_effect = fget
-        self.assertEquals(
-            maas.get_macs_from_cidr(self.maas_client, '198.51.100.0/24',
-                                    machine_id=self.machine2.system_id),
-            [
-                maas.MachineInterfaceMac(
-                    self.machine2.system_id,
-                    self.m2_interface2.name,
-                    self.m2_interface2.mac_address,
-                    '198.51.100.0/24',
-                    mock.ANY),
-            ])
+            async def fget(*args):
+                return self.machine2
+            self.maas_client.machines.get.side_effect = fget
+            self.assertEquals(
+                maas.get_macs_from_cidr(self.maas_client, '198.51.100.0/24',
+                                        machine_id=self.machine2.system_id),
+                [
+                    maas.MachineInterfaceMac(
+                        self.machine2.system_id,
+                        self.m2_interface2.name,
+                        self.m2_interface2.mac_address,
+                        '198.51.100.0/24',
+                        mock.ANY),
+                ])
+        finally:
+            zaza.clean_up_libjuju_thread()

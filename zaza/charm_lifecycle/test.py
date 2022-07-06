@@ -13,11 +13,11 @@
 # limitations under the License.
 
 """Run test phase."""
-import asyncio
 import argparse
+import asyncio
 import logging
-import unittest
 import sys
+import unittest
 
 import zaza.model
 import zaza.global_options as global_options
@@ -221,15 +221,18 @@ def main():
     if args.config:
         for config_item in args.config:
             add_config_option(config_item)
-    for model_alias, model_name in args.model.items():
-        if args.tests:
-            tests = args.tests
-        else:
-            test_steps = utils.get_test_steps()
-            tests = test_steps.get(model_alias, [])
-        test(
-            model_name,
-            tests,
-            test_directory=args.test_directory)
-    run_report.output_event_report()
-    asyncio.get_event_loop().close()
+    try:
+        for model_alias, model_name in args.model.items():
+            if args.tests:
+                tests = args.tests
+            else:
+                test_steps = utils.get_test_steps()
+                tests = test_steps.get(model_alias, [])
+            test(
+                model_name,
+                tests,
+                test_directory=args.test_directory)
+        run_report.output_event_report()
+    finally:
+        zaza.clean_up_libjuju_thread()
+        asyncio.get_event_loop().close()

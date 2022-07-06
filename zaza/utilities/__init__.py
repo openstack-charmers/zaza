@@ -17,8 +17,29 @@
 
 from functools import wraps
 import json
+import logging
 import os
 import types
+
+
+# Keep a copy of what we've already deprecated
+deprecations = set()
+
+
+def deprecate():
+    """Add a deprecation warning to wrapped function."""
+    def wrap(f):
+
+        @wraps(f)
+        def wrapped_f(*args, **kwargs):
+            global deprecations
+            if f not in deprecations:
+                msg = "{} is deprecated. ".format(f.__name__)
+                logging.warning(msg)
+                deprecations.add(f)
+            return f(*args, **kwargs)
+        return wrapped_f
+    return wrap
 
 
 class ConfigurableMixin:

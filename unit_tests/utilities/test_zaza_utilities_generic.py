@@ -40,6 +40,10 @@ FAKE_STATUS = {
                                    'charm': 'local:trusty/hacluster-0'}}}}}
 
 
+def tearDownModule():
+    zaza.clean_up_libjuju_thread()
+
+
 class TestGenericUtils(ut_utils.BaseTestCase):
 
     def setUp(self):

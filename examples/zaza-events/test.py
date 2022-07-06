@@ -18,6 +18,7 @@ import os
 import pathlib
 import time
 
+import zaza
 import zaza.events
 from zaza.events import Events
 import zaza.events.plugins.logging
@@ -100,6 +101,7 @@ with open("combined.logs", "wt") as f:
 # and really just clean-up now.
 collection.clean_up()
 
+zaza.clean_up_libjuju_thread()
 # Deal with [1] in Python3.5
 # [1] https://bugs.python.org/issue28628
 asyncio.get_event_loop().close()
