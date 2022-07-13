@@ -26,6 +26,9 @@ from keystoneauth1.identity import (
 from novaclient import client as novaclient_client
 
 
+USER_AGENT = 'zaza'
+
+
 class MissingOSAthenticationException(Exception):
     """Exception when some data needed to authenticate is missing."""
 
@@ -66,7 +69,8 @@ def get_keystone_session(openrc_creds, scope='PROJECT', verify=None):
         auth = v2.Password(**keystone_creds)
     else:
         auth = v3.Password(**keystone_creds)
-    return session.Session(auth=auth, verify=verify)
+    return session.Session(auth=auth, verify=verify,
+                           user_agent=USER_AGENT)
 
 
 def get_ks_creds(cloud_creds, scope='PROJECT'):
@@ -191,7 +195,8 @@ def get_nova_session_client(session, version=2):
     :returns: Authenticated novaclient
     :rtype: novaclient.Client object
     """
-    return novaclient_client.Client(version, session=session)
+    return novaclient_client.Client(version, session=session,
+                                    user_agent=USER_AGENT)
 
 
 # Manage resources

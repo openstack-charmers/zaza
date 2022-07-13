@@ -103,10 +103,13 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         session_mock = mock.MagicMock()
         self.patch_object(openstack_provider.novaclient_client, "Client")
         openstack_provider.get_nova_session_client(session_mock)
-        self.Client.assert_called_once_with(2, session=session_mock)
+        self.Client.assert_called_once_with(
+            2, session=session_mock, user_agent=openstack_provider.USER_AGENT)
         self.Client.reset_mock()
         openstack_provider.get_nova_session_client(session_mock, version=2.56)
-        self.Client.assert_called_once_with(2.56, session=session_mock)
+        self.Client.assert_called_once_with(
+            2.56, session=session_mock,
+            user_agent=openstack_provider.USER_AGENT)
 
     def test__resource_removed(self):
         resource_mock = mock.MagicMock()
@@ -185,7 +188,8 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
             "OS_TENANT_NAME": "tenant",
         }
         openstack_provider.get_keystone_session(_openrc)
-        self.session.Session.assert_called_once_with(auth=_auth, verify=None)
+        self.session.Session.assert_called_once_with(
+            auth=_auth, verify=None, user_agent=openstack_provider.USER_AGENT)
 
     def test_get_keystone_session_tls(self):
         self.patch_object(openstack_provider, "session")
@@ -202,4 +206,5 @@ class TestOpenStackUtils(ut_utils.BaseTestCase):
         }
         openstack_provider.get_keystone_session(_openrc)
         self.session.Session.assert_called_once_with(
-            auth=_auth, verify=_cacert)
+            auth=_auth, verify=_cacert,
+            user_agent=openstack_provider.USER_AGENT)
