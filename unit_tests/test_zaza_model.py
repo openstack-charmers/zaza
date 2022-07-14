@@ -1156,6 +1156,27 @@ class TestModel(ut_utils.BaseTestCase):
                 self.unit1,
                 regex=r"my\sholiday.$"))
 
+    def test_is_unit_errored_from_install_hook(self):
+        self._application_states_setup({
+            'workload-status': 'error',
+            'workload-status-message': 'hook failed: "install"'})
+        self.assertTrue(
+            model.is_unit_errored_from_install_hook(self.unit1))
+
+    def test_is_unit_errored_from_install_hook_not_install_hook(self):
+        self._application_states_setup({
+            'workload-status': 'error',
+            'workload-status-message': 'hook failed: "config-changed"'})
+        self.assertFalse(
+            model.is_unit_errored_from_install_hook(self.unit1))
+
+    def test_is_unit_errored_from_install_hook_not_error(self):
+        self._application_states_setup({
+            'workload-status': 'blocked',
+            'workload-status-message': 'waiting on the sunset'})
+        self.assertFalse(
+            model.is_unit_errored_from_install_hook(self.unit1))
+
     def test_wait_for_application_states(self):
         self._application_states_setup({
             'workload-status': 'active',
@@ -1170,6 +1191,84 @@ class TestModel(ut_utils.BaseTestCase):
         with self.assertRaises(model.UnitError):
             model.wait_for_application_states('modelname', timeout=1)
             self.assertFalse(self.system_ready)
+
+    def test_wait_for_application_states_retries_no_success(self):
+        self.patch_object(model, 'check_model_for_hard_errors')
+        self.patch_object(model, 'async_resolve_units')
+        self.patch_object(model, 'check_unit_workload_status')
+
+        def unit_wl_status(_model, unit, states):
+            # There are two units. Only raise an error for the first unit
+            # so we can test scenarios where one unit is okay, the other
+            # unit is not okay.
+            if unit.name == 'app/2':
+                raise model.UnitError([unit])
+
+        self.check_unit_workload_status.side_effect = unit_wl_status
+        self._application_states_setup({
+            'workload-status': 'error',
+            'workload-status-message': 'hook failed: "install"'})
+        type(self.unit2).workload_status = 'active'
+        type(self.unit2).workload_status_message = 'Unit is ready'
+        with self.assertRaises(model.UnitError):
+            model.wait_for_application_states('modelname', timeout=1,
+                                              max_resolve_count=3)
+            self.assertFalse(self.system_ready)
+        self.assertEquals(self.async_resolve_units.call_count, 3)
+
+    def test_wait_for_application_states_retries_non_retryable(self):
+        self.patch_object(model, 'check_model_for_hard_errors')
+        self.patch_object(model, 'async_resolve_units')
+        self.patch_object(model, 'check_unit_workload_status')
+
+        def unit_wl_status(_model, unit, states):
+            # There are two units. Only raise an error for the first unit
+            # so we can test scenarios where one unit is okay, the other
+            # unit is not okay.
+            if unit.name == 'app/2':
+                raise model.UnitError([unit])
+
+        self.check_unit_workload_status.side_effect = unit_wl_status
+        self._application_states_setup({
+            'workload-status': 'error',
+            'workload-status-message': 'hook failed: "config-changed"'})
+        type(self.unit2).workload_status = 'active'
+        type(self.unit2).workload_status_message = 'Unit is ready'
+        with self.assertRaises(model.UnitError):
+            model.wait_for_application_states('modelname', timeout=1,
+                                              max_resolve_count=3)
+            self.assertFalse(self.system_ready)
+        self.async_resolve_units.assert_not_called()
+
+    def test_wait_for_application_states_retries_with_success(self):
+        self.patch_object(model, 'check_model_for_hard_errors')
+        self.patch_object(model, 'async_resolve_units')
+        self.patch_object(model, 'check_unit_workload_status')
+        count = 0
+
+        def unit_wl_status(_model, unit, states):
+            # After a couple of retries, we want to simulate the unit going
+            # into the active state, so tweak the state.
+            if unit.name == 'app/2':
+                nonlocal count
+                count += 1
+                if count < 3:
+                    raise model.UnitError([unit])
+                # Mutate the state for the desired behavior :-/
+                type(unit).workload_status = 'active'
+                type(unit).workload_status_message = 'Unit is ready'
+            return True
+
+        self.check_unit_workload_status.side_effect = unit_wl_status
+        self._application_states_setup({
+            'workload-status': 'error',
+            'workload-status-message': 'hook failed: "install"'})
+        type(self.unit2).workload_status = 'active'
+        type(self.unit2).workload_status_message = 'Unit is ready'
+
+        model.wait_for_application_states('modelname', timeout=500,
+                                          max_resolve_count=3)
+        self.assertEquals(self.async_resolve_units.call_count, 2)
 
     def test_wait_for_application_states_blocked_ok(self):
         self._application_states_setup({
