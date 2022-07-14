@@ -402,7 +402,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
             {},
-            timeout=3600)
+            timeout=3600, max_resolve_count=0)
 
     def test_deploy_bespoke_states(self):
         self.patch_object(lc_deploy.zaza.model, 'wait_for_application_states')
@@ -422,7 +422,25 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             {'vault': {
                 'workload-status': 'blocked',
                 'workload-status-message': 'Vault needs to be inited'}},
-            timeout=3600)
+            timeout=3600, max_resolve_count=0)
+
+    def test_deploy_resolve_count(self):
+        self.patch_object(lc_deploy.deployment_env, 'get_deployment_context')
+        self.patch_object(lc_deploy.zaza.model, 'wait_for_application_states')
+        self.patch_object(lc_deploy.utils, 'get_charm_config')
+        self.get_deployment_context.return_value = {
+            'TEST_MAX_RESOLVE_COUNT': 3,
+        }
+        self.get_charm_config.return_value = {}
+        self.patch_object(lc_deploy, 'deploy_bundle')
+        lc_deploy.deploy('bun.yaml', 'newmodel')
+        self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel',
+                                                   model_ctxt=None,
+                                                   force=False)
+        self.wait_for_application_states.assert_called_once_with(
+            'newmodel',
+            {},
+            timeout=3600, max_resolve_count=3)
 
     def test_deploy_nowait(self):
         self.patch_object(lc_deploy.zaza.model, 'wait_for_application_states')
