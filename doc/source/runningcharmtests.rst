@@ -283,3 +283,44 @@ both aliases::
 
     $ functest-configure -m bionic_model:bio -m xenial_model:xen
     $ functest-test -m bionic_model:bio -m xenial_model:xen
+
+Develop and re-run tests on existing model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Re-running tests on already deployed model helps developers to iteratively
+develop and test zaza tests without having to wait for lengthy model
+deployment each time a change in the tests needs to be verified.
+
+First step is to deploy the model using tox. You can choose any tox environment
+that runs a functional tests, we'll use ``func-smoke`` in this example. (Tip:
+Inspect environment definition in tox.ini file to make sure that it uses
+``--keep-model`` flag so that our model does not get destroyed at the end.)::
+
+    tox -e func-smoke
+
+Wait for the tests to finish. This process will deploy and configure new model
+named ``zaza-<UNIQUE_ID>`` (e.g.: ``zaza-4dcc436c59b9``) which we can later
+re-use.
+
+Next you have to activate the virtual environment created by tox and install
+your local zaza tests package. (In this example we'll use
+``zaza-openstack-tests`` package)::
+
+    source .tox/func-smoke/bin/activate
+    pip install -e ~/dev/zaza-openstack-tests/
+
+Now we can run specific tests on the model that was created earlier. For the
+sake of this example, let's say that we work on a test suite called ``MyTests``
+for ``nova-compute`` charm::
+
+    functest-test -m zaza-4dcc436c59b9 -t zaza.openstack.charm_tests.nova.tests.MyTests
+
+This will run the tests from the ``MyTests`` class in
+``zaza.openstack.charm_tests.nova.tests`` module on already deployed model
+``zaza-4dcc436c59b9``. In case that you need to run tests from multiple
+classes, the ``-t`` parameter can be repeated multiple times.
+
+Note: thanks to the usage of ``-e`` flag in ``pip install`` command, you don't
+need to reinstall your package containing zaza tests everytime you make a
+change to them. Any change made to the source code will be immediately effective
+in the virtual environment.
