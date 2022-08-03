@@ -1413,8 +1413,9 @@ class TestModel(ut_utils.BaseTestCase):
             'workload-status': 'blocked',
             'workload-status-message': 'Sure, I could do something'})
         with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            with self.assertRaises(model.ModelTimeout) as timeout:
-                model.wait_for_application_states('modelname', timeout=-3)
+            with mock.patch.object(model, 'APPS_LEFT_INTERVAL', -1):
+                with self.assertRaises(model.ModelTimeout) as timeout:
+                    model.wait_for_application_states('modelname', timeout=-3)
         self.assertEqual(
             timeout.exception.args[0],
             "Work state not achieved within timeout.")
@@ -1422,6 +1423,8 @@ class TestModel(ut_utils.BaseTestCase):
             "Timed out waiting for 'app/2'. The workload status is 'blocked' "
             "which is not one of '['active']'"),
             self.mock_logging_info.mock_calls)
+        self.assertIn(mock.call("Applications left: %s", "app"),
+                      self.mock_logging_info.mock_calls)
 
     def test_wait_for_application_states_zero_units(self):
         self._application_states_setup({
