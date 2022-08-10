@@ -1,7 +1,8 @@
 aiounittest
 async_generator
 kubernetes<18.0.0; python_version < '3.6' # pined, as juju uses kubernetes
-juju
+# pinned until 3.0 regressions are handled: https://github.com/openstack-charmers/zaza/issues/545
+juju<3.0
 juju_wait
 PyYAML>=3.0
 flake8>=2.2.4
