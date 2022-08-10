@@ -855,7 +855,7 @@ class WriterCSV(WriterBase):
         :rtype: _T
         """
         assert isinstance(value, str)
-        if not(value.startswith('"') and value.endswith('"')):
+        if not (value.startswith('"') and value.endswith('"')):
             if '"' in value:
                 value = value.replace('"', '""')
             value = '"{}"'.format(value)
