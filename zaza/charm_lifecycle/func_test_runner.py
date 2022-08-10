@@ -195,7 +195,7 @@ def destroy_models(model_aliases, destroy):
 def func_test_runner(keep_last_model=False, keep_all_models=False,
                      keep_faulty_model=False, smoke=False, dev=False,
                      bundles=None, force=False, test_directory=None):
-    """Deploy the bundles and run the tests as defined by the charms tests.yaml.
+    """Deploy bundles and run the tests as defined by the charms tests.yaml.
 
     :param keep_last_model: Whether to destroy last model at end of run
     :type keep_last_model: boolean
