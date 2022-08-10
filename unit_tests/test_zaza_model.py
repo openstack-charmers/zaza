@@ -2372,7 +2372,7 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
             return_value=model_mock
         ):
             idle = await model.async_check_if_subordinates_idle('app', 'app/0')
-        assert(idle)
+        assert idle
 
     async def test_async_get_agent_status_busy(self):
         model_mock = mock.MagicMock()
@@ -2399,7 +2399,7 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
     async def test_async_check_if_subordinates_idle_missing(self):
         model_mock = mock.MagicMock()
         status = copy.deepcopy(EXECUTING_STATUS)
-        del(status['units']['app/0']['subordinates'])
+        del status['units']['app/0']['subordinates']
         model_mock.applications.__getitem__.return_value = status
         with mock.patch.object(
             model,
@@ -2407,7 +2407,7 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
             return_value=model_mock
         ):
             idle = await model.async_check_if_subordinates_idle('app', 'app/0')
-        assert(idle)
+        assert idle
 
     async def test_async_get_principle_sub_map(self):
         model_mock = mock.MagicMock()
