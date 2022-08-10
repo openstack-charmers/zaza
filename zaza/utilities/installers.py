@@ -560,7 +560,7 @@ class SystemdControl:
             self._stopped = True
             return False
         _running = "running" in output.strip()
-        self._stopped = not(_running)
+        self._stopped = not (_running)
         return _running
 
     def remove(self):
