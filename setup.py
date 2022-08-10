@@ -35,7 +35,7 @@ install_require = [
 
     'hvac<0.7.0',
     'jinja2',
-    'juju',
+    'juju<3.0',
     'juju-wait',
     'PyYAML',
     'tenacity',
