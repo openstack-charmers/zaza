@@ -1686,13 +1686,13 @@ async def async_wait_for_application_states(model_name=None, states=None,
                     all_okay = False
 
             # if not all states are okay, continue to the next one.
-            if not(all_okay):
+            if not (all_okay):
                 continue
 
             applications_left.remove(application)
             logging.info("Application %s is ready.", application)
 
-        if not(applications_left):
+        if not (applications_left):
             logging.info("All applications reached approved status, "
                          "number of units (where relevant), and workload"
                          " status message checks.")
@@ -1970,7 +1970,7 @@ async def async_block_until_machine_status_is(
                                          interval=interval,
                                          refresh=refresh)
         equals = _status["machines"][machine].agent_status["status"] == status
-        return not(equals) if invert_check else equals
+        return not (equals) if invert_check else equals
 
     await async_block_until(_check_machine_status, timeout=timeout)
 
@@ -2463,7 +2463,7 @@ async def async_block_until_wl_status_info_starts_with(
                     if k.split('/')[0] == app]
         g = (s.startswith(status) for s in wl_infos)
         if negate_match:
-            return not(any(g))
+            return not (any(g))
         else:
             return all(g)
 
@@ -2577,7 +2577,7 @@ async def async_get_relation_id(application_name, remote_application_name,
         if remote_interface_name is not None:
             spec += ':{}'.format(remote_interface_name)
         if rel.matches(spec):
-            return(rel.id)
+            return (rel.id)
 
 get_relation_id = sync_wrapper(async_get_relation_id)
 
