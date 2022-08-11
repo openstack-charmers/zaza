@@ -1,5 +1,6 @@
 applications:
   ubuntu:
+    series: focal
     charm: cs:ubuntu
     num_units: 10
 

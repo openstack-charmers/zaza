@@ -1,6 +1,6 @@
 applications:
-  magpie-xenial:
-    series: xenial
+  magpie-focal:
+    series: focal
     charm: cs:~openstack-charmers-next/magpie
     num_units: 2
   magpie-bionic:
@@ -8,5 +8,6 @@ applications:
     charm: cs:~openstack-charmers-next/magpie
     num_units: 2
   ubuntu:
+    series: focal
     charm: cs:ubuntu
     num_units: 3

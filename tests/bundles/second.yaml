@@ -4,5 +4,6 @@ applications:
     charm: cs:~openstack-charmers-next/magpie
     num_units: 2
   ubuntu:
+    series: focal
     charm: cs:ubuntu
     num_units: 3
