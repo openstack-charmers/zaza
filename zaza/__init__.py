@@ -156,7 +156,7 @@ def join_libjuju_thread():
         _libjuju_run = False
         # wait up to 30 seconds for loop to close.
         now = time.time()
-        while not (_libjuju_loop.is_closed()):
+        while not _libjuju_loop.is_closed():
             logging.debug("Closing ...")
             time.sleep(.1)
             if time.time() > now + LOOP_CLOSE_TIMEOUT:
