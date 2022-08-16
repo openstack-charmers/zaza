@@ -313,7 +313,7 @@ def render_overlays(bundle, target_dir, model_ctxt=None):
     return overlays
 
 
-def deploy_bundle(bundle, model, model_ctxt=None, force=False):
+def deploy_bundle(bundle, model, model_ctxt=None, force=False, trust=False):
     """Deploy the given bundle file in the specified model.
 
     The force param is used to enable zaza testing with Juju with charms
@@ -328,12 +328,16 @@ def deploy_bundle(bundle, model, model_ctxt=None, force=False):
     :type model_ctxt: {}
     :param force: Pass the force parameter if True
     :type force: Boolean
+    :param trust: Pass the trust parameter if True
+    :type trust: Boolean
     """
     logging.info("Deploying bundle '{}' on to '{}' model"
                  .format(bundle, model))
     cmd = ['juju', 'deploy', '-m', model]
     if force:
         cmd.append('--force')
+    if trust:
+        cmd.append('--trust')
     with tempfile.TemporaryDirectory() as tmpdirname:
         bundle_out = '{}/{}'.format(tmpdirname, os.path.basename(bundle))
         # Bundle templates should only exist in the bundle directory so
@@ -365,7 +369,7 @@ def deploy_bundle(bundle, model, model_ctxt=None, force=False):
 
 
 def deploy(bundle, model, wait=True, model_ctxt=None, force=False,
-           test_directory=None):
+           test_directory=None, trust=False):
     """Run all steps to complete deployment.
 
     :param bundle: Path to bundle file
@@ -385,8 +389,9 @@ def deploy(bundle, model, wait=True, model_ctxt=None, force=False,
     utils.set_base_test_dir(test_dir=test_directory)
     run_report.register_event_start('Deploy Bundle')
     with notify_around(NotifyEvents.DEPLOY_BUNDLE, bundle=bundle, model=model,
-                       model_ctxt=model_ctxt, force=force):
-        deploy_bundle(bundle, model, model_ctxt=model_ctxt, force=force)
+                       model_ctxt=model_ctxt, force=force, trust=trust):
+        deploy_bundle(bundle, model, model_ctxt=model_ctxt, force=force,
+                      trust=trust)
     run_report.register_event_finish('Deploy Bundle')
     if wait:
         run_report.register_event_start('Wait for Deployment')
@@ -427,6 +432,9 @@ def parse_args(args):
     parser.add_argument('-f', '--force', dest='force',
                         help='Pass --force to the juju deploy command',
                         action='store_true')
+    parser.add_argument('-t', '--trust', dest='trust',
+                        help='Pass --trust to the juju deploy command',
+                        action='store_true')
     parser.add_argument('--no-wait', dest='wait',
                         help='Do not wait for deployment to settle',
                         action='store_false')
@@ -450,7 +458,9 @@ def main():
             args.model,
             wait=args.wait,
             force=args.force,
-            test_directory=args.test_directory)
+            test_directory=args.test_directory,
+            trust=args.trust,
+        )
         run_report.output_event_report()
     finally:
         zaza.clean_up_libjuju_thread()
