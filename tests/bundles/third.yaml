@@ -1,3 +1,4 @@
+series: focal
 applications:
   ubuntu:
     charm: ch:ubuntu
