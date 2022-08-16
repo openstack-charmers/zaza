@@ -1,12 +1,14 @@
 applications:
   magpie-xenial:
     series: xenial
-    charm: cs:~openstack-charmers-next/magpie
+    charm: ch:magpie
+    channel: latest/edge
     num_units: 2
   magpie-bionic:
     series: bionic
-    charm: cs:~openstack-charmers-next/magpie
+    charm: ch:magpie
+    channel: latest/edge
     num_units: 2
   ubuntu:
-    charm: cs:ubuntu
+    charm: ch:ubuntu
     num_units: 3
