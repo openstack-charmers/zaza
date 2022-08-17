@@ -17,4 +17,5 @@ keystoneauth1
 oslo.config
 python-novaclient
 tenacity
-juju
+# pinned until 3.0 regressions are handled: https://github.com/openstack-charmers/zaza/issues/545
+juju<3.0

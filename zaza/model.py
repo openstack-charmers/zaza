@@ -48,6 +48,8 @@ from zaza.utilities import deprecate
 # See https://github.com/juju/python-libjuju/issues/458 for more details
 JUJU_MAX_FRAME_SIZE = 2**30
 
+APPS_LEFT_INTERVAL = 600
+
 CURRENT_MODEL = None
 MODEL_ALIASES = {}
 
@@ -1573,6 +1575,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
     # installation failures. If a unit has been resolved 3 times,
     # then this will fail hard.
     resolve_counts = collections.defaultdict(int)
+    last_report = time.time()
     while True:
         # now we sleep to allow progress to be made in the libjuju futures
         await asyncio.sleep(0.5)
@@ -1691,6 +1694,11 @@ async def async_wait_for_application_states(model_name=None, states=None,
 
             applications_left.remove(application)
             logging.info("Application %s is ready.", application)
+
+        delta_last_report = time.time() - last_report
+        if applications_left and delta_last_report > APPS_LEFT_INTERVAL:
+            last_report = time.time()
+            logging.info("Applications left: %s", ", ".join(applications_left))
 
         if not applications_left:
             logging.info("All applications reached approved status, "
