@@ -1,7 +1,7 @@
 series: focal
 applications:
-  magpie-xenial:
-    series: xenial
+  magpie-focal:
+    series: focal
     charm: ch:magpie
     channel: latest/edge
     num_units: 2
