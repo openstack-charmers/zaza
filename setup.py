@@ -25,6 +25,7 @@ from setuptools.command.test import test as TestCommand
 
 version = "0.0.1.dev1"
 install_require = [
+    'aiohttp<4.0.0',  # aiohttp/_http_parser.c:16227:5: error: lvalue required as increment operand
     'oslo.config<6.12.0',  # pin at stable/train to retain Py3.5 support
     'async_generator',
 
