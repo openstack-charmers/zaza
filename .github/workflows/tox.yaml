@@ -46,6 +46,11 @@ jobs:
         sudo chmod 666 /var/snap/lxd/common/lxd/unix.socket
         # until Juju provides stable IPv6-support we unfortunately need this
         lxc network set lxdbr0 ipv6.address none
+        # pull images
+        lxc image copy --alias juju/bionic/amd64 --copy-aliases ubuntu-daily:bionic local:
+        lxc image copy --alias juju/focal/amd64 --copy-aliases ubuntu-daily:focal local:
+        lxc image copy --alias juju/jammy/amd64 --copy-aliases ubuntu-daily:jammy local:
+        lxc image list
         juju bootstrap --no-gui localhost
     - name: Functional test
       run: |
