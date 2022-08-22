@@ -38,6 +38,18 @@ jobs:
           - latest/stable
           - 2.9/stable
           - 2.8/stable
+        bundle:
+          - first
+          - second
+          - third
+        exclude:
+          # disable 'first' and 'second' bundles for juju 2.8 since 'magpie'
+          # is not a promulgated charm in the charmstore, only on charmhub
+          # which 2.8 can't talk to.
+          - juju_channel: 2.8/stable
+            bundle: first
+          - juju_channel: 2.8/stable
+            bundle: second
     needs: build
     steps:
     - uses: actions/checkout@v1
@@ -63,7 +75,7 @@ jobs:
       run: |
         set -euxo pipefail
         mkdir logs
-        tox -e func | tee logs/tox-output.txt
+        tox -e func-target -- ${{ matrix.bundle }} | tee logs/tox-output.txt
     - name: crashdump on failure
       if: failure()
       run: |
