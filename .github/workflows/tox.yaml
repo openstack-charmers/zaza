@@ -31,6 +31,13 @@ jobs:
         codecov --verbose --gcov-glob unit_tests/*
   func:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        juju_channel:
+          - latest/stable
+          - 2.9/stable
+          - 2.8/stable
     needs: build
     steps:
     - uses: actions/checkout@v1
@@ -39,7 +46,7 @@ jobs:
         set -euxo pipefail
         python -m pip install --upgrade pip
         pip install tox tox-gh-actions
-        sudo snap install --classic juju
+        sudo snap install --channel ${{ matrix.juju_channel }} --classic juju
         sudo snap install --classic juju-crashdump
         sudo lxd init --auto
         # This is a throw-away CI environment, do not do this at home
