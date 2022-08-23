@@ -258,8 +258,11 @@ def get_machine_status(machine, key=None, model_name=None):
     if "lxd" in machine:
         host = machine.split('/')[0]
         status = status.machines.get(host)['containers'][machine]
-    else:
+    elif status.machines:
         status = status.machines.get(machine)
+    else:
+        # if no machines, then we're probably on k8s, so no machine status.
+        status = {}
     if key:
         status = status.get(key)
     return status
