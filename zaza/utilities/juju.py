@@ -480,9 +480,14 @@ def get_subordinate_units(unit_list, charm_name=None, status=None,
         subs = status.applications[app_name]['units'][unit_name].get(
             'subordinates') or {}
         if charm_name:
-            for unit_name, unit_data in subs.items():
-                if charm_name in unit_data['charm']:
-                    sub_units.append(unit_name)
+            for subordinate_name, unit_data in subs.items():
+                if os.environ.get('TEST_ZAZA_BUG_LP1987332'):
+                    sub_app = subordinate_name.split('/')[0]
+                    charm = status.applications[sub_app]['charm']
+                else:
+                    charm = unit_data['charm']
+                if charm_name in charm:
+                    sub_units.append(subordinate_name)
         else:
             sub_units.extend([n for n in subs.keys()])
     return sub_units
