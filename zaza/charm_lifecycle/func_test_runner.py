@@ -95,7 +95,7 @@ def failure_report(model_aliases, show_juju_status=False):
 
 
 def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
-                       test_directory=None):
+                       test_directory=None, trust=False):
     """Run the environment deployment.
 
     :param env_deployment: Environment Deploy to execute.
@@ -104,6 +104,8 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
     :type keep_model: int
     :param force: Pass the force parameter if True
     :type force: Boolean
+    :param trust: Pass the trust parameter if True
+    :type trust: Boolean
     :param test_directory: Set the directory containing tests.yaml and bundles.
     :type test_directory: str
     """
@@ -131,6 +133,8 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
         for deployment in env_deployment.model_deploys:
             force_ = force or utils.is_config_deploy_forced_for_bundle(
                 deployment.bundle)
+            trust_ = trust or utils.is_config_deploy_trusted_for_bundle(
+                deployment.bundle)
 
             deploy.deploy(
                 os.path.join(
@@ -139,6 +143,7 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
                 deployment.model_name,
                 model_ctxt=model_aliases,
                 force=force_,
+                trust=trust_,
                 test_directory=test_directory)
 
         # When deploying bundles with cross model relations, hooks may be
@@ -206,7 +211,8 @@ def destroy_models(model_aliases, destroy):
 
 def func_test_runner(keep_last_model=False, keep_all_models=False,
                      keep_faulty_model=False, smoke=False, dev=False,
-                     bundles=None, force=False, test_directory=None):
+                     bundles=None, force=False, test_directory=None,
+                     trust=False):
     """Deploy bundles and run the tests as defined by the charms tests.yaml.
 
     :param keep_last_model: Whether to destroy last model at end of run
@@ -229,6 +235,8 @@ def func_test_runner(keep_last_model=False, keep_all_models=False,
     :type bundles: [str1, str2,...]
     :param force: Pass the force parameter if True to the juju deploy command
     :type force: Boolean
+    :param trust: Pass the trust parameter if True to the juju deploy command
+    :type trust: Boolean
     :param test_directory: Set the directory containing tests.yaml and bundles.
     :type test_directory: str
     """
@@ -293,7 +301,8 @@ def func_test_runner(keep_last_model=False, keep_all_models=False,
 
         with notify_around(NotifyEvents.BUNDLE, env_deployment=env_deployment):
             run_env_deployment(env_deployment, keep_model=preserve_model,
-                               force=force, test_directory=test_directory)
+                               force=force, test_directory=test_directory,
+                               trust=trust)
 
 
 def parse_args(args):
@@ -336,6 +345,9 @@ def parse_args(args):
                         nargs='+')
     parser.add_argument('-f', '--force', dest='force',
                         help='Pass --force to the juju deploy command',
+                        action='store_true')
+    parser.add_argument('-t', '--trust', dest='trust',
+                        help='Pass --trust to the juju deploy command',
                         action='store_true')
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
@@ -388,6 +400,7 @@ def main():
             dev=args.dev,
             bundles=args.bundles,
             force=args.force,
+            trust=args.trust,
             test_directory=args.test_directory)
         run_report.output_event_report()
     finally:

@@ -340,6 +340,24 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             ['juju', 'deploy', '-m', 'newmodel', '--force',
              './tests/bundles/bionic.yaml'])
 
+    def test_deploy_bundle_with_trust(self):
+        self.patch_object(lc_deploy.utils, 'get_charm_config')
+        self.get_charm_config.return_value = {}
+        self.patch_object(lc_deploy.tempfile, 'TemporaryDirectory')
+        enter_mock = mock.MagicMock()
+        enter_mock.__enter__.return_value = '/tmp/mytmpdir'
+        self.TemporaryDirectory.return_value = enter_mock
+        self.patch_object(lc_deploy, 'render_overlays')
+        self.patch_object(lc_deploy.utils, 'check_output_logging')
+        self.render_overlays.return_value = []
+        lc_deploy.deploy_bundle(
+            './tests/bundles/bionic.yaml',
+            'newmodel',
+            force=True, trust=True)
+        self.check_output_logging.assert_called_once_with(
+            ['juju', 'deploy', '-m', 'newmodel', '--force',
+             '--trust', './tests/bundles/bionic.yaml'])
+
     def test_deploy_bundle_template(self):
         self.patch_object(lc_deploy.utils, 'get_charm_config')
         self.patch_object(lc_deploy, 'get_template')
@@ -398,7 +416,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         lc_deploy.deploy('bun.yaml', 'newmodel')
         self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel',
                                                    model_ctxt=None,
-                                                   force=False)
+                                                   force=False, trust=False)
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
             {},
@@ -416,7 +434,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         lc_deploy.deploy('bun.yaml', 'newmodel')
         self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel',
                                                    model_ctxt=None,
-                                                   force=False)
+                                                   force=False, trust=False)
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
             {'vault': {
@@ -436,7 +454,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         lc_deploy.deploy('bun.yaml', 'newmodel')
         self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel',
                                                    model_ctxt=None,
-                                                   force=False)
+                                                   force=False, trust=False)
         self.wait_for_application_states.assert_called_once_with(
             'newmodel',
             {},
@@ -448,7 +466,7 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         lc_deploy.deploy('bun.yaml', 'newmodel', wait=False)
         self.deploy_bundle.assert_called_once_with('bun.yaml', 'newmodel',
                                                    model_ctxt=None,
-                                                   force=False)
+                                                   force=False, trust=False)
         self.assertFalse(self.wait_for_application_states.called)
 
     def test_parser(self):
@@ -490,3 +508,13 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
         self.assertTrue(args.force)
         args = lc_deploy.parse_args(['-m', 'model', '-b', 'bundle.yaml', '-f'])
         self.assertTrue(args.force)
+
+    def test_parser_trust(self):
+        args = lc_deploy.parse_args(['-m', 'model', '-b', 'bundle.yaml'])
+        self.assertFalse(args.trust)
+        # Now test we can override
+        args = lc_deploy.parse_args(['-m', 'model', '-b', 'bundle.yaml',
+                                     '--trust'])
+        self.assertTrue(args.trust)
+        args = lc_deploy.parse_args(['-m', 'model', '-b', 'bundle.yaml', '-t'])
+        self.assertTrue(args.trust)
