@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import mock
+import os
 import unit_tests.utils as ut_utils
 from zaza.utilities import juju as juju_utils
 
@@ -410,6 +411,51 @@ class TestJujuUtils(ut_utils.BaseTestCase):
                 charm_name='ceph',
                 status=juju_status),
             ['cinder-ceph/3'])
+
+    def test_get_subordinate_units_lp1987332(self):
+        juju_status = mock.MagicMock()
+        juju_status.applications = {
+            'nova-compute': {
+                'charm': 'ch:amd64/focal/nova-compute-1',
+                'units': {
+                    'nova-compute/0': {
+                        'subordinates': {
+                            'neutron-openvswitch/2': {
+                                'charm': ''}}}}},
+            'cinder': {
+                'charm': 'ch:amd64/focal/cinder-2',
+                'units': {
+                    'cinder/1': {
+                        'subordinates': {
+                            'cinder-hacluster/0': {
+                                'charm': ''},
+                            'cinder-ceph/3': {
+                                'charm': ''}}}}},
+            'cinder-hacluster': {
+                'charm': 'ch:amd64/focal/hacluster-3',
+            },
+            'cinder-ceph': {
+                'charm': 'ch:amd64/focal/cinder-ceph-4',
+            },
+            'neutron-openvswitch': {
+                'charm': 'ch:amd64/focal/neutron-openvswitch-5',
+            },
+        }
+        self.model.get_status.return_Value = juju_status
+        with mock.patch.dict(os.environ,
+                             {'TEST_ZAZA_BUG_LP1987332': '1'}):
+            self.assertEqual(
+                sorted(juju_utils.get_subordinate_units(
+                    ['nova-compute/0', 'cinder/1'],
+                    status=juju_status)),
+                sorted(['neutron-openvswitch/2', 'cinder-hacluster/0',
+                        'cinder-ceph/3']))
+            self.assertEqual(
+                juju_utils.get_subordinate_units(
+                    ['nova-compute/0', 'cinder/1'],
+                    charm_name='ceph',
+                    status=juju_status),
+                ['cinder-ceph/3'])
 
     def test_get_application_ip(self):
         self.model.get_application_config.return_value = {
