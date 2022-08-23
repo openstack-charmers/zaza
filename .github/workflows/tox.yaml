@@ -50,6 +50,8 @@ jobs:
             bundle: first
           - juju_channel: 2.8/stable
             bundle: second
+    env:
+      TEST_ZAZA_BUG_LP1987332: "on"  # http://pad.lv/1987332
     needs: build
     steps:
     - uses: actions/checkout@v1
