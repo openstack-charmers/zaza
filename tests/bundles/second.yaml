@@ -8,3 +8,9 @@ applications:
   ubuntu:
     charm: ch:ubuntu
     num_units: 3
+  ntp:
+    charm: ch:ntp
+    num_units: 0
+relations:
+  - - ubuntu
+    - ntp
