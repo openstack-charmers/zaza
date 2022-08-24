@@ -20,6 +20,7 @@ import logging
 import unittest
 
 import zaza.model
+import zaza.utilities.juju as juju_utils
 
 
 class RegressionTest(unittest.TestCase):
@@ -50,3 +51,14 @@ class RegressionTest(unittest.TestCase):
         for ip in ips:
             logging.info("Ip found %s", ip)
             self.assertIsNotNone(ip)
+
+    def test_03_get_subordinates(self):
+        """Get the subordinates associated to a principal."""
+        logging.info('Get the list of subordinates.')
+        units = [u.entity_id for u in zaza.model.get_units('ubuntu')]
+        logging.info('principal units found: %s', units)
+        subordinate = juju_utils.get_subordinate_units([units[0]],
+                                                       charm_name='ntp')
+        logging.info('subordinate(s) found %s for principal %s',
+                     subordinate, units[0])
+        self.assertEqual(len(subordinate), 1)
