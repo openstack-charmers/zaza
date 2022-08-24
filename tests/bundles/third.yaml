@@ -1,6 +1,11 @@
 series: focal
 applications:
   ubuntu:
-    charm: ch:ubuntu
+    charm: ubuntu
     num_units: 10
-
+  ntp:
+    charm: ntp
+    num_units: 0
+relations:
+  - - ubuntu
+    - ntp
