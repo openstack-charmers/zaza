@@ -192,8 +192,10 @@ def sync_wrapper(f, timeout=None):
     libjuju thread.  This is then waited until there is a result, in which case
     the result is returned.
 
-    :param f: The async co-routine to wrap.
-    :type f: Coroutine
+    :param f: The async function that when called is a co-routine
+        e.g. `async def some_function(...)` then `some_function` should be
+        passed as `f`.
+    :type f: function
     :param timeout: The timeout to apply, None for no timeout
     :type timeout: Optional[float]
     :returns: The de-async'd function
@@ -226,3 +228,28 @@ def sync_wrapper(f, timeout=None):
             raise
 
     return _wrapper
+
+
+def run(*steps):
+    """Run the given steps in an asyncio loop.
+
+    Note: previous versions of this function would ensure that any other
+    futures spawned by any of the steps are cleaned up after each step is
+    performed.  However, as the async thread runs continuously in a background
+    thread (unless RUN_LIBJUJU_IN_THREAD is not True), then these other tasks
+    are not cleaned up until the whole thread ends.
+
+    :param steps: List of async functions (not coroutines)
+    :type steps: List[function]
+    :returns: The result of the last async function called
+    :rtype: Any
+    """
+    if not steps:
+        return None
+
+    async def _runner():
+        for step in steps[:-1]:
+            await step()
+        return await steps[-1]()
+
+    return sync_wrapper(_runner)()
