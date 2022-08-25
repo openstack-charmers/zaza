@@ -454,7 +454,7 @@ def main():
                      "that this disables juju checks for compatibility.")
     try:
         deploy(
-            args.bundle,
+            os.path.abspath(args.bundle),
             args.model,
             wait=args.wait,
             force=args.force,
