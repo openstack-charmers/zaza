@@ -31,6 +31,7 @@
 """Functions to support converting async function to a sync equivalent."""
 import asyncio
 import concurrent.futures
+import inspect
 import logging
 import time
 import threading
@@ -239,7 +240,7 @@ def run(*steps):
     thread (unless RUN_LIBJUJU_IN_THREAD is not True), then these other tasks
     are not cleaned up until the whole thread ends.
 
-    :param steps: List of async functions (not coroutines)
+    :param steps: List of async functions, coroutines or literals
     :type steps: List[function]
     :returns: The result of the last async function called
     :rtype: Any
@@ -247,9 +248,19 @@ def run(*steps):
     if not steps:
         return None
 
+    async def maybe_call(f):
+        if inspect.iscoroutine(f):
+            return await f
+        elif inspect.iscoroutinefunction(f):
+            return await f()
+        elif inspect.isfunction(f):
+            return f()
+        else:
+            return f
+
     async def _runner():
         for step in steps[:-1]:
-            await step()
-        return await steps[-1]()
+            await maybe_call(step)
+        return await maybe_call(steps[-1])
 
     return sync_wrapper(_runner)()

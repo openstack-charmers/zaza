@@ -48,11 +48,16 @@ class TestModel(ut_utils.BaseTestCase):
         async def two():
             return 2
 
-        async def three():
-            return 3
+        async def add1(i):
+            return i + 1
+
+        def num4():
+            return 4
 
         with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
             self.assertEquals(zaza.run(one), 1)
             self.assertEquals(zaza.run(one, two), 2)
-            self.assertEquals(zaza.run(one, two, three), 3)
+            self.assertEquals(zaza.run(one, two, add1(2)), 3)
             self.assertEquals(zaza.run(), None)
+            self.assertEquals(zaza.run(num4), 4)
+            self.assertEquals(zaza.run(num4()), 4)
