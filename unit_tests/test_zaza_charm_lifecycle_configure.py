@@ -49,3 +49,39 @@ class TestCharmLifecycleConfigure(ut_utils.BaseTestCase):
         # Using args
         args = lc_configure.parse_args(['-m', 'model', '--log', 'DEBUG'])
         self.assertEqual(args.loglevel, 'DEBUG')
+
+    def test_main(self):
+        self.patch_object(lc_configure.sys, "argv")
+        self.patch_object(lc_configure, "cli_utils")
+        self.patch_object(lc_configure, "utils")
+        mock_args = mock.MagicMock()
+        self.patch_object(lc_configure, "parse_args", return_value=mock_args)
+        self.patch_object(lc_configure, "configure")
+        configfuncs = ["test-config-1", "test-config-2"]
+
+        # no model
+        mock_args.model.return_value = {}
+        lc_configure.main()
+        self.configure.assert_not_called()
+
+        # one model + configuration functions
+        mock_args.model = {"test-alias": "test-model"}
+        mock_args.configfuncs = configfuncs
+        mock_args.test_directory = None
+
+        lc_configure.main()
+        self.configure.assert_called_once_with("test-model", configfuncs, None)
+        mock_args.reset_mock()
+        self.configure.reset_mock()
+
+        # one model + configuration from test.yaml
+        mock_args.model = {"test-alias": "test-model"}
+        mock_args.configfuncs = None
+        mock_args.test_directory = "."
+        self.utils.get_config_steps.return_value = {"test-alias": configfuncs}
+
+        lc_configure.main()
+        self.utils.set_base_test_dir.assert_called_once_with(test_dir=".")
+        self.configure.assert_called_once_with("test-model", configfuncs, ".")
+        mock_args.reset_mock()
+        self.configure.reset_mock()
