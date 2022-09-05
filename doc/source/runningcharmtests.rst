@@ -57,6 +57,7 @@ via a .zaza.yaml file, eg.::
 
     ---
     region: my-region-name
+    cloud: my-cloud
 
 The above configuration is required to run Zaza on a multi cloud / region Juju
 controller.

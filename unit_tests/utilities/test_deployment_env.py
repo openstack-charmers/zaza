@@ -241,6 +241,25 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
             deployment_env.get_cloud_region(),
             None)
 
+    def test_get_cloud_name(self):
+        self.patch_object(
+            deployment_env,
+            'get_setup_file_contents',
+            return_value={
+                'cloud': 'test'})
+        self.assertEqual(
+            deployment_env.get_cloud_name(),
+            'test')
+
+    def test_get_cloud_name_default(self):
+        self.patch_object(
+            deployment_env,
+            'get_setup_file_contents',
+            return_value={})
+        self.assertEqual(
+            deployment_env.get_cloud_name(),
+            None)
+
     def test_get_tmpdir(self):
         self.patch_object(deployment_env.os, 'mkdir')
         self.patch_object(deployment_env.os.path, 'exists')

@@ -23,6 +23,7 @@ class TestCharmLifecyclePrepare(ut_utils.BaseTestCase):
         self.patch_object(lc_prepare.deployment_env, 'get_model_settings')
         self.patch_object(lc_prepare.deployment_env, 'get_model_constraints')
         self.patch_object(lc_prepare.deployment_env, 'get_cloud_region')
+        self.patch_object(lc_prepare.deployment_env, 'get_cloud_name')
         self.patch_object(lc_prepare.zaza.model, 'set_model_constraints')
         self.get_model_settings.return_value = {'default-series': 'hardy'}
         self.get_model_constraints.return_value = {'image-stream': 'released'}
@@ -31,6 +32,7 @@ class TestCharmLifecyclePrepare(ut_utils.BaseTestCase):
             'newmodel',
             config={
                 'default-series': 'hardy'},
+            cloud_name=None,
             region=None)
         self.set_model_constraints.assert_called_once_with(
             constraints={'image-stream': 'released'},

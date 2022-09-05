@@ -120,8 +120,17 @@ def get_model_constraints():
     return model_constraints
 
 
-def get_cloud_region():
+def get_cloud_name():
     """Return a configured cloud name to support multi-cloud controllers.
+
+    :returns: A string configured in .zaza.yaml or None
+    :rtype: Union[str, None]
+    """
+    return get_setup_file_contents().get('cloud')
+
+
+def get_cloud_region():
+    """Return a configured region name to support multi-cloud controllers.
 
     :returns: A string configured in .zaza.yaml or None
     :rtype: Union[str, None]
