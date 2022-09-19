@@ -200,7 +200,7 @@ def reboot_hvs(units=None):
         return
     units = units or zaza.model.get_units(hv_application)
     for unit in units:
-        zaza.utilities.generic.reboot(unit.name)
+        zaza.utilities.generic.juju_reboot(unit.name)
         zaza.model.block_until_unit_wl_status(unit.name, "unknown")
     target_deploy_status = zaza.charm_lifecycle.utils.get_charm_config().get(
         'target_deploy_status', {})
