@@ -153,7 +153,8 @@ class TestUtils(ut_utils.BaseTestCase):
         unit = mock.MagicMock()
         unit.name = 'someApp/0'
         self.get_units.return_value = [unit]
-        self.patch_object(machine_os_utils.zaza.utilities.generic, 'reboot')
+        self.patch_object(machine_os_utils.zaza.utilities.generic,
+                          'juju_reboot')
         self.patch_object(machine_os_utils.zaza.model,
                           'block_until_unit_wl_status')
         self.patch_object(machine_os_utils.zaza.charm_lifecycle.utils,
@@ -164,17 +165,17 @@ class TestUtils(ut_utils.BaseTestCase):
                           'wait_for_application_states')
         machine_os_utils.reboot_hvs()
         self.get_units.assert_called_once_with('someApp')
-        self.reboot.assert_called_once_with('someApp/0')
+        self.juju_reboot.assert_called_once_with('someApp/0')
         self.wait_for_application_states.assert_called_once_with(
             states={'someDeployStatus': None})
 
         # Units provided as argument
         self.get_units.reset_mock()
-        self.reboot.reset_mock()
+        self.juju_reboot.reset_mock()
         self.wait_for_application_states.reset_mock()
         machine_os_utils.reboot_hvs(units=[unit])
         self.assertFalse(self.get_units.called)
-        self.reboot.assert_called_once_with('someApp/0')
+        self.juju_reboot.assert_called_once_with('someApp/0')
         self.wait_for_application_states.assert_called_once_with(
             states={'someDeployStatus': None})
 
