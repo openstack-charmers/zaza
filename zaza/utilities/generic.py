@@ -519,7 +519,7 @@ def juju_reboot(unit_name):
     with update-status hooks causing intermittent CI failures).
     """
     cmd = ['juju', 'ssh', unit_name,
-           f'sudo juju-run -u {unit_name} "juju-reboot --now"']
+           'sudo juju-run -u {} "juju-reboot --now"'.format(unit_name)]
     try:
         subprocess.check_call(cmd)
     except subprocess.CalledProcessError as e:
