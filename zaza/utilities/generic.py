@@ -508,6 +508,25 @@ def reboot(unit_name):
         pass
 
 
+def juju_reboot(unit_name):
+    """Reboot a unit using juju-reboot.
+
+    As `juju run` does not allow running juju-reboot (see LP: #1990140), use
+    `juju ssh` to invoke juju-run with the unit context with the juju-reboot
+    command. This will trigger a Juju-controlled reboot during which Juju
+    will not attempt to run any hooks asynchronously which can cause an
+    unintended hook execution failure upon reboot (for example, this happens
+    with update-status hooks causing intermittent CI failures).
+    """
+    cmd = ['juju', 'ssh', unit_name,
+           'sudo juju-run -u {} "juju-reboot --now"'.format(unit_name)]
+    try:
+        subprocess.check_call(cmd)
+    except subprocess.CalledProcessError as e:
+        logging.info(e)
+        pass
+
+
 def set_dpkg_non_interactive_on_unit(
         unit_name, apt_conf_d="/etc/apt/apt.conf.d/50unattended-upgrades"):
     """Set dpkg options on unit.
