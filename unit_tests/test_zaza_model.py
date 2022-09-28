@@ -518,6 +518,13 @@ class TestModel(ut_utils.BaseTestCase):
             model.sync_wrapper(self._wrapper)()
         self.mock_sleep.assert_awaited_with(1.5)
 
+    def test_get_model_info(self):
+        model_info = mock.Mock()
+        self.Model_mock.info = model_info
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.get_model_info(), model_info)
+
     def test_scp_to_unit(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
