@@ -414,6 +414,24 @@ async def block_until_auto_reconnect_model(*conditions,
     await asyncio.wait_for(_block(), timeout)
 
 
+async def async_get_model_info(model_name=None):
+    """Get information about the model.
+
+    Useful keys in the ModelInfo object include:
+        'agent-version', 'cloud-region', 'name', 'owner-tag', 'provider-type',
+        'type'
+
+    :param model_name: Name of model to gather information on.
+    :type model_name: str
+    :returns: The Model info object
+    :rtype: juju.client._definitions.ModelInfo
+    """
+    model = await get_model(model_name)
+    return model.info
+
+get_model_info = sync_wrapper(async_get_model_info)
+
+
 async def async_scp_to_unit(unit_name, source, destination, model_name=None,
                             user='ubuntu', proxy=False, scp_opts=''):
     """Transfer files to unit_name in model_name.
