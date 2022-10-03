@@ -458,6 +458,8 @@ class TestJujuUtils(ut_utils.BaseTestCase):
                 ['cinder-ceph/3'])
 
     def test_get_application_ip(self):
+        self.patch_object(juju_utils, 'is_k8s_deployment')
+        self.is_k8s_deployment.return_value = False
         self.model.get_application_config.return_value = {
             'vip': {'value': '10.0.0.10'}}
         self.model.get_units.return_value = [self.unit1_mock]
@@ -469,3 +471,28 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.assertEqual(
             juju_utils.get_application_ip('app'),
             '10.0.0.1')
+        self.is_k8s_deployment.return_value = True
+        self.patch_object(juju_utils, 'get_k8s_ingress_ip')
+        juju_utils.get_application_ip('app'),
+        self.get_k8s_ingress_ip.assert_called_once_with(
+            'app',
+            model_name=None)
+
+    def test_is_k8s_deployment(self):
+        self.model.get_model_info.return_value = {'provider-type': 'maas'}
+        self.assertFalse(juju_utils.is_k8s_deployment())
+        self.model.get_model_info.return_value = {}
+        self.assertFalse(juju_utils.is_k8s_deployment())
+        self.model.get_model_info.return_value = {
+            'provider-type': 'kubernetes'}
+        self.assertTrue(juju_utils.is_k8s_deployment())
+
+    def test_get_k8s_ingress_ip(self):
+        cinder_app = mock.MagicMock()
+        cinder_app.public_address = '10.152.183.31'
+        self.model.get_status.return_value = {
+            'applications': {
+                'cinder': cinder_app}}
+        self.assertEqual(
+            juju_utils.get_k8s_ingress_ip('cinder'),
+            '10.152.183.31')

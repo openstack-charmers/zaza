@@ -25,6 +25,8 @@ from zaza import (
 from zaza.utilities import generic as generic_utils
 from zaza.utilities import exceptions as zaza_exceptions
 
+KUBERNETES_PROVIDER_NAME = 'kubernetes'
+
 
 def get_application_status(application=None, unit=None, model_name=None):
     """Return the juju status for an application.
@@ -493,6 +495,33 @@ def get_subordinate_units(unit_list, charm_name=None, status=None,
     return sub_units
 
 
+def is_k8s_deployment():
+    """Is kubernetes the provider type for this deployment.
+
+    :returns: Whether kubernetes is the provider type for this deployment
+    :rtype: Bool
+    """
+    provider_type = model.get_model_info().get('provider-type', 'UNKNOWN')
+    return provider_type == KUBERNETES_PROVIDER_NAME
+
+
+def get_k8s_ingress_ip(application, model_name=None):
+    """Get the application's ingress IP address.
+
+    :param application: Application name
+    :type application: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :returns: Application's IP address
+    :rtype: str
+    """
+    status = model.get_status(model_name=model_name)
+    # Get IP from juju status until
+    # https://github.com/juju/python-libjuju/issues/735
+    # is fixed
+    return status['applications'][application].public_address
+
+
 def get_application_ip(application, model_name=None):
     """Get the application's IP address.
 
@@ -503,18 +532,21 @@ def get_application_ip(application, model_name=None):
     :returns: Application's IP address
     :rtype: str
     """
-    try:
-        app_config = model.get_application_config(
-            application,
-            model_name=model_name)
-    except KeyError:
-        return ''
-    vip = app_config.get("vip", {}).get("value")
-    if vip:
-        ip = vip
+    if is_k8s_deployment():
+        ip = get_k8s_ingress_ip(application, model_name=model_name)
     else:
-        unit = model.get_units(
-            application,
-            model_name=model_name)[0]
-        ip = model.get_unit_public_address(unit)
+        try:
+            app_config = model.get_application_config(
+                application,
+                model_name=model_name)
+        except KeyError:
+            return ''
+        vip = app_config.get("vip", {}).get("value")
+        if vip:
+            ip = vip
+        else:
+            unit = model.get_units(
+                application,
+                model_name=model_name)[0]
+            ip = model.get_unit_public_address(unit)
     return ip
