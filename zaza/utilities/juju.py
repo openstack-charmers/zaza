@@ -533,7 +533,10 @@ def get_application_ip(application, model_name=None):
     :rtype: str
     """
     if is_k8s_deployment():
-        ip = get_k8s_ingress_ip(application, model_name=model_name)
+        try:
+            ip = get_k8s_ingress_ip(application, model_name=model_name)
+        except KeyError:
+            return ''
     else:
         try:
             app_config = model.get_application_config(
