@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Module for interacting with juju."""
+
+import logging
 import os
 from pathlib import Path
 import yaml
@@ -533,13 +535,20 @@ def get_application_ip(application, model_name=None):
     :rtype: str
     """
     if is_k8s_deployment():
-        ip = get_k8s_ingress_ip(application, model_name=model_name)
+        try:
+            ip = get_k8s_ingress_ip(application, model_name=model_name)
+        except KeyError:
+            logging.warn(
+                "K8s ingress ip lookup failed for {}".format(application))
+            return ''
     else:
         try:
             app_config = model.get_application_config(
                 application,
                 model_name=model_name)
         except KeyError:
+            logging.warn(
+                "Application config missing for {}".format(application))
             return ''
         vip = app_config.get("vip", {}).get("value")
         if vip:
