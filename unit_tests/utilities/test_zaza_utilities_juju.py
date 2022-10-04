@@ -473,10 +473,18 @@ class TestJujuUtils(ut_utils.BaseTestCase):
             '10.0.0.1')
         self.is_k8s_deployment.return_value = True
         self.patch_object(juju_utils, 'get_k8s_ingress_ip')
-        juju_utils.get_application_ip('app'),
-        self.get_k8s_ingress_ip.assert_called_once_with(
-            'app',
-            model_name=None)
+        self.get_k8s_ingress_ip.return_value = '10.0.0.20'
+        self.assertEqual(
+            juju_utils.get_application_ip('app'),
+            '10.0.0.20')
+
+        def _get_k8s_ingress_ip(application, model_name=None):
+            raise KeyError
+
+        self.get_k8s_ingress_ip.side_effect = _get_k8s_ingress_ip
+        self.assertEqual(
+            juju_utils.get_application_ip('app'),
+            '')
 
     def test_is_k8s_deployment(self):
         self.model.get_model_info.return_value = {'provider-type': 'maas'}
