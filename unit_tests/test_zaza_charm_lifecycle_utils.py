@@ -256,6 +256,30 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         }
         self.assertTrue(lc_utils.is_config_deploy_forced_for_bundle('x'))
 
+    def test_ignore_hard_deploy_errors(self):
+        self.patch_object(lc_utils, 'get_charm_config')
+        # test that no options at all returns value
+        self.get_charm_config.return_value = {}
+        self.assertFalse(lc_utils.ignore_hard_deploy_errors('x'))
+        # test that if options exist but no bundle
+        self.get_charm_config.return_value = {
+            'tests_options': {}
+        }
+        self.assertFalse(lc_utils.ignore_hard_deploy_errors('x'))
+        self.get_charm_config.return_value = {
+            'tests_options': {
+                'ignore_hard_deploy_errors': []
+            }
+        }
+        self.assertFalse(lc_utils.ignore_hard_deploy_errors('x'))
+        # verify that it returns True if the bundle is mentioned
+        self.get_charm_config.return_value = {
+            'tests_options': {
+                'ignore_hard_deploy_errors': ['x']
+            }
+        }
+        self.assertTrue(lc_utils.ignore_hard_deploy_errors('x'))
+
     def test_is_config_deploy_trusted_for_bundle(self):
         self.patch_object(lc_utils, 'get_charm_config')
         # test that no options at all returns value

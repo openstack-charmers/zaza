@@ -1494,7 +1494,8 @@ def is_unit_errored_from_install_hook(unit):
 
 
 async def async_wait_for_application_states(model_name=None, states=None,
-                                            timeout=2700, max_resolve_count=0):
+                                            timeout=2700, max_resolve_count=0,
+                                            ignore_hard_errors=False):
     """Wait for model to achieve the desired state.
 
     Check the workload status and workload status message for every unit of
@@ -1546,7 +1547,9 @@ async def async_wait_for_application_states(model_name=None, states=None,
         failures and is considered a temporary hack to work around underlying
         provider networking issues.
     :type max_resolve_count: int
-
+    :param ignore_hard_deploy_error: Whether to ignore charms going into an
+                                     error.
+    :type ignore_hard_deploy_error: Boolean
     """
     logging.info("Waiting for application states to reach targeted states.")
     # Implementation note: model.block_until() can throw
@@ -1559,7 +1562,8 @@ async def async_wait_for_application_states(model_name=None, states=None,
     if not states:
         states = {}
     model = await get_model(model_name)
-    check_model_for_hard_errors(model)
+    if not ignore_hard_errors:
+        check_model_for_hard_errors(model)
     logging.info("Waiting for an application to be present")
     await block_until_auto_reconnect_model(
         lambda: len(model.units) > 0,
@@ -1682,29 +1686,34 @@ async def async_wait_for_application_states(model_name=None, states=None,
                     # we need to check all the units captured in the
                     # UnitError as the current unit may not be the one in
                     # error
-                    for u in e.units:
-                        if not is_unit_errored_from_install_hook(u):
-                            raise
+                    if ignore_hard_errors:
+                        logging.warning(
+                            "Units {} in error state. ".format(e.units))
+                        all_okay = False
+                    else:
+                        for u in e.units:
+                            if not is_unit_errored_from_install_hook(u):
+                                raise
 
-                        resolve_counts[u.name] += 1
-                        if resolve_counts[u.name] > max_resolve_count:
-                            raise
+                            resolve_counts[u.name] += 1
+                            if resolve_counts[u.name] > max_resolve_count:
+                                raise
 
-                        logging.warning("Unit %s is in error state. "
-                                        "Attempt number %d to resolve" %
-                                        (u.name, resolve_counts[u.name]))
-                        await async_resolve_units(
-                            application_name=unit.application,
-                            erred_hook='install'
-                        )
-                        # wait until the unit is executing. 60 seconds
-                        # seems like a reasonable timeout
-                        await async_block_until_unit_wl_status(
-                            u.name, 'error', model_name, negate_match=True,
-                            timeout=60
-                        )
+                            logging.warning("Unit %s is in error state. "
+                                            "Attempt number %d to resolve" %
+                                            (u.name, resolve_counts[u.name]))
+                            await async_resolve_units(
+                                application_name=unit.application,
+                                erred_hook='install'
+                            )
+                            # wait until the unit is executing. 60 seconds
+                            # seems like a reasonable timeout
+                            await async_block_until_unit_wl_status(
+                                u.name, 'error', model_name, negate_match=True,
+                                timeout=60
+                            )
 
-                    all_okay = False
+                        all_okay = False
 
             # if not all states are okay, continue to the next one.
             if not all_okay:
@@ -1737,7 +1746,8 @@ async def async_wait_for_application_states(model_name=None, states=None,
 wait_for_application_states = sync_wrapper(async_wait_for_application_states)
 
 
-async def async_block_until_all_units_idle(model_name=None, timeout=2700):
+async def async_block_until_all_units_idle(model_name=None, timeout=2700,
+                                           ignore_hard_errors=False):
     """Block until all units in the given model are idle.
 
     An example accessing this function via its sync wrapper::
@@ -1748,6 +1758,9 @@ async def async_block_until_all_units_idle(model_name=None, timeout=2700):
     :type model_name: str
     :param timeout: Time to wait for status to be achieved
     :type timeout: float
+    :param ignore_hard_deploy_error: Whether to ignore charms going into an
+                                     error state.
+    :type ignore_hard_deploy_error: Boolean
     """
     model = await get_model(model_name)
     await block_until_auto_reconnect_model(
@@ -1757,7 +1770,10 @@ async def async_block_until_all_units_idle(model_name=None, timeout=2700):
         timeout=timeout)
     errored_units = units_with_wl_status_state(model, 'error')
     if errored_units:
-        raise UnitError(errored_units)
+        if ignore_hard_errors:
+            logging.warning("Units {} in error state. ".format(errored_units))
+        else:
+            raise UnitError(errored_units)
 
 block_until_all_units_idle = sync_wrapper(async_block_until_all_units_idle)
 

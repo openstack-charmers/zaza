@@ -1274,6 +1274,20 @@ class TestModel(ut_utils.BaseTestCase):
                 model.wait_for_application_states('modelname', timeout=1)
                 self.assertFalse(self.system_ready)
 
+    def test_wait_for_application_states_errored_unit_ignore(self):
+        self._application_states_setup({
+            'workload-status': 'error',
+            'workload-status-message': 'Unit is ready'})
+        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
+            # Expect a model timeout as the error state is not fatal
+            # but is not the required state.
+            with self.assertRaises(model.ModelTimeout):
+                model.wait_for_application_states(
+                    'modelname',
+                    timeout=1,
+                    ignore_hard_errors=True)
+                self.assertFalse(self.system_ready)
+
     def test_wait_for_application_states_retries_no_success(self):
         self.patch_object(model, 'check_model_for_hard_errors')
         self.patch_object(model, 'async_resolve_units')
