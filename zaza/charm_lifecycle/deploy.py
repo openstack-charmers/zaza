@@ -369,7 +369,7 @@ def deploy_bundle(bundle, model, model_ctxt=None, force=False, trust=False):
 
 
 def deploy(bundle, model, wait=True, model_ctxt=None, force=False,
-           test_directory=None, trust=False):
+           test_directory=None, trust=False, ignore_hard_deploy_errors=False):
     """Run all steps to complete deployment.
 
     :param bundle: Path to bundle file
@@ -385,6 +385,9 @@ def deploy(bundle, model, wait=True, model_ctxt=None, force=False,
     :type force: Boolean
     :param test_directory: Set the directory containing tests.yaml and bundles.
     :type test_directory: str
+    :param ignore_hard_deploy_error: Whether to ignore chrms going into an
+                                     error state during deployment.
+    :type ignore_hard_deploy_error: Boolean
     """
     utils.set_base_test_dir(test_dir=test_directory)
     run_report.register_event_start('Deploy Bundle')
@@ -409,7 +412,9 @@ def deploy(bundle, model, wait=True, model_ctxt=None, force=False,
             zaza.model.wait_for_application_states(
                 model,
                 test_config.get('target_deploy_status', {}),
-                timeout=timeout, max_resolve_count=max_resolve_count)
+                timeout=timeout,
+                max_resolve_count=max_resolve_count,
+                ignore_hard_errors=ignore_hard_deploy_errors)
         run_report.register_event_finish('Wait for Deployment')
 
 

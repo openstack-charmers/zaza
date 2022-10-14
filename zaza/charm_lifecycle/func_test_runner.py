@@ -95,7 +95,8 @@ def failure_report(model_aliases, show_juju_status=False):
 
 
 def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
-                       test_directory=None, trust=False):
+                       test_directory=None, trust=False,
+                       ignore_hard_deploy_errors=False):
     """Run the environment deployment.
 
     :param env_deployment: Environment Deploy to execute.
@@ -108,6 +109,9 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
     :type trust: Boolean
     :param test_directory: Set the directory containing tests.yaml and bundles.
     :type test_directory: str
+    :param ignore_hard_deploy_error: Whether to ignore chrms going into an
+                                     error state during deployment.
+    :type ignore_hard_deploy_error: Boolean
     """
     config_steps = utils.get_config_steps()
     test_steps = utils.get_test_steps()
@@ -135,7 +139,8 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
                 deployment.bundle)
             trust_ = trust or utils.is_config_deploy_trusted_for_bundle(
                 deployment.bundle)
-
+            errors_ = (ignore_hard_deploy_errors or
+                       utils.ignore_hard_deploy_errors(deployment.bundle))
             deploy.deploy(
                 os.path.join(
                     utils.get_bundle_dir(),
@@ -144,7 +149,8 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
                 model_ctxt=model_aliases,
                 force=force_,
                 trust=trust_,
-                test_directory=test_directory)
+                test_directory=test_directory,
+                ignore_hard_deploy_errors=errors_)
 
         # When deploying bundles with cross model relations, hooks may be
         # triggered in already deployedi models so wait for all models to
@@ -152,9 +158,12 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
         for deployment in env_deployment.model_deploys:
             logging.info("Waiting for {} to settle".format(
                 deployment.model_name))
+            errors_ = (ignore_hard_deploy_errors or
+                       utils.ignore_hard_deploy_errors(deployment.bundle))
             with notify_around(NotifyEvents.WAIT_MODEL_SETTLE,
                                model_name=deployment.model_name):
                 zaza.model.block_until_all_units_idle(
+                    ignore_hard_errors=errors_,
                     model_name=deployment.model_name)
             logging.info("Model {} has settled".format(
                 deployment.model_name))

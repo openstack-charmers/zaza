@@ -498,6 +498,36 @@ def is_config_deploy_trusted_for_bundle(
     return False
 
 
+def ignore_hard_deploy_errors(
+        bundle_name, yaml_file=None, fatal=True):
+    """Ask the config if charms in an error state can be ignored during deploy.
+
+    The tests_options section needs to look like:
+
+        tests_options:
+          ignore_hard_deploy_errors:
+            - focal-ussuri
+
+    :param bundle_name: bundle to check in the ignore_hard_deploy_errors list
+    :type bundle_name: str
+    :param yaml_file: the YAML file that contains the tests specification
+    :type yaml_file: Optional[str]
+    :param fatal: whether any errors cause an exception or are just logged.
+    :type fatal: bool
+    :returns: True if the config option is set for the bundle
+    :rtype: bool
+    :raises: OSError if the YAML file doesn't exist and fatal=True
+    """
+    config = get_charm_config(yaml_file, fatal)
+    try:
+        return bundle_name in config['tests_options'][
+            'ignore_hard_deploy_errors']
+    # Type error is if the trust is present, but with no list
+    except (KeyError, TypeError):
+        pass
+    return False
+
+
 def get_class(class_str):
     """Get the class represented by the given string.
 
