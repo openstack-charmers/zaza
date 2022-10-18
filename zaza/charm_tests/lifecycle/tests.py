@@ -19,7 +19,7 @@
 import logging
 import os
 
-import zaza.model as model
+import subprocess
 
 
 class UpgradeCharmsToPath(object):
@@ -41,5 +41,9 @@ class UpgradeCharmsToPath(object):
         for charm in charms:
             charm_path = cwd + '/' + charm + '.charm'
             logging.debug("Upgrading {} to {}".format(charm, charm_path))
-            model.upgrade_charm(charm, path=charm_path)
+            subprocess.check_call([
+                'juju', 'upgrade-charm',
+                '--path', str(charm_path),
+                str(charm)
+            ])
         return True
