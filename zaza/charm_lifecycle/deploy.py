@@ -338,8 +338,8 @@ def deploy_bundle(bundle, model, model_ctxt=None, force=False, trust=False):
         cmd.append('--force')
     if trust:
         cmd.append('--trust')
+    bundle_out = None
     with tempfile.TemporaryDirectory() as tmpdirname:
-        bundle_out = '{}/{}'.format(tmpdirname, os.path.basename(bundle))
         # Bundle templates should only exist in the bundle directory so
         # explicitly set the Jinja2 load path.
         bundle_template = get_template(
@@ -351,11 +351,12 @@ def deploy_bundle(bundle, model, model_ctxt=None, force=False, trust=False):
                     "Found bundle template ({}) and bundle ({})".format(
                         bundle_template.filename,
                         bundle))
+            bundle_out = '{}/{}'.format(tmpdirname, os.path.basename(bundle))
             render_template(bundle_template, bundle_out, model_ctxt=model_ctxt)
             cmd.append(bundle_out)
         else:
             cmd.append(bundle)
-        for overlay in render_overlays(bundle, tmpdirname,
+        for overlay in render_overlays(bundle_out or bundle, tmpdirname,
                                        model_ctxt=model_ctxt):
             logging.info("Deploying overlay '{}' on to '{}' model"
                          .format(overlay, model))
