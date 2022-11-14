@@ -336,6 +336,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             './tests/bundles/bionic.yaml',
             'newmodel',
             force=True)
+        self.render_overlays.assert_called_once_with(
+            './tests/bundles/bionic.yaml', '/tmp/mytmpdir', model_ctxt=None)
         self.check_output_logging.assert_called_once_with(
             ['juju', 'deploy', '-m', 'newmodel', '--force',
              './tests/bundles/bionic.yaml'])
@@ -378,6 +380,8 @@ class TestCharmLifecycleDeploy(ut_utils.BaseTestCase):
             './tests/bundles/bionic.yaml',
             'newmodel',
             force=True)
+        self.render_overlays.assert_called_once_with(
+            '/tmp/mytmpdir/bionic.yaml', '/tmp/mytmpdir', model_ctxt=None)
         self.check_output_logging.assert_called_once_with(
             ['juju', 'deploy', '-m', 'newmodel', '--force',
              '/tmp/mytmpdir/bionic.yaml'])
