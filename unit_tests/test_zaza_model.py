@@ -142,6 +142,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.run_action = mock.MagicMock()
         self.run_action.wait.side_effect = _wait
         self.action = mock.MagicMock()
+        self.action.wait.side_effect = _wait
         self.action.data = {
             'model-uuid': '1a035018-71ff-473e-8aab-d1a8d6b6cda7',
             'id': 'e26ffb69-6626-4e93-8840-07f7e041e99d',
@@ -493,7 +494,9 @@ class TestModel(ut_utils.BaseTestCase):
         with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
             model.sync_wrapper(self._wrapper)()
         self.Model_mock.disconnect.assert_has_calls([mock.call()])
-        self.Model_mock.connect_model.has_calls([mock.call('modelname')])
+        self.Model_mock.connect_model.assert_has_calls(
+            [mock.call('testmodel')]
+        )
 
     def test_block_until_auto_reconnect_model_disconnected_async(self):
         self._mocks_for_block_until_auto_reconnect_model(
@@ -506,7 +509,9 @@ class TestModel(ut_utils.BaseTestCase):
         with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
             model.sync_wrapper(self._wrapper)()
         self.Model_mock.disconnect.assert_has_calls([mock.call()])
-        self.Model_mock.connect_model.has_calls([mock.call('modelname')])
+        self.Model_mock.connect_model.assert_has_calls(
+            [mock.call('testmodel')]
+        )
 
     def test_block_until_auto_reconnect_model_blocks_till_true(self):
         self._mocks_for_block_until_auto_reconnect_model(True, True)
