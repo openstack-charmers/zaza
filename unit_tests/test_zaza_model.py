@@ -149,6 +149,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.run_action = mock.MagicMock()
         self.run_action.wait.side_effect = _wait
         self.action = mock.MagicMock()
+        self.action.wait.side_effect = _wait
         self.action.data = {
             'model-uuid': '1a035018-71ff-473e-8aab-d1a8d6b6cda7',
             'id': 'e26ffb69-6626-4e93-8840-07f7e041e99d',
@@ -162,6 +163,9 @@ class TestModel(ut_utils.BaseTestCase):
             'enqueued': '2018-04-11T23:13:42Z',
             'started': '2018-04-11T23:13:42Z',
             'completed': '2018-04-11T23:13:43Z'}
+        self.action.results = {
+            'return-code': '0', 'stderr': '', 'stdout': 'RESULT'
+        }
 
         self.machine3 = mock.MagicMock(status='active')
         self.machine7 = mock.MagicMock(status='active')
@@ -787,7 +791,47 @@ class TestModel(ut_utils.BaseTestCase):
                          expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
 
+    def test_run_on_unit_juju2_x(self):
+        del self.action.results
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        expected = {
+            'Code': '0',
+            'Stderr': '',
+            'Stdout': 'RESULT',
+            'stderr': '',
+            'stdout': 'RESULT'}
+        self.cmd = cmd = 'somecommand someargument'
+        self.patch_object(model, 'Model')
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = self.unit1
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.run_on_unit('app/2', cmd),
+                         expected)
+        self.unit1.run.assert_called_once_with(cmd, timeout=None)
+
     def test_run_on_unit_lc_keys(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.action.results = {
+            'return-code': '0',
+            'stdout': 'RESULT',
+            'stderr': 'some error'}
+        expected = {
+            'Code': '0',
+            'Stderr': 'some error',
+            'Stdout': 'RESULT',
+            'stderr': 'some error',
+            'stdout': 'RESULT'}
+        self.cmd = cmd = 'somecommand someargument'
+        self.patch_object(model, 'Model')
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = self.unit1
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.run_on_unit('app/2', cmd),
+                         expected)
+        self.unit1.run.assert_called_once_with(cmd, timeout=None)
+
+    def test_run_on_unit_lc_keys_juju2_x(self):
+        del self.action.results
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.action.data['results'] = {
             'Code': '0',
@@ -816,6 +860,25 @@ class TestModel(ut_utils.BaseTestCase):
             'Stdout': 'RESULT',
             'stderr': '',
             'stdout': 'RESULT'}
+        self.action.results = {'return-code': '0', 'stdout': 'RESULT'}
+        self.cmd = cmd = 'somecommand someargument'
+        self.patch_object(model, 'Model')
+        self.patch_object(model, 'get_unit_from_name')
+        self.get_unit_from_name.return_value = self.unit1
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.run_on_unit('app/2', cmd),
+                         expected)
+        self.unit1.run.assert_called_once_with(cmd, timeout=None)
+
+    def test_run_on_unit_missing_stderr_juju2_x(self):
+        del self.action.results
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        expected = {
+            'Code': '0',
+            'Stderr': '',
+            'Stdout': 'RESULT',
+            'stderr': '',
+            'stdout': 'RESULT'}
         self.action.data['results'] = {'Code': '0', 'Stdout': 'RESULT'}
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
@@ -827,6 +890,22 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
 
     def test_run_on_leader(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        expected = {
+            'Code': '0',
+            'Stderr': '',
+            'Stdout': 'RESULT',
+            'stderr': '',
+            'stdout': 'RESULT'}
+        self.cmd = cmd = 'somecommand someargument'
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.assertEqual(model.run_on_leader('app', cmd),
+                         expected)
+        self.unit2.run.assert_called_once_with(cmd, timeout=None)
+
+    def test_run_on_leader_juju2_x(self):
+        del self.action.results
         self.patch_object(model, 'get_juju_model', return_value='mname')
         expected = {
             'Code': '0',
@@ -1047,7 +1126,7 @@ class TestModel(ut_utils.BaseTestCase):
             return units[x]
 
         self.async_get_unit_from_name.side_effect = _async_get_unit_from_name
-        self.run_action.status = 'completed'
+        self.run_action.data = {'status': 'completed'}
         model.run_action_on_units(
             ['app/1', 'app/2'],
             'backup',
@@ -1065,7 +1144,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
-        self.run_action.status = 'running'
+        self.run_action.data = {'status': 'running'}
         with self.assertRaises(AsyncTimeoutError):
             model.run_action_on_units(
                 ['app/2'],
@@ -1083,7 +1162,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
-        self.run_action.status = 'failed'
+        self.run_action.data = {'status': 'failed'}
         with self.assertRaises(model.ActionFailed):
             model.run_action_on_units(
                 ['app/2'],
@@ -1540,6 +1619,25 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertEqual(model.get_current_model(), self.model_name)
 
     def test_file_contents_success(self):
+        self.action.results = {
+            'return-code': '0',
+            'stderr': '',
+            'stdout': 'somestring'
+        }
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        contents = model.file_contents(
+            'app/2',
+            '/tmp/src/myfile.txt',
+            timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt', timeout=0.1)
+        self.assertEqual('somestring', contents)
+
+    def test_file_contents_success_juju2_x(self):
+        del self.action.results
         self.action.data = {
             'results': {'Code': '0', 'Stderr': '', 'Stdout': 'somestring'}
         }
@@ -1556,6 +1654,23 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertEqual('somestring', contents)
 
     def test_file_contents_fault(self):
+        self.action.results = {
+            'return-code': '0',
+            'stderr': 'fault',
+            'stdout': ''
+        }
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        with self.assertRaises(model.RemoteFileError) as ctxtmgr:
+            model.file_contents('app/2', '/tmp/src/myfile.txt', timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt', timeout=0.1)
+        self.assertEqual(ctxtmgr.exception.args, ('fault',))
+
+    def test_file_contents_fault_juju2_x(self):
+        del self.action.results
         self.action.data = {
             'results': {'Code': '0', 'Stderr': 'fault', 'Stdout': ''}
         }
@@ -1570,6 +1685,33 @@ class TestModel(ut_utils.BaseTestCase):
         self.assertEqual(ctxtmgr.exception.args, ('fault',))
 
     def test_block_until_file_has_contents(self):
+        self.action.results = {
+            'return-code': '0',
+            'stderr': '',
+            'stdout': 'somestring'
+        }
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch("builtins.open",
+                   new_callable=mock.mock_open(),
+                   name="_open")
+        _fileobj = mock.MagicMock()
+        _fileobj.__enter__().read.return_value = "somestring"
+        self._open.return_value = _fileobj
+        model.block_until_file_has_contents(
+            'app',
+            '/tmp/src/myfile.txt',
+            'somestring',
+            timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+        self.unit2.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+
+    def test_block_until_file_has_contents_juju2_x(self):
+        del self.action.results
         self.action.data = {
             'results': {'Code': '0', 'Stderr': '', 'Stdout': 'somestring'}
         }
@@ -1594,6 +1736,29 @@ class TestModel(ut_utils.BaseTestCase):
             'cat /tmp/src/myfile.txt')
 
     def test_block_until_file_has_no_contents(self):
+        self.action.results = {'return-code': '0', 'stderr': ''}
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch("builtins.open",
+                   new_callable=mock.mock_open(),
+                   name="_open")
+        _fileobj = mock.MagicMock()
+        _fileobj.__enter__().read.return_value = ""
+        self._open.return_value = _fileobj
+        model.block_until_file_has_contents(
+            'app',
+            '/tmp/src/myfile.txt',
+            '',
+            timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+        self.unit2.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+
+    def test_block_until_file_has_no_contents_juju2_x(self):
+        del self.action.results
         self.action.data = {
             'results': {'Code': '0', 'Stderr': ''}
         }
@@ -1639,6 +1804,19 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.action.results = {'stdout': "1"}
+        model.block_until_file_missing(
+            'app',
+            '/tmp/src/myfile.txt',
+            timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'test -e "/tmp/src/myfile.txt"; echo $?')
+
+    def test_block_until_file_missing_juju2_x(self):
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        del self.action.results
         self.action.data['results']['Stdout'] = "1"
         model.block_until_file_missing(
             'app',
@@ -1659,6 +1837,27 @@ class TestModel(ut_utils.BaseTestCase):
                 timeout=0.1)
 
     def test_block_until_file_matches_re(self):
+        self.action.results = {
+            'return-code': '0',
+            'stderr': '',
+            'stdout': 'somestring'
+        }
+
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        model.block_until_file_matches_re(
+            'app',
+            '/tmp/src/myfile.txt',
+            's.*string',
+            timeout=0.1)
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+        self.unit2.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt')
+
+    def test_block_until_file_matches_re_juju2_x(self):
+        del self.action.results
         self.action.data = {
             'results': {'Code': '0', 'Stderr': '', 'Stdout': 'somestring'}
         }
@@ -1965,6 +2164,24 @@ class TestModel(ut_utils.BaseTestCase):
 
     def block_until_oslo_config_entries_match_base(self, file_contents,
                                                    expected_contents):
+        self.action.results = {
+            'return-code': '0',
+            'stderr': '',
+            'stdout': file_contents
+        }
+        self.patch_object(model, 'Model')
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.Model.return_value = self.Model_mock
+        model.block_until_oslo_config_entries_match(
+            'app',
+            '/tmp/src/myfile.txt',
+            expected_contents,
+            timeout=0.1)
+
+    def block_until_oslo_config_entries_match_base_juju2_x(self,
+                                                           file_contents,
+                                                           expected_contents):
+        del self.action.results
         self.action.data = {
             'results': {'Code': '0', 'Stderr': '', 'Stdout': file_contents}
         }

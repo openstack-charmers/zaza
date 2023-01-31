@@ -1,8 +1,7 @@
 pyparsing<3.0.0  # pin for aodhclient which is held for py35
 async_generator
 kubernetes<18.0.0; python_version < '3.6' # pined, as juju uses kubernetes
-# pinned until 3.0 regressions are handled: https://github.com/openstack-charmers/zaza/issues/545
-juju<3.0
+juju<3.2
 juju_wait
 PyYAML>=3.0
 pbr==5.6.0
