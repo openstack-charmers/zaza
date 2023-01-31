@@ -545,6 +545,9 @@ def _normalise_action_results(results):
                 results[old_key] = results[key]
             elif results.get(old_key) and not results.get(key):
                 results[key] = results[old_key]
+        if 'return-code' in results:
+            results['Code'] = results.get('return-code')
+            del results['return-code']
         return results
     else:
         return {}
@@ -567,7 +570,12 @@ async def async_run_on_unit(unit_name, command, model_name=None, timeout=None):
     model = await get_model(model_name)
     unit = await async_get_unit_from_name(unit_name, model)
     action = await unit.run(command, timeout=timeout)
-    results = action.data.get('results')
+    await action.wait()
+    results = None
+    try:
+        results = action.results
+    except (AttributeError, KeyError):
+        results = action.data.get('results')
     return _normalise_action_results(results)
 
 run_on_unit = sync_wrapper(async_run_on_unit)
@@ -593,7 +601,12 @@ async def async_run_on_leader(application_name, command, model_name=None,
         is_leader = await unit.is_leader_from_status()
         if is_leader:
             action = await unit.run(command, timeout=timeout)
-            results = action.data.get('results')
+            await action.wait()
+            results = None
+            try:
+                results = action.results
+            except (AttributeError, KeyError):
+                results = action.data.get('results')
             return _normalise_action_results(results)
 
 run_on_leader = sync_wrapper(async_run_on_leader)
@@ -1071,6 +1084,32 @@ class ActionFailed(Exception):
         super(ActionFailed, self).__init__(message)
 
 
+def _normalise_action_object(action_obj):
+    """Put run action results in a consistent format.
+
+    Prior to libjuju 3.x, action status and results are
+    in obj.data['status'] and obj.data['results'].
+    From libjuju 3.x, status and results are modified
+    to obj._status and obj.results.
+    This functiona normalises the status to
+    obj.data['status'] and results to obj.data['results']
+
+    :param action_obj: action object
+    :type results: juju.action.Action
+    :returns: Updated action object
+    :rtype: juju.action.Action
+    """
+    try:
+        # libjuju 3.x
+        action_obj.data['status'] = action_obj._status
+        action_obj.data['results'] = action_obj.results
+    except (AttributeError, KeyError):
+        # libjuju 2.x format, no changes needed
+        pass
+
+    return action_obj
+
+
 async def async_run_action(unit_name, action_name, model_name=None,
                            action_params=None, raise_on_failure=False):
     """Run action on given unit.
@@ -1096,6 +1135,7 @@ async def async_run_action(unit_name, action_name, model_name=None,
     unit = await async_get_unit_from_name(unit_name, model)
     action_obj = await unit.run_action(action_name, **action_params)
     await action_obj.wait()
+    action_obj = _normalise_action_object(action_obj)
     if raise_on_failure and action_obj.status != 'completed':
         try:
             output = await model.get_action_output(action_obj.id)
@@ -1136,6 +1176,7 @@ async def async_run_action_on_leader(application_name, action_name,
             action_obj = await unit.run_action(action_name,
                                                **action_params)
             await action_obj.wait()
+            action_obj = _normalise_action_object(action_obj)
             if raise_on_failure and action_obj.status != 'completed':
                 try:
                     output = await model.get_action_output(action_obj.id)
@@ -1183,14 +1224,14 @@ async def async_run_action_on_units(units, action_name, action_params=None,
 
     async def _check_actions():
         for action_obj in actions:
-            if action_obj.status in ['running', 'pending']:
+            if action_obj.data['status'] in ['running', 'pending']:
                 return False
         return True
 
     await async_block_until(_check_actions, timeout=timeout)
 
     for action_obj in actions:
-        if raise_on_failure and action_obj.status != 'completed':
+        if raise_on_failure and action_obj.data['status'] != 'completed':
             try:
                 output = await model.get_action_output(action_obj.id)
             except KeyError:
@@ -2049,7 +2090,13 @@ async def async_block_until_file_ready(application_name, remote_file,
         for unit in units:
             try:
                 output = await unit.run('cat {}'.format(remote_file))
-                contents = output.data.get('results').get('Stdout', '')
+                await output.wait()
+                results = {}
+                try:
+                    results = output.results
+                except (AttributeError, KeyError):
+                    results = output.data.get('results', {})
+                contents = results.get('Stdout', results.get('stdout', ''))
                 if inspect.iscoroutinefunction(check_function):
                     if not await check_function(contents):
                         return False
@@ -2184,7 +2231,15 @@ async def async_block_until_file_missing(
         for unit in units:
             try:
                 output = await unit.run('test -e "{}"; echo $?'.format(path))
-                contents = output.data.get('results')['Stdout']
+                await output.wait()
+                output_result = {}
+                try:
+                    output_result = output.results
+                except (AttributeError, KeyError):
+                    output_result = output.data.get('results', {})
+                contents = output_result.get(
+                    'Stdout', output_result.get('stdout', '')
+                )
                 results.append("1" in contents)
             # libjuju throws a generic error for connection failure. So we
             # cannot differentiate between a connectivity issue and a
