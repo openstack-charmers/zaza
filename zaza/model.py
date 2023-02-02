@@ -545,6 +545,9 @@ def _normalise_action_results(results):
                 results[old_key] = results[key]
             elif results.get(old_key) and not results.get(key):
                 results[key] = results[old_key]
+        if 'return-code' in results:
+            results['Code'] = results.get('return-code')
+            del results['return-code']
         return results
     else:
         return {}
@@ -567,7 +570,10 @@ async def async_run_on_unit(unit_name, command, model_name=None, timeout=None):
     model = await get_model(model_name)
     unit = await async_get_unit_from_name(unit_name, model)
     action = await unit.run(command, timeout=timeout)
+    await action.wait()
     results = action.data.get('results')
+    if not results:
+        results = action.results
     return _normalise_action_results(results)
 
 run_on_unit = sync_wrapper(async_run_on_unit)
@@ -593,7 +599,10 @@ async def async_run_on_leader(application_name, command, model_name=None,
         is_leader = await unit.is_leader_from_status()
         if is_leader:
             action = await unit.run(command, timeout=timeout)
+            await action.wait()
             results = action.data.get('results')
+            if not results:
+                results = action.results
             return _normalise_action_results(results)
 
 run_on_leader = sync_wrapper(async_run_on_leader)
@@ -2049,7 +2058,13 @@ async def async_block_until_file_ready(application_name, remote_file,
         for unit in units:
             try:
                 output = await unit.run('cat {}'.format(remote_file))
-                contents = output.data.get('results').get('Stdout', '')
+                await output.wait()
+                results = output.data.get('results')
+                if not results:
+                    results = output.results
+                contents = results.get('Stdout', '')
+                if not contents:
+                    contents = results.get('stdout', '')
                 if inspect.iscoroutinefunction(check_function):
                     if not await check_function(contents):
                         return False
@@ -2184,7 +2199,13 @@ async def async_block_until_file_missing(
         for unit in units:
             try:
                 output = await unit.run('test -e "{}"; echo $?'.format(path))
-                contents = output.data.get('results')['Stdout']
+                await output.wait()
+                output_result = output.data.get('results')
+                if not output_result:
+                    output_result = output.results
+                contents = output_result.get('Stdout', '')
+                if not contents:
+                    contents = output_result.get('stdout', '')
                 results.append("1" in contents)
             # libjuju throws a generic error for connection failure. So we
             # cannot differentiate between a connectivity issue and a
