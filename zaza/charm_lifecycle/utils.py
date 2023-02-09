@@ -14,6 +14,7 @@
 
 """Utilities to support running lifecycle phases."""
 import collections
+import collections.abc
 import copy
 import importlib
 import logging
@@ -539,13 +540,39 @@ def get_class(class_str):
     :returns: Test class
     :rtype: class
     """
+    return load_module_and_getattr(class_str, syspath_prepend=['.'])
+
+
+def load_module_and_getattr(path_str, syspath_prepend=None):
+    """Load a module and get the attribute at the end of the dotted string.
+
+    This parses a string and attempts to load the module, and assumes the last
+    part of the string is an attribute to return.  The path is assumed to be
+    the current path of the executable.  Pass `insert_path=['.']` to prepend a
+    the working directory (the default for `get_class`).
+
+    example.
+    load_module_and_getattr('zaza.openstack.charm_tests.aodh.tests.AodhTest')
+
+    will reture zaza.openstack.charm_tests.aodh.tests.AoghTest
+
+    :param path_str: the path to load, appended with a attribute to return.
+    :type path_str: str
+    :param syspath_prepend: optional paths to prepend to the syspath.
+    :type syspath_prepend: Optional[List[str]]
+    :returns: the attribute at the end of the dotted str.
+    :rtype: Any
+    """
     old_syspath = sys.path
-    sys.path.insert(0, '.')
-    module_name = '.'.join(class_str.split('.')[:-1])
-    class_name = class_str.split('.')[-1]
+    if syspath_prepend is not None:
+        assert type(syspath_prepend) is not str, "Must pass a string!"
+        assert isinstance(syspath_prepend, collections.abc.Iterable)
+        sys.path[0:0] = syspath_prepend
+    module_name = '.'.join(path_str.split('.')[:-1])
+    attr_name = path_str.split('.')[-1]
     module = importlib.import_module(module_name)
     sys.path = old_syspath
-    return getattr(module, class_name)
+    return getattr(module, attr_name)
 
 
 def generate_model_name():

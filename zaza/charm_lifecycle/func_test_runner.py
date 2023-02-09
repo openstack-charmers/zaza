@@ -266,7 +266,7 @@ def func_test_runner(keep_last_model=False, keep_all_models=False,
                         if '_bundles' in name:
                             all_bundles[name] = values
                 matching_bundles = set()
-                for _name, bundles in all_bundles.items():
+                for bundles in all_bundles.values():
                     if bundles:
                         for tests_bundle in bundles:
                             if isinstance(tests_bundle, dict):
@@ -277,7 +277,7 @@ def func_test_runner(keep_last_model=False, keep_all_models=False,
                 if len(set(matching_bundles)) == 1:
                     model_alias = matching_bundles.pop()
                 else:
-                    logging.info('Could not determine correct model alias'
+                    logging.info('Could not determine correct model alias '
                                  'from tests.yaml, using default')
                     model_alias = utils.DEFAULT_MODEL_ALIAS
             deploy[model_alias] = bundle
