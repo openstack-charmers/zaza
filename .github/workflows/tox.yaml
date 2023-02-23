@@ -5,11 +5,36 @@ on:
   - pull_request
 
 jobs:
+  build_old_versions:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        python-version: ['3.6', '3.7']
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install codecov tox tox-gh-actions
+    - name: Lint with tox
+      run: tox -e pep8
+    - name: Test with tox
+      run: tox -e py
+    - name: Codecov
+      run: |
+        set -euxo pipefail
+        codecov --verbose --gcov-glob unit_tests/*
+
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.8, 3.9]
 
     steps:
     - uses: actions/checkout@v1
@@ -35,21 +60,11 @@ jobs:
       fail-fast: false
       matrix:
         juju_channel:
-          - latest/stable
           - 2.9/stable
-          - 2.8/stable
         bundle:
           - first
           - second
           - third
-        exclude:
-          # disable 'first' and 'second' bundles for juju 2.8 since 'magpie'
-          # is not a promulgated charm in the charmstore, only on charmhub
-          # which 2.8 can't talk to.
-          - juju_channel: 2.8/stable
-            bundle: first
-          - juju_channel: 2.8/stable
-            bundle: second
     env:
       TEST_ZAZA_BUG_LP1987332: "on"  # http://pad.lv/1987332
     needs: build
@@ -67,6 +82,8 @@ jobs:
         sudo chmod 666 /var/snap/lxd/common/lxd/unix.socket
         # until Juju provides stable IPv6-support we unfortunately need this
         lxc network set lxdbr0 ipv6.address none
+        sudo iptables -F FORWARD
+        sudo iptables -P FORWARD ACCEPT
         # pull images
         lxc image copy --alias juju/bionic/amd64 --copy-aliases ubuntu-daily:bionic local:
         lxc image copy --alias juju/focal/amd64 --copy-aliases ubuntu-daily:focal local:
