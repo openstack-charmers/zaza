@@ -435,8 +435,9 @@ class TestModel(ut_utils.BaseTestCase):
         # model.disconnect and model.connect should've each have been called
         # twice, once for run_in_model, and once each for the disconnection.
         self.Model_mock.disconnect.assert_has_calls([mock.call(), mock.call()])
-        self.Model_mock.connect_model.has_calls([mock.call('modelname'),
-                                                 mock.call('modelname')])
+        self.Model_mock.connect_model.assert_has_calls(
+            [mock.call('modelname'), mock.call('testmodel')]
+        )
 
     def test_block_until_auto_reconnect_model_disconnected_async(self):
         self._mocks_for_block_until_auto_reconnect_model(
@@ -450,8 +451,9 @@ class TestModel(ut_utils.BaseTestCase):
         # model.disconnect and model.connect should've each have been called
         # twice, once for run_in_model, and once each for the disconnection.
         self.Model_mock.disconnect.assert_has_calls([mock.call(), mock.call()])
-        self.Model_mock.connect_model.has_calls([mock.call('modelname'),
-                                                 mock.call('modelname')])
+        self.Model_mock.connect_model.assert_has_calls(
+            [mock.call('modelname'), mock.call('testmodel')]
+        )
 
     def test_block_until_auto_reconnect_model_blocks_till_true(self):
         self._mocks_for_block_until_auto_reconnect_model(True, True)
@@ -1273,12 +1275,12 @@ class TestModel(ut_utils.BaseTestCase):
         model.wait_for_application_states('modelname', timeout=500,
                                           max_resolve_count=3)
         self.assertEquals(self.async_resolve_units.call_count, 2)
-        self.async_block_until_unit_wl_status.has_calls(
-            mock.call('app/2', 'error', 'model', negate_match=True,
+        self.async_block_until_unit_wl_status.assert_has_calls([
+            mock.call('app/2', 'error', 'modelname', negate_match=True,
                       timeout=60),
-            mock.call('app/2', 'error', 'model', negate_match=True,
+            mock.call('app/2', 'error', 'modelname', negate_match=True,
                       timeout=60),
-        )
+        ])
 
     def test_wait_for_application_states_blocked_ok(self):
         self._application_states_setup({
