@@ -435,8 +435,9 @@ class TestModel(ut_utils.BaseTestCase):
         # model.disconnect and model.connect should've each have been called
         # twice, once for run_in_model, and once each for the disconnection.
         self.Model_mock.disconnect.assert_has_calls([mock.call(), mock.call()])
-        self.Model_mock.connect_model.has_calls([mock.call('modelname'),
-                                                 mock.call('modelname')])
+        self.Model_mock.connect_model.assert_has_calls(
+            [mock.call('modelname'), mock.call('testmodel')]
+        )
 
     def test_block_until_auto_reconnect_model_disconnected_async(self):
         self._mocks_for_block_until_auto_reconnect_model(
@@ -450,8 +451,9 @@ class TestModel(ut_utils.BaseTestCase):
         # model.disconnect and model.connect should've each have been called
         # twice, once for run_in_model, and once each for the disconnection.
         self.Model_mock.disconnect.assert_has_calls([mock.call(), mock.call()])
-        self.Model_mock.connect_model.has_calls([mock.call('modelname'),
-                                                 mock.call('modelname')])
+        self.Model_mock.connect_model.assert_has_calls(
+            [mock.call('modelname'), mock.call('testmodel')]
+        )
 
     def test_block_until_auto_reconnect_model_blocks_till_true(self):
         self._mocks_for_block_until_auto_reconnect_model(True, True)
