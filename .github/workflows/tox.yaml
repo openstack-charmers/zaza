@@ -50,7 +50,7 @@ jobs:
         set -euxo pipefail
         python -m pip install --upgrade pip
         pip install tox tox-gh-actions
-        sudo snap install --channel ${{ matrix.juju_channel }} --classic juju
+        sudo snap install --channel ${{ matrix.juju_channel }} juju
         sudo snap install --classic juju-crashdump
         sudo lxd init --auto
         # This is a throw-away CI environment, do not do this at home
