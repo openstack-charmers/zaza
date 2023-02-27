@@ -5,36 +5,11 @@ on:
   - pull_request
 
 jobs:
-  build_old_versions:
-    runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        python-version: ['3.6']
-
-    steps:
-    - uses: actions/checkout@v1
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install codecov tox tox-gh-actions
-    - name: Lint with tox
-      run: tox -e pep8
-    - name: Test with tox
-      run: tox -e py
-    - name: Codecov
-      run: |
-        set -euxo pipefail
-        codecov --verbose --gcov-glob unit_tests/*
-
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10']
+        python-version: ['3.8', '3.9', '3.10']
 
     steps:
     - uses: actions/checkout@v1
@@ -60,7 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         juju_channel:
-          - 2.9/stable
+          - 3.1/stable
         bundle:
           - first
           - second
@@ -75,7 +50,7 @@ jobs:
         set -euxo pipefail
         python -m pip install --upgrade pip
         pip install tox tox-gh-actions
-        sudo snap install --channel ${{ matrix.juju_channel }} --classic juju
+        sudo snap install --channel ${{ matrix.juju_channel }} juju
         sudo snap install --classic juju-crashdump
         sudo lxd init --auto
         # This is a throw-away CI environment, do not do this at home
@@ -89,7 +64,7 @@ jobs:
         lxc image copy --alias juju/focal/amd64 --copy-aliases ubuntu-daily:focal local:
         lxc image copy --alias juju/jammy/amd64 --copy-aliases ubuntu-daily:jammy local:
         lxc image list
-        juju bootstrap --no-gui localhost
+        juju bootstrap localhost
     - name: Functional test
       run: |
         set -euxo pipefail
