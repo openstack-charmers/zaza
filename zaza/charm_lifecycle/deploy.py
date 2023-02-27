@@ -339,7 +339,7 @@ def deploy_bundle(bundle, model, model_ctxt=None, force=False, trust=False):
     if trust:
         cmd.append('--trust')
     bundle_out = None
-    with tempfile.TemporaryDirectory() as tmpdirname:
+    with tempfile.TemporaryDirectory(dir=os.environ['HOME']) as tmpdirname:
         # Bundle templates should only exist in the bundle directory so
         # explicitly set the Jinja2 load path.
         bundle_template = get_template(
