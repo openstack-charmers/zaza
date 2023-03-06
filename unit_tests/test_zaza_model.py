@@ -134,6 +134,9 @@ class TestModel(ut_utils.BaseTestCase):
         async def _destroy_unit(*unitnames):
             return
 
+        async def _scale(scale=None, scale_change=None):
+            return
+
         def _is_leader(leader):
             async def _inner_is_leader():
                 return leader
@@ -213,6 +216,7 @@ class TestModel(ut_utils.BaseTestCase):
         _units.destroy_relation.side_effect = _destroy_relation
         _units.add_unit.side_effect = _add_unit
         _units.destroy_unit.side_effect = _destroy_unit
+        _units.scale.side_effect = _scale
 
         self.mymodel = mock.MagicMock()
         self.mymodel.applications = {
@@ -971,6 +975,36 @@ class TestModel(ut_utils.BaseTestCase):
         model.destroy_unit('app', 'app/2', wait_disappear=True)
         self.mymodel.applications['app'].destroy_unit.assert_called_once_with(
             'app/2')
+        self.async_block_until_unit_count.assert_called_once_with(
+            'app', 1, model_name=None)
+
+    def test_scale_out(self):
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        model.scale('app', scale=3)
+        self.mymodel.applications['app'].scale.assert_called_once_with(
+            scale=3, scale_change=None)
+
+    def test_scale_wait(self):
+        self.patch_object(model, 'async_block_until_unit_count')
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        model.scale('app', scale=3, wait=True)
+        self.mymodel.applications['app'].scale.assert_called_once_with(
+            scale=3, scale_change=None)
+        self.async_block_until_unit_count.assert_called_once_with(
+            'app', 3, model_name=None)
+
+    def test_scale_back_wait(self):
+        self.patch_object(model, 'async_block_until_unit_count')
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        model.scale('app', scale_change=-1, wait=True)
+        self.mymodel.applications['app'].scale.assert_called_once_with(
+            scale=None, scale_change=-1)
         self.async_block_until_unit_count.assert_called_once_with(
             'app', 1, model_name=None)
 
