@@ -2780,6 +2780,40 @@ async def async_destroy_unit(application_name, *unit_names, model_name=None,
 destroy_unit = sync_wrapper(async_destroy_unit)
 
 
+async def async_scale(application_name, scale=None, scale_change=None,
+                      wait=False, model_name=None):
+    """
+    Set or adjust the scale of this (K8s) application.
+
+    :param application_name: Name of application to add unit(s) to
+    :type application_name: str
+    :param scale: Scale to which to set this application.
+    :type scale: int
+    :param scale_change: Amount by which to adjust the scale of this
+            application (can be positive or negative).
+    :type scale_change: int
+    :param wait: Whether to wait for the unit change to appear in juju
+                 status
+    :type wait: bool
+    :param model_name: Name of model to operate on.
+    :type model_name: str
+    """
+    model = await get_model(model_name)
+    app = model.applications[application_name]
+    await app.scale(scale=scale, scale_change=scale_change)
+    if wait:
+        if scale:
+            target_count = scale
+        else:
+            target_count = len(app.units) + scale_change
+        await async_block_until_unit_count(
+            application_name,
+            target_count,
+            model_name=model_name)
+
+scale = sync_wrapper(async_scale)
+
+
 def set_model_constraints(constraints, model_name=None):
     """
     Set constraints on a model.
