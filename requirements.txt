@@ -2,7 +2,7 @@ pyparsing<3.0.0  # pin for aodhclient which is held for py35
 aiounittest
 async_generator
 kubernetes<18.0.0; python_version < '3.6' # pined, as juju uses kubernetes
-juju
+juju<3.0
 juju_wait
 PyYAML>=3.0
 flake8>=2.2.4
