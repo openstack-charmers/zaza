@@ -37,7 +37,6 @@ import unit_tests.utils as ut_utils
 from juju import loop
 
 import zaza.model as model
-import zaza
 
 
 FAKE_STATUS = {
@@ -432,12 +431,12 @@ class TestModel(ut_utils.BaseTestCase):
         self._mocks_for_block_until_auto_reconnect_model([False, True], True)
         self._wrapper_block_until_auto_reconnect_model(
             lambda: True)
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            model.sync_wrapper(self._wrapper)()
-        self.Model_mock.disconnect.assert_has_calls([mock.call()])
-        self.Model_mock.connect_model.assert_has_calls(
-            [mock.call('testmodel')]
-        )
+        loop.run(self._wrapper())
+        # model.disconnect and model.connect should've each have been called
+        # twice, once for run_in_model, and once each for the disconnection.
+        self.Model_mock.disconnect.assert_has_calls([mock.call(), mock.call()])
+        self.Model_mock.connect_model.has_calls([mock.call('modelname'),
+                                                 mock.call('modelname')])
 
     def test_block_until_auto_reconnect_model_disconnected_async(self):
         self._mocks_for_block_until_auto_reconnect_model(
@@ -447,12 +446,12 @@ class TestModel(ut_utils.BaseTestCase):
             return True
         self._wrapper_block_until_auto_reconnect_model(
             aconditions=[_async_true])
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            model.sync_wrapper(self._wrapper)()
-        self.Model_mock.disconnect.assert_has_calls([mock.call()])
-        self.Model_mock.connect_model.assert_has_calls(
-            [mock.call('testmodel')]
-        )
+        loop.run(self._wrapper())
+        # model.disconnect and model.connect should've each have been called
+        # twice, once for run_in_model, and once each for the disconnection.
+        self.Model_mock.disconnect.assert_has_calls([mock.call(), mock.call()])
+        self.Model_mock.connect_model.has_calls([mock.call('modelname'),
+                                                 mock.call('modelname')])
 
     def test_block_until_auto_reconnect_model_blocks_till_true(self):
         self._mocks_for_block_until_auto_reconnect_model(True, True)
