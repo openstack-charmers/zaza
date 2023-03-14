@@ -55,10 +55,11 @@ jobs:
         set -euxo pipefail
         codecov --verbose --gcov-glob unit_tests/*
   func:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
+        python-version: ['3.6.15']
         juju_channel:
           - 2.9/stable
         bundle:
@@ -86,8 +87,6 @@ jobs:
         sudo iptables -P FORWARD ACCEPT
         # pull images
         lxc image copy --alias juju/bionic/amd64 --copy-aliases ubuntu-daily:bionic local:
-        lxc image copy --alias juju/focal/amd64 --copy-aliases ubuntu-daily:focal local:
-        lxc image copy --alias juju/jammy/amd64 --copy-aliases ubuntu-daily:jammy local:
         lxc image list
         juju bootstrap --no-gui localhost
     - name: Functional test
