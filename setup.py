@@ -39,7 +39,7 @@ install_require = [
     'juju<3.0',
     'juju-wait',
     'PyYAML',
-    'tenacity',
+    'tenacity>8.2.0',
     'python-libmaas',
 ]
 
