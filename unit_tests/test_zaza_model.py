@@ -32,6 +32,7 @@ import copy
 import concurrent
 import datetime
 import mock
+import pytest
 import yaml
 
 import unit_tests.utils as ut_utils
@@ -100,6 +101,7 @@ EXECUTING_STATUS = {
                                 }}}}}}
 
 
+@pytest.mark.asyncio
 class TestModel(ut_utils.BaseTestCase):
 
     def setUp(self):
