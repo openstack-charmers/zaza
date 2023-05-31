@@ -28,7 +28,7 @@ python-neutronclient
 python-novaclient
 python-octaviaclient
 python-swiftclient
-tenacity
+tenacity>8.2.0
 paramiko
 python-libmaas
 requests<2.26  # pin for py3.5 support

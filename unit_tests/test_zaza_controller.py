@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import mock
+import pytest
 import unittest
 
 import unit_tests.utils as ut_utils
@@ -25,6 +26,7 @@ def tearDownModule():
     zaza.clean_up_libjuju_thread()
 
 
+@pytest.mark.asyncio
 class TestController(ut_utils.BaseTestCase):
 
     def setUp(self):
