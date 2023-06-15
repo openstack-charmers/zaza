@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import collections
 import copy
 import mock
 import yaml
 
 import zaza.utilities.deployment_env as deployment_env
+import zaza.utilities.ro_types as ro_types
 import unit_tests.utils as ut_utils
 
 
@@ -52,40 +54,98 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
                 'test-mode': 'false',
                 'image-stream': 'released'})
 
+    def test_get_overlay_ppas(self):
+        with mock.patch('zaza.global_options.get_options') as get_options_mock:
+            config = collections.OrderedDict({'overlay_ppas':
+                                              ['ppa:ppa1', 'ppa:ppa2']})
+            get_options_mock.return_value = ro_types.resolve_immutable(config)
+            self.assertEqual(deployment_env.get_overlay_ppas(),
+                             ro_types.ReadOnlyList(['ppa:ppa1', 'ppa:ppa2']))
+
+            config = collections.OrderedDict({'force_deploy': 'x-y'})
+            get_options_mock.return_value = ro_types.resolve_immutable(config)
+            self.assertEqual(deployment_env.get_overlay_ppas(), None)
+
+    def test_get_cloudinit_userdata(self):
+        with mock.patch.object(deployment_env, 'get_overlay_ppas',
+                               return_value=['ppa:ppa0', 'ppa:ppa1']):
+            cloud_config = {
+                'apt': {
+                    'sources': {
+                        'overlay-ppa-0': {
+                            'source': 'ppa:ppa0'
+                        },
+                        'overlay-ppa-1': {
+                            'source': 'ppa:ppa1'
+                        }
+                    }
+                }
+            }
+            cloudinit_userdata = "#cloud-config\n{}".format(
+                yaml.safe_dump(cloud_config))
+            self.assertEqual(
+                deployment_env.get_cloudinit_userdata(),
+                cloudinit_userdata)
+
     def base_get_model_settings(self, env, expect):
         with mock.patch.dict(deployment_env.os.environ, env):
             self.assertEqual(deployment_env.get_model_settings(), expect)
 
     def test_get_model_settings_no_config(self):
-        self.base_get_model_settings({}, self.MODEL_CONFIG_DEFAULTS)
+        with mock.patch.object(deployment_env, 'get_cloudinit_userdata',
+                               return_value=None):
+            self.base_get_model_settings({}, self.MODEL_CONFIG_DEFAULTS)
 
     def test_get_model_settings_multiple_values_override(self):
-        expect_config = copy.deepcopy(self.MODEL_CONFIG_DEFAULTS)
-        expect_config.update({'test-mode': 'false'})
-        self.base_get_model_settings(
-            {'TEST_MODEL_SETTINGS': 'test-mode=false'},
-            expect_config)
+        with mock.patch.object(deployment_env, 'get_cloudinit_userdata',
+                               return_value=None):
+            expect_config = copy.deepcopy(self.MODEL_CONFIG_DEFAULTS)
+            expect_config.update({'test-mode': 'false'})
+            self.base_get_model_settings(
+                {'TEST_MODEL_SETTINGS': 'test-mode=false'},
+                expect_config)
 
     def test_get_model_settings_file_override(self):
-        expect_config = copy.deepcopy(self.MODEL_CONFIG_DEFAULTS)
-        expect_config.update({'default-series': 'file-setting'})
-        self.patch_object(
-            deployment_env,
-            'get_setup_file_section',
-            return_value={'default-series': 'file-setting'})
-        self.base_get_model_settings({}, expect_config)
+        with mock.patch.object(deployment_env, 'get_cloudinit_userdata',
+                               return_value=None):
+            expect_config = copy.deepcopy(self.MODEL_CONFIG_DEFAULTS)
+            expect_config.update({'default-series': 'file-setting'})
+            self.patch_object(
+                deployment_env,
+                'get_setup_file_section',
+                return_value={'default-series': 'file-setting'})
+            self.base_get_model_settings({}, expect_config)
 
     def test_get_model_settings_file_override_env_override(self):
-        # Check that env variables override defaults and file
-        expect_config = copy.deepcopy(self.MODEL_CONFIG_DEFAULTS)
-        expect_config.update({'default-series': 'env-setting'})
-        self.patch_object(
-            deployment_env,
-            'get_setup_file_section',
-            return_value={'default-series': 'file-setting'})
-        self.base_get_model_settings(
-            {'TEST_MODEL_SETTINGS': 'default-series=env-setting'},
-            expect_config)
+        with mock.patch.object(deployment_env, 'get_cloudinit_userdata',
+                               return_value=None):
+            # Check that env variables override defaults and file
+            expect_config = copy.deepcopy(self.MODEL_CONFIG_DEFAULTS)
+            expect_config.update({'default-series': 'env-setting'})
+            self.patch_object(
+                deployment_env,
+                'get_setup_file_section',
+                return_value={'default-series': 'file-setting'})
+            self.base_get_model_settings(
+                {'TEST_MODEL_SETTINGS': 'default-series=env-setting'},
+                expect_config)
+
+    def test_get_model_settings_cloudinit_userdata(self):
+        with mock.patch.object(deployment_env, 'get_cloudinit_userdata',
+                               return_value='x'):
+            expect_config = copy.deepcopy(self.MODEL_CONFIG_DEFAULTS)
+            expect_config.update({'cloudinit-userdata': 'x'})
+            self.base_get_model_settings({}, expect_config)
+
+            with mock.patch.object(deployment_env.logging, 'warn') as warn:
+                with mock.patch.dict(deployment_env.os.environ,
+                                     {'TEST_MODEL_SETTINGS':
+                                      "cloudinit-userdata=y"}):
+                    expect_config.update({'cloudinit-userdata': 'y'})
+                    self.base_get_model_settings({}, expect_config)
+                    warn.assert_called_once_with(
+                        'TEST_MODEL_SETTINGS contains cloudinit-userdata '
+                        'which overrides tests_options overlay_ppas')
 
     def base_get_model_constraints(self, env, expect):
         with mock.patch.dict(deployment_env.os.environ, env):
