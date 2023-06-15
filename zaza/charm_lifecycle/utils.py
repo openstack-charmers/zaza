@@ -465,6 +465,35 @@ def is_config_deploy_forced_for_bundle(
     return False
 
 
+def get_overlay_ppa(yaml_file=None, fatal=True):
+    """Get overlay_ppa from tests_options.
+
+    In the config file for the tests, the tests_options.overlay_ppa option
+    may be used to specify a PPA that will be enabled for all units in
+    the model.
+
+    The tests_options section needs to look like:
+
+        tests_options:
+          overlay_ppa: ppa:ubuntu-security-proposed/ppa
+
+    :param yaml_file: the YAML file that contains the tests specification
+    :type yaml_file: Optional[str]
+    :param fatal: whether any errors cause an exception or are just logged.
+    :type fatal: bool
+    :returns: overlay PPA name
+    :rtype: str
+    :raises: OSError if the YAML file doesn't exist and fatal=True
+    """
+    config = get_charm_config(yaml_file, fatal)
+    try:
+        return config['tests_options']['overlay_ppa']
+    # Type error is if the force_deploy is present, but with no value
+    except (KeyError, TypeError):
+        pass
+    return None
+
+
 def get_class(class_str):
     """Get the class represented by the given string.
 

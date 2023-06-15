@@ -20,6 +20,7 @@ import functools
 import yaml
 
 import zaza.model
+import zaza.charm_lifecycle.utils as utils
 
 ZAZA_SETUP_FILE_LOCATIONS = [
     '{home}/.zaza.yaml']
@@ -83,6 +84,27 @@ def parse_option_list_string(option_list, delimiter=None):
         settings[key.strip()] = value.strip()
     return settings
 
+def get_cloudinit_userdata():
+    """Return cloudinit_userdata based on tests_options config.
+
+    :returns: YAML-formatted string of cloudinit_userdata
+    :rtype: str
+    """
+    cloudinit_userdata = None
+    overlay_ppa = utils.get_overlay_ppa()
+    if overlay_ppa:
+        cloud_config = {
+            "apt": {
+                "sources": {
+                    "overlay-ppa": {
+                        "source": overlay_ppa
+                    }
+                }
+            }
+        }
+        cloudinit_userdata = "#cloud-config\n{}".format(
+            yaml.safe_dump(cloud_config))
+    return cloudinit_userdata
 
 def get_model_settings():
     """Return model settings from defaults, config file and env variables.
@@ -94,6 +116,12 @@ def get_model_settings():
     model_settings.update(get_setup_file_section(MODEL_SETTINGS_SECTION))
     env_settings = os.environ.get('MODEL_SETTINGS', '')
     test_env_settings = os.environ.get('TEST_MODEL_SETTINGS', '')
+    cloudinit_userdata = get_cloudinit_userdata()
+    if cloudinit_userdata:
+        if 'cloudinit-userdata' in test_env_settings:
+            logging.warn('TEST_MODEL_SETTINGS contains cloudinit-userdata '
+                         'which overrides tests_options overlay_ppa')
+        model_settings.update({'cloudinit-userdata': cloudinit_userdata})
     model_settings.update(
         parse_option_list_string(test_env_settings or env_settings))
     if env_settings:
