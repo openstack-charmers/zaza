@@ -19,8 +19,8 @@ import os
 import functools
 import yaml
 
+import zaza.global_options
 import zaza.model
-import zaza.charm_lifecycle.utils as utils
 
 ZAZA_SETUP_FILE_LOCATIONS = [
     '{home}/.zaza.yaml']
@@ -84,6 +84,31 @@ def parse_option_list_string(option_list, delimiter=None):
         settings[key.strip()] = value.strip()
     return settings
 
+
+def get_overlay_ppas():
+    """Get overlay_ppas from global_config.
+
+    In the config file for the tests, the tests_options.overlay_ppa option
+    may be used to specify one or more PPAs that will be enabled for all
+    units in the model.
+
+    The tests_options section needs to look like:
+
+        tests_options:
+          overlay_ppas:
+            - ppa:ubuntu-security-proposed/ppa
+
+    :returns: List of overlay PPAs
+    :rtype: list[str]
+    """
+    config = zaza.global_options.get_options()
+    try:
+        return config.overlay_ppas
+    except KeyError:
+        pass
+    return None
+
+
 def get_cloudinit_userdata():
     """Return cloudinit_userdata based on tests_options config.
 
@@ -91,20 +116,22 @@ def get_cloudinit_userdata():
     :rtype: str
     """
     cloudinit_userdata = None
-    overlay_ppa = utils.get_overlay_ppa()
-    if overlay_ppa:
-        cloud_config = {
-            "apt": {
-                "sources": {
-                    "overlay-ppa": {
-                        "source": overlay_ppa
-                    }
-                }
+    overlay_ppas = get_overlay_ppas()
+    cloud_config = {
+        'apt': {
+            'sources': {
             }
         }
+    }
+    for index, overlay_ppa in enumerate(overlay_ppas):
+        cloud_config['apt']['sources']["overlay-ppa-{}".format(index)] = {
+            'source': overlay_ppa
+        }
+    if cloud_config['apt']['sources']:
         cloudinit_userdata = "#cloud-config\n{}".format(
             yaml.safe_dump(cloud_config))
     return cloudinit_userdata
+
 
 def get_model_settings():
     """Return model settings from defaults, config file and env variables.
@@ -120,7 +147,7 @@ def get_model_settings():
     if cloudinit_userdata:
         if 'cloudinit-userdata' in test_env_settings:
             logging.warn('TEST_MODEL_SETTINGS contains cloudinit-userdata '
-                         'which overrides tests_options overlay_ppa')
+                         'which overrides tests_options overlay_ppas')
         model_settings.update({'cloudinit-userdata': cloudinit_userdata})
     model_settings.update(
         parse_option_list_string(test_env_settings or env_settings))
