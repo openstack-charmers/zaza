@@ -116,18 +116,18 @@ def get_cloudinit_userdata():
     :rtype: str
     """
     cloudinit_userdata = None
-    overlay_ppas = get_overlay_ppas()
     cloud_config = {
         'apt': {
             'sources': {
             }
         }
     }
-    for index, overlay_ppa in enumerate(overlay_ppas):
-        cloud_config['apt']['sources']["overlay-ppa-{}".format(index)] = {
-            'source': overlay_ppa
-        }
-    if cloud_config['apt']['sources']:
+    overlay_ppas = get_overlay_ppas()
+    if overlay_ppas:
+        for index, overlay_ppa in enumerate(overlay_ppas):
+            cloud_config['apt']['sources']["overlay-ppa-{}".format(index)] = {
+                'source': overlay_ppa
+            }
         cloudinit_userdata = "#cloud-config\n{}".format(
             yaml.safe_dump(cloud_config))
     return cloudinit_userdata
