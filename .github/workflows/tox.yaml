@@ -64,6 +64,11 @@ jobs:
           - first
           - second
           - third
+        include:
+          - juju_channel: 2.9/stable
+            extra: juju-29
+          - juju_channel: 3.1/stable
+            extra: juju-31
     env:
       TEST_ZAZA_BUG_LP1987332: "on"  # http://pad.lv/1987332
     needs: build
@@ -93,7 +98,7 @@ jobs:
       run: |
         set -euxo pipefail
         mkdir logs
-        tox -e func-target -- ${{ matrix.bundle }} | tee logs/tox-output.txt
+        env EXTRA=${{ matrix.extra }} tox -e func-target -- ${{ matrix.bundle }} | tee logs/tox-output.txt
     - name: crashdump on failure
       if: failure()
       run: |
