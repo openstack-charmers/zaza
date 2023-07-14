@@ -53,6 +53,7 @@ extras_require={
     'testing': tests_require,
     'juju-29': ['juju<3.0'],
     'juju-31': ['juju>=3.1.0,<3.2.0'],
+    'juju-32': ['juju>=3.2.0,<3.3.0'],
 }
 
 
