@@ -24,7 +24,7 @@ jobs:
     - name: Lint with tox
       run: tox -e pep8
     - name: Test with tox
-      run: tox -e py
+      run: tox -e py3
     - name: Codecov
       run: |
         set -euxo pipefail
