@@ -454,10 +454,15 @@ def get_subordinate_units(unit_list, charm_name=None, status=None,
     Subordinate can be filtered by using 'charm_name' which will only return
     subordinate units which have 'charm_name' in the name of the charm e.g.
 
+    .. code-block:: python
+
         get_subordinate_units(
             ['cinder/1']) would return ['cinder-hacluster/1',
                                         'cinder-ceph/2'])
+
     where as
+
+    .. code-block:: python
 
         get_subordinate_units(
             ['cinder/1'], charm_name='hac') would return ['cinder-hacluster/1']

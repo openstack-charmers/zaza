@@ -1,0 +1,5 @@
+oslo.config
+async_generator
+juju<3.0
+sphinx
+sphinxcontrib-asyncio

@@ -234,7 +234,7 @@ async def get_model_memo(model_name):
 
 
 async def get_model(model_name=None):
-    """Get (or create) the current model for :param:`model_name`.
+    """Get (or create) the current model for `model_name`.
 
     If None is passed, or there is no model_name param, then the current model
     is fetched.
@@ -1503,7 +1503,9 @@ async def async_wait_for_application_states(model_name=None, states=None,
     message that starts with one of the approved_message_prefixes.
 
     Bespoke statuses and messages can be passed in with states. states takes
-    the form::
+    the form:
+
+    .. code-block:: python
 
         states = {
             'app': {
@@ -1515,6 +1517,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
                 'workload-status-message-prefix': 'Unit is super ready'}}
         wait_for_application_states('modelname', states=states)
 
+
     The keys that can be used are:
 
      - "workload-status" - an exact match of the workload-status
@@ -1523,11 +1526,12 @@ async def async_wait_for_application_states(model_name=None, states=None,
      - "workload-status-message-regex" - the entire string matches if the regex
        matches.
      - "workloaed-status-message" - DEPRECATED; use
-           "workload-status-message-prefix" instead.
-    - "num-expected-units' - the number of units to be 'ready'.
+       "workload-status-message-prefix" instead.
+     - "num-expected-units' - the number of units to be 'ready'.
 
     To match an empty string, use:
-      "workload-status-message-regex": "^$"
+
+     - `"workload-status-message-regex": "^$"`
 
     NOTE: all applications that are being waited on are expected to have at
     least one unit for that application to be ready.  Any subordinate charms
