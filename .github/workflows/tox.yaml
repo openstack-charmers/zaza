@@ -84,3 +84,6 @@ jobs:
       with:
         name: test-run-logs-and-crashdump
         path: logs/
+    - name: consider debugging
+      uses: lhotari/action-upterm@v1
+      if: failure()

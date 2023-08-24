@@ -116,11 +116,17 @@ def get_cloudinit_userdata():
     :rtype: str
     """
     cloudinit_userdata = None
+    preferences_file = "/etc/apt/preferences.d/proposed-updates"
     cloud_config = {
         'apt': {
             'sources': {
             }
-        }
+        },
+        'preruncmd': [
+            f"echo 'Package: *' >> {preferences_file}",
+            f"echo 'Pin: release a=*-proposed' >> {preferences_file}",
+            f"echo 'Pin-Priority: 500' >> {preferences_file}",
+        ]
     }
     overlay_ppas = get_overlay_ppas()
     if overlay_ppas:
@@ -128,8 +134,8 @@ def get_cloudinit_userdata():
             cloud_config['apt']['sources']["overlay-ppa-{}".format(index)] = {
                 'source': overlay_ppa
             }
-        cloudinit_userdata = "#cloud-config\n{}".format(
-            yaml.safe_dump(cloud_config))
+    cloudinit_userdata = "#cloud-config\n{}".format(
+        yaml.safe_dump(cloud_config))
     return cloudinit_userdata
 
 
