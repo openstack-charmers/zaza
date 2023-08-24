@@ -546,7 +546,7 @@ def _normalise_action_results(results):
             elif results.get(old_key) and not results.get(key):
                 results[key] = results[old_key]
         if 'return-code' in results:
-            results['Code'] = results.get('return-code')
+            results['Code'] = str(results.get('return-code'))
             del results['return-code']
         return results
     else:
