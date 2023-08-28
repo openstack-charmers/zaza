@@ -124,6 +124,7 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
     for deployment in env_deployment.model_deploys:
         prepare.prepare(
             deployment.model_name,
+            deployment.model_alias,
             test_directory=test_directory)
 
     for deployment in env_deployment.model_deploys:

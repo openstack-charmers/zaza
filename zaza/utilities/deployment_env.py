@@ -85,7 +85,7 @@ def parse_option_list_string(option_list, delimiter=None):
     return settings
 
 
-def get_overlay_ppas():
+def get_overlay_ppas(model_alias='default_alias'):
     """Get overlay_ppas from global_config.
 
     In the config file for the tests, the tests_options.overlay_ppa option
@@ -98,6 +98,8 @@ def get_overlay_ppas():
           overlay_ppas:
             - ppa:ubuntu-security-proposed/ppa
 
+    :param model: Name of model alias
+    :type bundle: str
     :returns: List of overlay PPAs
     :rtype: list[str]
     """
@@ -106,12 +108,18 @@ def get_overlay_ppas():
         return config.overlay_ppas
     except KeyError:
         pass
+    try:
+        return config[model_alias].overlay_ppas
+    except KeyError:
+        pass
     return None
 
 
-def get_cloudinit_userdata():
+def get_cloudinit_userdata(model_alias='default_alias'):
     """Return cloudinit_userdata based on tests_options config.
 
+    :param model: Name of model alias
+    :type bundle: str
     :returns: YAML-formatted string of cloudinit_userdata
     :rtype: str
     """
@@ -128,7 +136,7 @@ def get_cloudinit_userdata():
             f"echo 'Pin-Priority: 500' >> {preferences_file}",
         ]
     }
-    overlay_ppas = get_overlay_ppas()
+    overlay_ppas = get_overlay_ppas(model_alias)
     if overlay_ppas:
         for index, overlay_ppa in enumerate(overlay_ppas):
             cloud_config['apt']['sources']["overlay-ppa-{}".format(index)] = {
@@ -139,9 +147,11 @@ def get_cloudinit_userdata():
     return cloudinit_userdata
 
 
-def get_model_settings():
+def get_model_settings(model_alias='default_alias'):
     """Return model settings from defaults, config file and env variables.
 
+    :param model: Name of model alias
+    :type bundle: str
     :returns: Settings to use for model
     :rtype: Dict
     """
@@ -149,7 +159,7 @@ def get_model_settings():
     model_settings.update(get_setup_file_section(MODEL_SETTINGS_SECTION))
     env_settings = os.environ.get('MODEL_SETTINGS', '')
     test_env_settings = os.environ.get('TEST_MODEL_SETTINGS', '')
-    cloudinit_userdata = get_cloudinit_userdata()
+    cloudinit_userdata = get_cloudinit_userdata(model_alias)
     if cloudinit_userdata:
         if 'cloudinit-userdata' in test_env_settings:
             logging.warn('TEST_MODEL_SETTINGS contains cloudinit-userdata '
