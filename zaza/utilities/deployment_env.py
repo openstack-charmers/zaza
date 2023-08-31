@@ -98,6 +98,13 @@ def get_overlay_ppas(model_alias='default_alias'):
           overlay_ppas:
             - ppa:ubuntu-security-proposed/ppa
 
+     or:
+
+        tests_options:
+          model_alias:
+            overlay_ppas:
+              - ppa:ubuntu-security-proposed/ppa
+
     :param model: Name of model alias
     :type bundle: str
     :returns: List of overlay PPAs
@@ -105,13 +112,12 @@ def get_overlay_ppas(model_alias='default_alias'):
     """
     config = zaza.global_options.get_options()
     try:
-        return config.overlay_ppas
-    except KeyError:
-        pass
-    try:
         return config[model_alias].overlay_ppas
     except KeyError:
-        pass
+        try:
+            return config.overlay_ppas
+        except KeyError:
+            pass
     return None
 
 
