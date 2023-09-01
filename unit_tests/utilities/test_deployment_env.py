@@ -62,6 +62,12 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
             self.assertEqual(deployment_env.get_overlay_ppas(),
                              ro_types.ReadOnlyList(['ppa:ppa1', 'ppa:ppa2']))
 
+            config = collections.OrderedDict({'model_alias': {'overlay_ppas':
+                                              ['ppa:ppa1', 'ppa:ppa2']}})
+            get_options_mock.return_value = ro_types.resolve_immutable(config)
+            self.assertEqual(deployment_env.get_overlay_ppas('model_alias'),
+                             ro_types.ReadOnlyList(['ppa:ppa1', 'ppa:ppa2']))
+
             config = collections.OrderedDict({'force_deploy': 'x-y'})
             get_options_mock.return_value = ro_types.resolve_immutable(config)
             self.assertEqual(deployment_env.get_overlay_ppas(), None)

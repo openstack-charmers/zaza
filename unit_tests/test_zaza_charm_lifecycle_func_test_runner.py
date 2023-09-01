@@ -79,8 +79,8 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         lc_func_test_runner.func_test_runner(
             force=True)
         prepare_calls = [
-            mock.call('newmodel', test_directory=None),
-            mock.call('newmodel', test_directory=None)]
+            mock.call('newmodel', 'default_alias', test_directory=None),
+            mock.call('newmodel', 'default_alias', test_directory=None)]
         cwd = os.getcwd()
         deploy_calls = [
             mock.call(cwd + '/tests/bundles/bundle1.yaml', 'newmodel',
@@ -157,10 +157,10 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                      'zaza.charm_tests.ks.test.project_create2']}]}
         lc_func_test_runner.func_test_runner()
         prepare_calls = [
-            mock.call('m1', test_directory=None),
-            mock.call('m2', test_directory=None),
-            mock.call('m3', test_directory=None),
-            mock.call('m4', test_directory=None)]
+            mock.call('m1', 'default_alias', test_directory=None),
+            mock.call('m2', 'default_alias', test_directory=None),
+            mock.call('m3', 'model_alias_5', test_directory=None),
+            mock.call('m4', 'model_alias_6', test_directory=None)]
         cwd = os.getcwd()
         deploy_calls = [
             mock.call(cwd + '/tests/bundles/bundle1.yaml', 'm1',
@@ -252,8 +252,8 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         lc_func_test_runner.func_test_runner()
         cwd = os.getcwd()
         prepare_calls = [
-            mock.call('newmodel', test_directory=None),
-            mock.call('newmodel', test_directory=None)]
+            mock.call('newmodel', 'default_alias', test_directory=None),
+            mock.call('newmodel', 'default_alias', test_directory=None)]
         deploy_calls = [
             mock.call(cwd + '/tests/bundles/bundle1.yaml', 'newmodel',
                       model_ctxt={'default_alias': 'newmodel'}, force=False,

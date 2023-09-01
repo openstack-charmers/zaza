@@ -29,10 +29,12 @@ import zaza.utilities.deployment_env as deployment_env
 
 
 @run_report.register_event_wrapper('Prepare Environment')
-def prepare(model_name, test_directory=None):
+def prepare(model_name, model_alias='default_alias', test_directory=None):
     """Run all steps to prepare the environment before a functional test run.
 
     :param model: Name of model to add
+    :type bundle: str
+    :param model: Name of model alias
     :type bundle: str
     :param test_directory: Set the directory containing tests.yaml and bundles.
     :type test_directory: str
@@ -41,7 +43,7 @@ def prepare(model_name, test_directory=None):
     utils.set_base_test_dir(test_dir=test_directory)
     zaza.controller.add_model(
         model_name,
-        config=deployment_env.get_model_settings(),
+        config=deployment_env.get_model_settings(model_alias),
         cloud_name=deployment_env.get_cloud_name(),
         region=deployment_env.get_cloud_region())
     zaza.model.set_model_constraints(
@@ -70,10 +72,15 @@ def parse_args(args):
 def main():
     """Add a new model."""
     args = parse_args(sys.argv[1:])
+    model_alias = 'default_alias'
+    model_name = args.model_name
+    if ':' in model_name:
+        model_alias, model_name = args.model_name.split(':')
     cli_utils.setup_logging(log_level=args.loglevel.upper())
-    logging.info('model_name: {}'.format(args.model_name))
+    logging.info('model_name: {}'.format(model_name))
+    logging.info('model_alias: {}'.format(model_alias))
     try:
-        prepare(args.model_name, test_directory=args.test_directory)
+        prepare(model_name, model_alias, test_directory=args.test_directory)
         run_report.output_event_report()
     finally:
         zaza.clean_up_libjuju_thread()
