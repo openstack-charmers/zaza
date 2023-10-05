@@ -43,18 +43,15 @@ install_require = [
 
     # https://github.com/go-macaroon-bakery/py-macaroon-bakery/issues/94
     'macaroonbakery != 1.3.3',
+    'juju',
 ]
 
 tests_require = [
     'tox >= 2.3.1',
 ]
 
-extras_require={
+extras_require = {
     'testing': tests_require,
-    '': ['juju'],
-    'juju-29': ['juju<3.0'],
-    'juju-31': ['juju>=3.1.0,<3.2.0'],
-    'juju-32': ['juju>=3.2.0,<3.3.0'],
 }
 
 
