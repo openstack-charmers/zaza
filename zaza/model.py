@@ -571,11 +571,8 @@ async def async_run_on_unit(unit_name, command, model_name=None, timeout=None):
     unit = await async_get_unit_from_name(unit_name, model)
     action = await unit.run(command, timeout=timeout)
     await action.wait()
-    results = None
-    try:
-        results = action.results
-    except (AttributeError, KeyError):
-        results = action.data.get('results')
+    action = _normalise_action_object(action)
+    results = action.data.get('results')
     return _normalise_action_results(results)
 
 run_on_unit = sync_wrapper(async_run_on_unit)
@@ -602,11 +599,8 @@ async def async_run_on_leader(application_name, command, model_name=None,
         if is_leader:
             action = await unit.run(command, timeout=timeout)
             await action.wait()
-            results = None
-            try:
-                results = action.results
-            except (AttributeError, KeyError):
-                results = action.data.get('results')
+            action = _normalise_action_object(action)
+            results = action.data.get('results')
             return _normalise_action_results(results)
 
 run_on_leader = sync_wrapper(async_run_on_leader)
@@ -2264,14 +2258,10 @@ async def async_block_until_file_missing(
             try:
                 output = await unit.run('test -e "{}"; echo $?'.format(path))
                 await output.wait()
-                output_result = {}
-                try:
-                    output_result = output.results
-                except (AttributeError, KeyError):
-                    output_result = output.data.get('results', {})
-                contents = output_result.get(
-                    'Stdout', output_result.get('stdout', '')
-                )
+                output = _normalise_action_object(output)
+                output_result = _normalise_action_results(
+                    output.data.get('results', {}))
+                contents = output_result.get('Stdout', '')
                 results.append("1" in contents)
             # libjuju throws a generic error for connection failure. So we
             # cannot differentiate between a connectivity issue and a
