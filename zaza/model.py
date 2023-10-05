@@ -1130,7 +1130,7 @@ async def async_run_action(unit_name, action_name, model_name=None,
     action_obj = await unit.run_action(action_name, **action_params)
     await action_obj.wait()
     action_obj = _normalise_action_object(action_obj)
-    if raise_on_failure and action_obj.status != 'completed':
+    if raise_on_failure and action_obj.data['status'] != 'completed':
         try:
             output = await model.get_action_output(action_obj.id)
         except KeyError:
@@ -1171,7 +1171,7 @@ async def async_run_action_on_leader(application_name, action_name,
                                                **action_params)
             await action_obj.wait()
             action_obj = _normalise_action_object(action_obj)
-            if raise_on_failure and action_obj.status != 'completed':
+            if raise_on_failure and action_obj.data['status'] != 'completed':
                 try:
                     output = await model.get_action_output(action_obj.id)
                 except KeyError:
