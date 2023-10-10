@@ -1102,7 +1102,7 @@ def _normalise_action_object(action_obj):
     try:
         # libjuju 3.x
         action_obj.data['status'] = action_obj._status
-        action_obj.data['results'] = action_obj.results
+        action_obj.data['results'] = _normalise_action_results(action_obj.results)
     except (AttributeError, KeyError):
         # libjuju 2.x format, no changes needed
         pass
