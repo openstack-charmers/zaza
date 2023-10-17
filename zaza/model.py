@@ -1838,6 +1838,34 @@ async def async_block_until_charm_url(application, target_url,
 block_until_charm_url = sync_wrapper(async_block_until_charm_url)
 
 
+async def async_block_until_charm_channel(application, target_channel,
+                                          model_name=None, timeout=2700):
+    """Block until the charm channel matches target_channel.
+
+    An example accessing this function via its sync wrapper::
+
+        block_until_charm_channel('cinder', '2023.2/stable')
+
+    :param application_name: Name of application
+    :type application_name: str
+    :param target_channel: Target charm channel
+    :type target_channel: str
+    :param model_name: Name of model to interact with.
+    :type model_name: str
+    :param timeout: Time to wait for status to be achieved
+    :type timeout: float
+    """
+    async def _check_charm_channel():
+        model_status = await async_get_status(model_name)
+        charm_channel = model_status.applications[application].charm_channel
+        return charm_channel == target_channel
+
+    await async_block_until(_check_charm_channel, timeout=timeout)
+
+
+block_until_charm_channel = sync_wrapper(async_block_until_charm_channel)
+
+
 async def async_block_until_service_status(unit_name, services, target_status,
                                            model_name=None, timeout=2700,
                                            pgrep_full=False):
