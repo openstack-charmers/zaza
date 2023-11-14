@@ -95,6 +95,7 @@ setup(
     entry_points={
         'console_scripts': [
             'functest-run-suite = zaza.charm_lifecycle.func_test_runner:main',
+            'functest-run-module = zaza.charm_lifecycle.run_module:main',
             'functest-before-deploy = zaza.charm_lifecycle.before_deploy:main',
             'functest-deploy = zaza.charm_lifecycle.deploy:main',
             'functest-configure = zaza.charm_lifecycle.configure:main',
