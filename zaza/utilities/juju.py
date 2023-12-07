@@ -24,8 +24,9 @@ from zaza import (
     model,
     controller,
 )
-from zaza.utilities import generic as generic_utils
 from zaza.utilities import exceptions as zaza_exceptions
+from zaza.utilities import generic as generic_utils
+from zaza.utilities import launchpad
 
 KUBERNETES_PROVIDER_NAME = 'kubernetes'
 
@@ -279,11 +280,28 @@ def get_machine_series(machine, model_name=None):
     :returns: Juju series
     :rtype: string
     """
-    return get_machine_status(
+    status = get_machine_status(
         machine=machine,
-        key='series',
         model_name=model_name
     )
+    try:
+        if 'series' in status:
+            return status.get('series')
+    except KeyError:
+        # libjuju will raise make the above check return KeyError when not
+        # present...
+        pass
+
+    base = status.get('base')
+    if not base:
+        raise ValueError("Unable to determine distro from status: '{}'"
+                         .format(status))
+    if base.name != 'ubuntu':
+        raise NotImplementedError("Series resolution not implemented for "
+                                  "distro: '{}'".format(base.name))
+
+    version, risk = base.channel.split('/')
+    return launchpad.get_ubuntu_series_by_version()[version]['name']
 
 
 def get_machine_uuids_for_application(application, model_name=None):
