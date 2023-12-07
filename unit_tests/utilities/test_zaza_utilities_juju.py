@@ -370,14 +370,84 @@ class TestJujuUtils(ut_utils.BaseTestCase):
             new_callable=mock.MagicMock(),
             name='_get_machine_status'
         )
-        self._get_machine_status.return_value = 'xenial'
+        self._get_machine_status.return_value = {'series': 'xenial'}
         expected = 'xenial'
         actual = juju_utils.get_machine_series('6')
         self._get_machine_status.assert_called_with(
             machine='6',
-            key='series',
             model_name=None
         )
+        self.assertEqual(expected, actual)
+
+    def test_get_machine_series_juju3x_exceptions(self):
+        self.patch(
+            'zaza.utilities.juju.get_machine_status',
+            new_callable=mock.MagicMock(),
+            name='_get_machine_status'
+        )
+        self.patch(
+            'zaza.utilities.juju.launchpad.get_ubuntu_series_by_version',
+            new_callable=mock.MagicMock(),
+            name='_get_ubuntu_series_by_version'
+        )
+        self._get_ubuntu_series_by_version.return_value = {
+            '22.04': {'name': 'jammy'}}
+
+        status = mock.MagicMock()
+        status.__getitem__.side_effect = KeyError
+
+        base = mock.MagicMock()
+        base.name = 'ubuntu'
+        base.channel = '22.04/stable'
+        status.get.return_value = base
+        self._get_machine_status.return_value = status
+
+        try:
+            juju_utils.get_machine_series('6')
+        except KeyError:
+            self.fail('Did not expect `get_machine_series` '
+                      'to raise a KeyError')
+        self._get_machine_status.reset_mock()
+
+        self._get_machine_status.return_value = {}
+        self.assertRaises(
+            ValueError,
+            juju_utils.get_machine_series,
+            '6')
+
+        base = mock.MagicMock()
+        base.name = 'someOtherDistro'
+        base.channel = '22.04/stable'
+        self._get_machine_status.return_value = {'base': base}
+        self.assertRaises(
+            NotImplementedError,
+            juju_utils.get_machine_series,
+            '6')
+
+    def test_get_machine_series_juju3x(self):
+        self.patch(
+            'zaza.utilities.juju.get_machine_status',
+            new_callable=mock.MagicMock(),
+            name='_get_machine_status'
+        )
+        self.patch(
+            'zaza.utilities.juju.launchpad.get_ubuntu_series_by_version',
+            new_callable=mock.MagicMock(),
+            name='_get_ubuntu_series_by_version'
+        )
+        base = mock.MagicMock()
+        base.name = 'ubuntu'
+        base.channel = '22.04/stable'
+        self._get_machine_status.return_value = {'base': base}
+        self._get_ubuntu_series_by_version.return_value = {
+            '22.04': {'name': 'jammy'}}
+        expected = 'jammy'
+        actual = juju_utils.get_machine_series('6')
+        self._get_machine_status.assert_called_with(
+            machine='6',
+            model_name=None
+        )
+        self._get_ubuntu_series_by_version.assert_called_once_with()
         self.assertEqual(expected, actual)
 
     def test_get_subordinate_units(self):
