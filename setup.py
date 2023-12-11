@@ -41,6 +41,9 @@ install_require = [
     'PyYAML',
     'tenacity',
     'python-libmaas',
+
+    # https://github.com/go-macaroon-bakery/py-macaroon-bakery/issues/94
+    'macaroonbakery != 1.3.3',
 ]
 
 tests_require = [
