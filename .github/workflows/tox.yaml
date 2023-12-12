@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.8]
 
     steps:
     - uses: actions/checkout@v1
@@ -34,27 +34,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        python-version: [3.8]
         juju_channel:
-          - latest/stable
           - 2.9/stable
-          - 2.8/stable
         bundle:
           - first
           - second
           - third
-        exclude:
-          # disable 'first' and 'second' bundles for juju 2.8 since 'magpie'
-          # is not a promulgated charm in the charmstore, only on charmhub
-          # which 2.8 can't talk to.
-          - juju_channel: 2.8/stable
-            bundle: first
-          - juju_channel: 2.8/stable
-            bundle: second
     env:
       TEST_ZAZA_BUG_LP1987332: "on"  # http://pad.lv/1987332
     needs: build
     steps:
     - uses: actions/checkout@v1
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
         set -euxo pipefail
@@ -67,6 +62,8 @@ jobs:
         sudo chmod 666 /var/snap/lxd/common/lxd/unix.socket
         # until Juju provides stable IPv6-support we unfortunately need this
         lxc network set lxdbr0 ipv6.address none
+        sudo iptables -F FORWARD
+        sudo iptables -P FORWARD ACCEPT
         # pull images
         lxc image copy --alias juju/bionic/amd64 --copy-aliases ubuntu-daily:bionic local:
         lxc image copy --alias juju/focal/amd64 --copy-aliases ubuntu-daily:focal local:

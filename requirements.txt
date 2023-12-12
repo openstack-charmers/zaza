@@ -1,7 +1,8 @@
 pyparsing<3.0.0  # pin for aodhclient which is held for py35
 aiounittest
 async_generator
-juju<3.0
+juju<2.9.45.0; python_version < '3.8'
+juju<3.0; python_version >= '3.8'
 kubernetes<18.0.0; python_version < '3.6' # pined, as juju uses kubernetes
 juju_wait
 PyYAML>=3.0
@@ -41,3 +42,6 @@ python-libmaas
 # Documentation requirements
 sphinx
 sphinxcontrib-asyncio
+# https://github.com/go-macaroon-bakery/py-macaroon-bakery/issues/94
+macaroonbakery!=1.3.3
+openstacksdk<=1.5.0; # Pin to a lower version of openstacksdk due to introduced libraries
