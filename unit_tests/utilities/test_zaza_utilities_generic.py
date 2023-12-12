@@ -243,7 +243,7 @@ class TestGenericUtils(ut_utils.BaseTestCase):
             _unit, _machine_num, origin=_origin,
             to_series=_to_series, from_series=_from_series,
             workaround_script=_workaround_script, files=_files)
-        self.block_until_all_units_idle.called_with()
+        self.block_until_all_units_idle.assert_called_with()
         self.prepare_series_upgrade.assert_called_once_with(
             _machine_num, to_series=_to_series)
         self.wrap_do_release_upgrade.assert_called_once_with(
