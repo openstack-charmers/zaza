@@ -41,9 +41,20 @@ install_require = [
     'PyYAML',
     'tenacity',
     'python-libmaas',
-
-    # https://github.com/go-macaroon-bakery/py-macaroon-bakery/issues/94
-    'macaroonbakery != 1.3.3',
+    # protobuf dropped support for python-3.6 in v3.20.0[0], although it wasn't
+    # until 4.21.0 that it became truly incompatible. The pinning used is
+    # `<4.21.0`
+    #
+    # [0] https://github.com/protocolbuffers/protobuf/commit/301d315dc4674d1bc799446644e88eff0af1ac86  # noqa
+    # [1] https://github.com/protocolbuffers/protobuf/issues/10076
+    'protobuf < 4.21.0',
+    # macaroonbakery in v1.3.4 added a constraint of protobuf>=3.20.0[0] which
+    # makes it incompatible with python 3.6 while v1.3.3 was released in a
+    # broken state[1]
+    #
+    # [0] https://github.com/go-macaroon-bakery/py-macaroon-bakery/commit/7f1fe6a2adb2f80db12bccfb81f629d66d106e03  # noqa
+    # [1] https://github.com/go-macaroon-bakery/py-macaroon-bakery/pull/92
+    'macaroonbakery < 1.3.3',
 ]
 
 tests_require = [
