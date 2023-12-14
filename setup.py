@@ -35,7 +35,8 @@ install_require = [
 
     'hvac<0.7.0',
     'jinja2',
-    'juju<3.0',
+    # 2.9.45.0 - https://github.com/juju/python-libjuju/pull/993
+    'juju<3.0,!=2.9.45,!=2.9.46',
     'juju-wait',
     'PyYAML',
     'tenacity',
