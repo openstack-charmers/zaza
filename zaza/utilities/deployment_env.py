@@ -129,6 +129,15 @@ def get_cloud_name():
     return get_setup_file_contents().get('cloud')
 
 
+def get_credential_name():
+    """Return a configured credential name to support multi-cloud controllers.
+
+    :returns: A string configured in .zaza.yaml or None
+    :rtype: Union[str, None]
+    """
+    return get_setup_file_contents().get('credential')
+
+
 def get_cloud_region():
     """Return a configured region name to support multi-cloud controllers.
 

@@ -260,6 +260,25 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
             deployment_env.get_cloud_name(),
             None)
 
+    def test_get_credential_name(self):
+        self.patch_object(
+            deployment_env,
+            'get_setup_file_contents',
+            return_value={
+                'credential': 'test'})
+        self.assertEqual(
+            deployment_env.get_credential_name(),
+            'test')
+
+    def test_get_credential_name_default(self):
+        self.patch_object(
+            deployment_env,
+            'get_setup_file_contents',
+            return_value={})
+        self.assertEqual(
+            deployment_env.get_credential_name(),
+            None)
+
     def test_get_tmpdir(self):
         self.patch_object(deployment_env.os, 'mkdir')
         self.patch_object(deployment_env.os.path, 'exists')
