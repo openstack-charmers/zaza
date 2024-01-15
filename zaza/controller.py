@@ -25,7 +25,8 @@ import zaza.utilities.exceptions
 
 
 async def async_add_model(
-        model_name, config=None, cloud_name=None, region=None):
+    model_name, config=None, cloud_name=None, credential_name=None, region=None
+):
     """Add a model to the current controller.
 
     :param model_name: Name to give the new model.
@@ -39,7 +40,12 @@ async def async_add_model(
     await controller.connect()
     logging.debug("Adding model {}".format(model_name))
     model = await controller.add_model(
-        model_name, config=config, cloud_name=cloud_name, region=region)
+        model_name,
+        config=config,
+        cloud_name=cloud_name,
+        credential_name=credential_name,
+        region=region,
+    )
     # issue/135 It is necessary to disconnect the model here or async spews
     # tracebacks even during a successful run.
     await model.disconnect()
