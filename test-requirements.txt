@@ -16,5 +16,8 @@ keystoneauth1
 oslo.config
 python-novaclient
 tenacity>8.2.0
+# To force the installation of an specific version of libjuju use a constraints
+# file, e.g.: `env PIP_CONSTRAINTS=./constraints-juju31.txt tox -e func-target`
+juju
 # https://github.com/go-macaroon-bakery/py-macaroon-bakery/issues/94
 macaroonbakery!=1.3.3
