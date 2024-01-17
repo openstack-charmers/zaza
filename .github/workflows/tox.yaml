@@ -62,20 +62,24 @@ jobs:
           - 2.9/stable
           - 3.1/stable
           - 3.2/stable
+          - 3.3/stable
         bundle:
           - first
           - second
           - third
         include:
           - juju_channel: 2.9/stable
-            extra: juju-29
             snap_install_flags: "--classic"
+            pip_constraints: constraints-juju29.txt
           - juju_channel: 3.1/stable
-            extra: juju-31
             snap_install_flags: ""
+            pip_constraints: constraints-juju31.txt
           - juju_channel: 3.2/stable
-            extra: juju-32
             snap_install_flags: ""
+            pip_constraints: constraints-juju32.txt
+          - juju_channel: 3.3/stable
+            snap_install_flags: ""
+            pip_constraints: constraints-juju33.txt
     env:
       TEST_ZAZA_BUG_LP1987332: "on"  # http://pad.lv/1987332
     needs: build
@@ -84,6 +88,10 @@ jobs:
     - name: Install dependencies
       run: |
         set -euxo pipefail
+        sudo apt-get update
+        sudo apt-get install -yq snapd
+        sudo systemctl enable snapd
+        sudo systemctl restart snapd
         python -m pip install --upgrade pip
         pip install tox tox-gh-actions
         sudo snap install ${{ matrix.snap_install_flags }} --channel ${{ matrix.juju_channel }} juju
@@ -105,7 +113,8 @@ jobs:
       run: |
         set -euxo pipefail
         mkdir logs
-        env EXTRA=${{ matrix.extra }} tox -e func-target -- ${{ matrix.bundle }} | tee logs/tox-output.txt
+        export PIP_CONSTRAINTS=$(pwd)/${{ matrix.pip_constraints }}
+        tox -e func-target -- ${{ matrix.bundle }} | tee logs/tox-output.txt
     - name: crashdump on failure
       if: failure()
       run: |
