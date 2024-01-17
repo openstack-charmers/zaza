@@ -45,6 +45,7 @@ def prepare(model_name, model_alias='default_alias', test_directory=None):
         model_name,
         config=deployment_env.get_model_settings(model_alias),
         cloud_name=deployment_env.get_cloud_name(),
+        credential_name=deployment_env.get_credential_name(),
         region=deployment_env.get_cloud_region())
     zaza.model.set_model_constraints(
         model_name=model_name,
