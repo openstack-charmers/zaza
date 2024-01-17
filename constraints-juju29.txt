@@ -1,1 +1,3 @@
-juju>=2.9.0,<3.0.0
+# 2.9.45.0 - https://github.com/juju/python-libjuju/pull/975
+# 2.9.46.0
+juju>=2.9.0,<3.0.0,!=2.9.45,!=2.9.46
