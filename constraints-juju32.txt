@@ -1,1 +1,9 @@
+# NOTE: this constraints file can be (and will be) consumed by downstream users.
+#
+# Known consumers:
+# * zosci-config: job definitions that declare what juju version (snap channel)
+#   is used in tandem with this constraints file to lockdown python-libjuju
+#   version.
+# * zaza-openstack-tests
+#
 juju>=3.2.0,<3.3.0
