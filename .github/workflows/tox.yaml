@@ -10,7 +10,6 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.8', '3.10', '3.11']
-
     steps:
     - uses: actions/checkout@v1
     - name: Set up Python ${{ matrix.python-version }}
@@ -36,10 +35,30 @@ jobs:
       matrix:
         juju_channel:
           - 2.9/stable
+          - 3.1/stable
+          # - 3.2/stable
+          # - 3.3/stable
         bundle:
           - first
           - second
           - third
+        include:
+          - juju_channel: 2.9/stable
+            snap_install_flags: "--classic"
+            pip_constraints: constraints-juju29.txt
+          - juju_channel: 3.1/stable
+            snap_install_flags: ""
+            pip_constraints: constraints-juju31.txt
+          # NOTE(freyes): disabled until "RuntimeError: set_wakeup_fd only works
+          # in main thread of the main interpreter" gets fixed.
+          # https://pastebin.ubuntu.com/p/GfYKgpx3SP/
+          #
+          # - juju_channel: 3.2/stable
+          #   snap_install_flags: ""
+          #   pip_constraints: constraints-juju32.txt
+          # - juju_channel: 3.3/stable
+          #   snap_install_flags: ""
+          #   pip_constraints: constraints-juju33.txt
     env:
       TEST_ZAZA_BUG_LP1987332: "on"  # http://pad.lv/1987332
     needs: build
@@ -48,9 +67,13 @@ jobs:
     - name: Install dependencies
       run: |
         set -euxo pipefail
+        sudo apt-get update
+        sudo apt-get install -yq snapd
+        sudo systemctl enable snapd
+        sudo systemctl restart snapd
         python -m pip install --upgrade pip
         pip install tox tox-gh-actions
-        sudo snap install --channel ${{ matrix.juju_channel }} --classic juju
+        sudo snap install ${{ matrix.snap_install_flags }} --channel ${{ matrix.juju_channel }} juju
         sudo snap install --classic juju-crashdump
         sudo lxd init --auto
         # This is a throw-away CI environment, do not do this at home
@@ -64,11 +87,12 @@ jobs:
         lxc image copy --alias juju/focal/amd64 --copy-aliases ubuntu-daily:focal local:
         lxc image copy --alias juju/jammy/amd64 --copy-aliases ubuntu-daily:jammy local:
         lxc image list
-        juju bootstrap --no-gui localhost
+        juju bootstrap localhost
     - name: Functional test
       run: |
         set -euxo pipefail
         mkdir logs
+        export PIP_CONSTRAINTS=$(pwd)/${{ matrix.pip_constraints }}
         tox -e func-target -- ${{ matrix.bundle }} | tee logs/tox-output.txt
     - name: crashdump on failure
       if: failure()
@@ -77,7 +101,7 @@ jobs:
         juju models
         model=$(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/)
         juju status -m $model | tee logs/juju-status.txt
-        juju crashdump -m $model -o logs/
+        juju-crashdump -m $model -o logs/
     - name: upload logs on failure
       if: failure()
       uses: actions/upload-artifact@v2
