@@ -101,7 +101,7 @@ jobs:
         juju models
         model=$(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/)
         juju status -m $model | tee logs/juju-status.txt
-        juju crashdump -m $model -o logs/
+        juju-crashdump -m $model -o logs/
     - name: upload logs on failure
       if: failure()
       uses: actions/upload-artifact@v2
