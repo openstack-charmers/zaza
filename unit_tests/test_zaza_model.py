@@ -785,11 +785,14 @@ class TestModel(ut_utils.BaseTestCase):
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
+        self.patch("inspect.isawaitable", name="isawaitable",
+                   return_value=True)
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
         self.assertEqual(model.run_on_unit('app/2', cmd),
                          expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
+        self.action.wait.assert_called_once()
 
     def test_run_on_unit_juju2_x(self):
         del self.action.results
@@ -803,11 +806,14 @@ class TestModel(ut_utils.BaseTestCase):
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
+        self.patch("inspect.isawaitable", name="isawaitable",
+                   return_value=False)
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
         self.assertEqual(model.run_on_unit('app/2', cmd),
                          expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
+        self.action.wait.assert_not_called()
 
     def test_run_on_unit_lc_keys(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -1117,6 +1123,9 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'async_get_unit_from_name')
+        self.patch("inspect.isawaitable", return_value=False,
+                   name="isawaitable")
+        self.patch_object(model, 'async_block_until')
         units = {
             'app/1': self.unit1,
             'app/2': self.unit2}
@@ -1138,11 +1147,15 @@ class TestModel(ut_utils.BaseTestCase):
             'backup',
             backup_dir='/dev/null')
 
+        self.async_block_until.assert_not_called()
+
     def test_run_action_on_units_timeout(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_unit_from_name')
+        self.patch("inspect.isawaitable", return_value=True,
+                   name="isawaitable")
         self.get_unit_from_name.return_value = self.unit1
         self.run_action.data = {'status': 'running'}
         with self.assertRaises(AsyncTimeoutError):
@@ -1169,6 +1182,38 @@ class TestModel(ut_utils.BaseTestCase):
                 'backup',
                 raise_on_failure=True,
                 action_params={'backup_dir': '/dev/null'})
+
+    def test_run_action_on_units_async(self):
+        """Tests that non-awaitable action results aren't awaited on."""
+        self.patch_object(model, 'get_juju_model', return_value='mname')
+        self.patch_object(model, 'Model')
+        self.Model.return_value = self.Model_mock
+        self.patch_object(model, 'async_get_unit_from_name')
+        self.patch_object(model, 'async_block_until')
+        self.patch("inspect.isawaitable", return_value=True,
+                   name="isawaitable")
+        units = {
+            'app/1': self.unit1,
+            'app/2': self.unit2}
+
+        async def _async_get_unit_from_name(x, *args):
+            nonlocal units
+            return units[x]
+
+        self.async_get_unit_from_name.side_effect = _async_get_unit_from_name
+        self.run_action.data = {'status': 'completed'}
+        model.run_action_on_units(
+            ['app/1', 'app/2'],
+            'backup',
+            action_params={'backup_dir': '/dev/null'})
+        self.unit1.run_action.assert_called_once_with(
+            'backup',
+            backup_dir='/dev/null')
+        self.unit2.run_action.assert_called_once_with(
+            'backup',
+            backup_dir='/dev/null')
+
+        assert self.async_block_until.called
 
     def _application_states_setup(self, setup, units_idle=True):
         self.system_ready = True

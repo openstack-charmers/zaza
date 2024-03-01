@@ -570,7 +570,8 @@ async def async_run_on_unit(unit_name, command, model_name=None, timeout=None):
     model = await get_model(model_name)
     unit = await async_get_unit_from_name(unit_name, model)
     action = await unit.run(command, timeout=timeout)
-    await action.wait()
+    if inspect.isawaitable(action):
+        await action.wait()
     action = _normalise_action_object(action)
     results = action.data.get('results')
     return _normalise_action_results(results)
@@ -598,7 +599,8 @@ async def async_run_on_leader(application_name, command, model_name=None,
         is_leader = await unit.is_leader_from_status()
         if is_leader:
             action = await unit.run(command, timeout=timeout)
-            await action.wait()
+            if inspect.isawaitable(action):
+                await action.wait()
             action = _normalise_action_object(action)
             results = action.data.get('results')
             return _normalise_action_results(results)
@@ -1211,18 +1213,24 @@ async def async_run_action_on_units(units, action_name, action_params=None,
 
     model = await get_model(model_name)
     actions = []
+    async_actions = []
     for unit_name in units:
         unit = await async_get_unit_from_name(unit_name, model)
         action_obj = await unit.run_action(action_name, **action_params)
-        actions.append(action_obj)
+        if inspect.isawaitable(action_obj):
+            async_actions.append(action_obj)
+        else:
+            actions.append(action_obj)
 
     async def _check_actions():
-        for action_obj in actions:
+        for action_obj in async_actions:
             if action_obj.data['status'] in ['running', 'pending']:
                 return False
         return True
 
-    await async_block_until(_check_actions, timeout=timeout)
+    if async_actions:
+        await async_block_until(_check_actions, timeout=timeout)
+        actions.extend(async_actions)
 
     for action_obj in actions:
         if raise_on_failure and action_obj.data['status'] != 'completed':
