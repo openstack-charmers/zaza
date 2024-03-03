@@ -1027,6 +1027,31 @@ class TestModel(ut_utils.BaseTestCase):
                                   remote_interface_name='interface'),
             51)
 
+    def test_update_unknown_action_status_invalid_params(self):
+        """Test update unknown action status invalid params."""
+        self.assertRaises(ValueError, model.update_unknown_action_status,
+                          None, mock.MagicMock())
+        self.assertRaises(ValueError, model.update_unknown_action_status,
+                          mock.MagicMock(), None)
+
+    def test_update_unknown_action_status_not_unknown(self):
+        """Test update unknown action status with status not unknown."""
+        model = mock.MagicMock()
+        action_obj = mock.MagicMock()
+        action_obj.data.return_value = {"status": "completed"}
+
+        model.update_unknown_action_status(model, action_obj)
+        model.get_action_status.assert_not_called()
+
+    def test_update_unknown_action_status_no_completion_timestamp(self):
+        """Test update unknown action status without a completion timestamp."""
+        model = mock.MagicMock()
+        action_obj = mock.MagicMock()
+        action_obj.data.return_value = {"status": "running", "completed": ""}
+
+        model.update_unknown_action_status(model, action_obj)
+        model.get_action_status.assert_not_called()
+
     def test_run_action(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
@@ -1123,9 +1148,6 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'async_get_unit_from_name')
-        self.patch("inspect.isawaitable", return_value=False,
-                   name="isawaitable")
-        self.patch_object(model, 'async_block_until')
         units = {
             'app/1': self.unit1,
             'app/2': self.unit2}
@@ -1147,15 +1169,11 @@ class TestModel(ut_utils.BaseTestCase):
             'backup',
             backup_dir='/dev/null')
 
-        self.async_block_until.assert_not_called()
-
     def test_run_action_on_units_timeout(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_unit_from_name')
-        self.patch("inspect.isawaitable", return_value=True,
-                   name="isawaitable")
         self.get_unit_from_name.return_value = self.unit1
         self.run_action.data = {'status': 'running'}
         with self.assertRaises(AsyncTimeoutError):
@@ -1182,38 +1200,6 @@ class TestModel(ut_utils.BaseTestCase):
                 'backup',
                 raise_on_failure=True,
                 action_params={'backup_dir': '/dev/null'})
-
-    def test_run_action_on_units_async(self):
-        """Tests that non-awaitable action results aren't awaited on."""
-        self.patch_object(model, 'get_juju_model', return_value='mname')
-        self.patch_object(model, 'Model')
-        self.Model.return_value = self.Model_mock
-        self.patch_object(model, 'async_get_unit_from_name')
-        self.patch_object(model, 'async_block_until')
-        self.patch("inspect.isawaitable", return_value=True,
-                   name="isawaitable")
-        units = {
-            'app/1': self.unit1,
-            'app/2': self.unit2}
-
-        async def _async_get_unit_from_name(x, *args):
-            nonlocal units
-            return units[x]
-
-        self.async_get_unit_from_name.side_effect = _async_get_unit_from_name
-        self.run_action.data = {'status': 'completed'}
-        model.run_action_on_units(
-            ['app/1', 'app/2'],
-            'backup',
-            action_params={'backup_dir': '/dev/null'})
-        self.unit1.run_action.assert_called_once_with(
-            'backup',
-            backup_dir='/dev/null')
-        self.unit2.run_action.assert_called_once_with(
-            'backup',
-            backup_dir='/dev/null')
-
-        assert self.async_block_until.called
 
     def _application_states_setup(self, setup, units_idle=True):
         self.system_ready = True
@@ -2820,6 +2806,26 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
             return True
 
         await model.async_block_until(_f, _g, timeout=0.1)
+
+    async def test_update_unknown_action_status(self):
+        """Test update unknown action status updates status."""
+        mock_model = mock.AsyncMock()
+
+        class ActionObj:
+            id = "1234"
+            data = {
+                "status": "unknown",
+                "completed": "2024-03-01T12:45:14"
+            }
+
+        async def get_action_status(_id):
+            return {"1234": "completed"}
+
+        mock_model.get_action_status.side_effect = get_action_status
+        action_obj = ActionObj()
+
+        await model.async_update_unknown_action_status(mock_model, action_obj)
+        self.assertEqual(action_obj.data["status"], "completed")
 
     async def test_run_on_machine(self):
         with mock.patch.object(
