@@ -906,6 +906,8 @@ class TestModel(ut_utils.BaseTestCase):
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
+        self.patch('inspect.isawaitable', return_value=True,
+                   name='isawaitable')
         self.assertEqual(model.run_on_leader('app', cmd),
                          expected)
         self.unit2.run.assert_called_once_with(cmd, timeout=None)
@@ -1026,31 +1028,6 @@ class TestModel(ut_utils.BaseTestCase):
             model.get_relation_id('app', 'app',
                                   remote_interface_name='interface'),
             51)
-
-    def test_update_unknown_action_status_invalid_params(self):
-        """Test update unknown action status invalid params."""
-        self.assertRaises(ValueError, model.update_unknown_action_status,
-                          None, mock.MagicMock())
-        self.assertRaises(ValueError, model.update_unknown_action_status,
-                          mock.MagicMock(), None)
-
-    def test_update_unknown_action_status_not_unknown(self):
-        """Test update unknown action status with status not unknown."""
-        model = mock.MagicMock()
-        action_obj = mock.MagicMock()
-        action_obj.data.return_value = {"status": "completed"}
-
-        model.update_unknown_action_status(model, action_obj)
-        model.get_action_status.assert_not_called()
-
-    def test_update_unknown_action_status_no_completion_timestamp(self):
-        """Test update unknown action status without a completion timestamp."""
-        model = mock.MagicMock()
-        action_obj = mock.MagicMock()
-        action_obj.data.return_value = {"status": "running", "completed": ""}
-
-        model.update_unknown_action_status(model, action_obj)
-        model.get_action_status.assert_not_called()
 
     def test_run_action(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -1731,6 +1708,8 @@ class TestModel(ut_utils.BaseTestCase):
         _fileobj = mock.MagicMock()
         _fileobj.__enter__().read.return_value = "somestring"
         self._open.return_value = _fileobj
+        self.patch('inspect.isawaitable', return_value=True,
+                   name='isawaitable')
         model.block_until_file_has_contents(
             'app',
             '/tmp/src/myfile.txt',
@@ -1756,6 +1735,8 @@ class TestModel(ut_utils.BaseTestCase):
         _fileobj = mock.MagicMock()
         _fileobj.__enter__().read.return_value = "somestring"
         self._open.return_value = _fileobj
+        self.patch('inspect.isawaitable', return_value=False,
+                   name='isawaitable')
         model.block_until_file_has_contents(
             'app',
             '/tmp/src/myfile.txt',
@@ -1836,6 +1817,8 @@ class TestModel(ut_utils.BaseTestCase):
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.action.results = {'stdout': "1"}
+        self.patch('inspect.isawaitable', return_value=True,
+                   name='isawaitable')
         model.block_until_file_missing(
             'app',
             '/tmp/src/myfile.txt',
@@ -2806,6 +2789,31 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
             return True
 
         await model.async_block_until(_f, _g, timeout=0.1)
+
+    async def test_update_unknown_action_status_invalid_params(self):
+        """Test update unknown action status invalid params."""
+        self.assertRaises(ValueError, model.update_unknown_action_status,
+                          None, mock.MagicMock())
+        self.assertRaises(ValueError, model.update_unknown_action_status,
+                          mock.MagicMock(), None)
+
+    async def test_update_unknown_action_status_not_unknown(self):
+        """Test update unknown action status with status not unknown."""
+        mock_model = mock.AsyncMock()
+        action_obj = mock.AsyncMock()
+        action_obj.data = {"status": "running"}
+
+        await model.async_update_unknown_action_status(model, action_obj)
+        mock_model.get_action_status.assert_not_called()
+
+    async def test_update_unknown_action_status_no_completion_timestamp(self):
+        """Test update unknown action status without a completion timestamp."""
+        model_mock = mock.AsyncMock()
+        action_obj = mock.MagicMock()
+        action_obj.data = {"status": "unknown", "completed": ""}
+
+        await model.async_update_unknown_action_status(model_mock, action_obj)
+        model_mock.get_action_status.assert_not_called()
 
     async def test_update_unknown_action_status(self):
         """Test update unknown action status updates status."""
