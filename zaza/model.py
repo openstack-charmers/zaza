@@ -570,7 +570,8 @@ async def async_run_on_unit(unit_name, command, model_name=None, timeout=None):
     model = await get_model(model_name)
     unit = await async_get_unit_from_name(unit_name, model)
     action = await unit.run(command, timeout=timeout)
-    await action.wait()
+    if inspect.isawaitable(action):
+        await action.wait()
     action = _normalise_action_object(action)
     results = action.data.get('results')
     return _normalise_action_results(results)
@@ -598,7 +599,8 @@ async def async_run_on_leader(application_name, command, model_name=None,
         is_leader = await unit.is_leader_from_status()
         if is_leader:
             action = await unit.run(command, timeout=timeout)
-            await action.wait()
+            if inspect.isawaitable(action):
+                await action.wait()
             action = _normalise_action_object(action)
             results = action.data.get('results')
             return _normalise_action_results(results)
@@ -1104,6 +1106,44 @@ def _normalise_action_object(action_obj):
     return action_obj
 
 
+async def async_update_unknown_action_status(model, action_obj):
+    """Update the action status if the status is unknown.
+
+    Updates the action status for an action object when its data has
+    a completion timestamp, indicating it did complete, but the status
+    is set to unknown. When the action object is in this state, this
+    function will query for the latest status. This function will only
+    query for the status update a single time.
+
+    :param model: the model the action_obj belongs to
+    :type model: juju.model.ModelEntity
+    :param action_obj: an action that should be updated if the status
+                       is unknown.
+    :type action_obj: juju.model.ActionEntity
+    :raises ValueError: If either the model or action_obj is invalid
+    :return: None
+    """
+    if not model or not action_obj:
+        raise ValueError("Expected model and action_obj to be valid. "
+                         f"Got model: {model}, action_obj: {action_obj}")
+
+    # If the status is not unknown, don't update the status
+    if action_obj.data.get('status', '') != 'unknown':
+        return
+
+    # If the completed timestamp is not set, don't update the status
+    if not action_obj.data.get('completed', ''):
+        return
+
+    logging.debug("Action results were complete but status is unknown. "
+                  "Refreshing status.")
+    updated_status = await model.get_action_status(action_obj.id)
+    action_obj.data['status'] = updated_status.get(action_obj.id)
+
+
+update_unknown_action_status = sync_wrapper(async_update_unknown_action_status)
+
+
 async def async_run_action(unit_name, action_name, model_name=None,
                            action_params=None, raise_on_failure=False):
     """Run action on given unit.
@@ -1130,6 +1170,8 @@ async def async_run_action(unit_name, action_name, model_name=None,
     action_obj = await unit.run_action(action_name, **action_params)
     await action_obj.wait()
     action_obj = _normalise_action_object(action_obj)
+    await async_update_unknown_action_status(model, action_obj)
+
     if raise_on_failure and action_obj.data['status'] != 'completed':
         try:
             output = await model.get_action_output(action_obj.id)
@@ -1171,6 +1213,7 @@ async def async_run_action_on_leader(application_name, action_name,
                                                **action_params)
             await action_obj.wait()
             action_obj = _normalise_action_object(action_obj)
+            await async_update_unknown_action_status(model, action_obj)
             if raise_on_failure and action_obj.data['status'] != 'completed':
                 try:
                     output = await model.get_action_output(action_obj.id)
@@ -1225,6 +1268,7 @@ async def async_run_action_on_units(units, action_name, action_params=None,
     await async_block_until(_check_actions, timeout=timeout)
 
     for action_obj in actions:
+        await async_update_unknown_action_status(model, action_obj)
         if raise_on_failure and action_obj.data['status'] != 'completed':
             try:
                 output = await model.get_action_output(action_obj.id)
@@ -2116,7 +2160,8 @@ async def async_block_until_file_ready(application_name, remote_file,
         for unit in units:
             try:
                 output = await unit.run('cat {}'.format(remote_file))
-                await output.wait()
+                if inspect.isawaitable(output):
+                    await output.wait()
                 results = {}
                 try:
                     results = output.results
@@ -2257,7 +2302,8 @@ async def async_block_until_file_missing(
         for unit in units:
             try:
                 output = await unit.run('test -e "{}"; echo $?'.format(path))
-                await output.wait()
+                if inspect.isawaitable(output):
+                    await output.wait()
                 output = _normalise_action_object(output)
                 output_result = _normalise_action_results(
                     output.data.get('results', {}))
