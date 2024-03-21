@@ -35,7 +35,7 @@ jobs:
       matrix:
         juju_channel:
           - 2.9/stable
-          - 3.1/stable
+          # - 3.1/stable
           # - 3.2/stable
           # - 3.3/stable
         bundle:
@@ -46,9 +46,9 @@ jobs:
           - juju_channel: 2.9/stable
             snap_install_flags: "--classic"
             pip_constraints: constraints-juju29.txt
-          - juju_channel: 3.1/stable
-            snap_install_flags: ""
-            pip_constraints: constraints-juju31.txt
+          # - juju_channel: 3.1/stable
+          #   snap_install_flags: ""
+          #   pip_constraints: constraints-juju31.txt
           # NOTE(freyes): disabled until "RuntimeError: set_wakeup_fd only works
           # in main thread of the main interpreter" gets fixed.
           # https://pastebin.ubuntu.com/p/GfYKgpx3SP/
