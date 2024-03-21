@@ -43,7 +43,7 @@ install_require = [
 
     # https://github.com/go-macaroon-bakery/py-macaroon-bakery/issues/94
     'macaroonbakery != 1.3.3',
-    'juju',
+    'juju<3.0.0',
 ]
 
 tests_require = [
