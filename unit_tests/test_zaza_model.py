@@ -775,6 +775,7 @@ class TestModel(ut_utils.BaseTestCase):
             mock.call(self.unit2, model_name='model')])
 
     def test_run_on_unit(self):
+        self.action.status = "pending"
         self.patch_object(model, 'get_juju_model', return_value='mname')
         expected = {
             'Code': '0',
@@ -785,17 +786,15 @@ class TestModel(ut_utils.BaseTestCase):
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
-        self.patch("inspect.isawaitable", name="isawaitable",
-                   return_value=True)
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', cmd),
-                         expected)
+        self.assertEqual(model.run_on_unit('app/2', cmd), expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
-        self.action.wait.assert_called_once()
+        self.action.wait.assert_called_once_with()
 
     def test_run_on_unit_juju2_x(self):
         del self.action.results
+        self.action.status = "completed"
         self.patch_object(model, 'get_juju_model', return_value='mname')
         expected = {
             'Code': '0',
@@ -806,12 +805,9 @@ class TestModel(ut_utils.BaseTestCase):
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
-        self.patch("inspect.isawaitable", name="isawaitable",
-                   return_value=False)
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', cmd),
-                         expected)
+        self.assertEqual(model.run_on_unit('app/2', cmd), expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
         self.action.wait.assert_not_called()
 
@@ -832,9 +828,9 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', cmd),
-                         expected)
+        self.assertEqual(model.run_on_unit('app/2', cmd), expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
+        self.action.wait.assert_not_called()
 
     def test_run_on_unit_lc_keys_juju2_x(self):
         del self.action.results
@@ -854,9 +850,9 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', cmd),
-                         expected)
+        self.assertEqual(model.run_on_unit('app/2', cmd), expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
+        self.action.wait.assert_not_called()
 
     def test_run_on_unit_missing_stderr(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -872,9 +868,9 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', cmd),
-                         expected)
+        self.assertEqual(model.run_on_unit('app/2', cmd), expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
+        self.action.wait.assert_not_called()
 
     def test_run_on_unit_missing_stderr_juju2_x(self):
         del self.action.results
@@ -891,11 +887,12 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', cmd),
-                         expected)
+        self.assertEqual(model.run_on_unit('app/2', cmd), expected)
         self.unit1.run.assert_called_once_with(cmd, timeout=None)
+        self.action.wait.assert_not_called()
 
     def test_run_on_leader(self):
+        self.action.status = "pending"
         self.patch_object(model, 'get_juju_model', return_value='mname')
         expected = {
             'Code': '0',
@@ -906,14 +903,13 @@ class TestModel(ut_utils.BaseTestCase):
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        self.patch('inspect.isawaitable', return_value=True,
-                   name='isawaitable')
-        self.assertEqual(model.run_on_leader('app', cmd),
-                         expected)
+        self.assertEqual(model.run_on_leader('app', cmd), expected)
         self.unit2.run.assert_called_once_with(cmd, timeout=None)
+        self.action.wait.assert_called_once_with()
 
     def test_run_on_leader_juju2_x(self):
         del self.action.results
+        self.action.action.status = "completed"
         self.patch_object(model, 'get_juju_model', return_value='mname')
         expected = {
             'Code': '0',
@@ -924,9 +920,9 @@ class TestModel(ut_utils.BaseTestCase):
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_leader('app', cmd),
-                         expected)
+        self.assertEqual(model.run_on_leader('app', cmd), expected)
         self.unit2.run.assert_called_once_with(cmd, timeout=None)
+        self.action.wait.assert_not_called()
 
     def test_get_relation_id(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
