@@ -570,7 +570,7 @@ async def async_run_on_unit(unit_name, command, model_name=None, timeout=None):
     model = await get_model(model_name)
     unit = await async_get_unit_from_name(unit_name, model)
     action = await unit.run(command, timeout=timeout)
-    if inspect.isawaitable(action):
+    if action.status == "pending":
         await action.wait()
     action = _normalise_action_object(action)
     results = action.data.get('results')
@@ -599,7 +599,7 @@ async def async_run_on_leader(application_name, command, model_name=None,
         is_leader = await unit.is_leader_from_status()
         if is_leader:
             action = await unit.run(command, timeout=timeout)
-            if inspect.isawaitable(action):
+            if action.status == "pending":
                 await action.wait()
             action = _normalise_action_object(action)
             results = action.data.get('results')
@@ -2160,7 +2160,7 @@ async def async_block_until_file_ready(application_name, remote_file,
         for unit in units:
             try:
                 output = await unit.run('cat {}'.format(remote_file))
-                if inspect.isawaitable(output):
+                if output.status == "pending":
                     await output.wait()
                 results = {}
                 try:
@@ -2302,7 +2302,7 @@ async def async_block_until_file_missing(
         for unit in units:
             try:
                 output = await unit.run('test -e "{}"; echo $?'.format(path))
-                if inspect.isawaitable(output):
+                if output.status == "pending":
                     await output.wait()
                 output = _normalise_action_object(output)
                 output_result = _normalise_action_results(
