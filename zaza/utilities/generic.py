@@ -729,3 +729,23 @@ async def check_output(cmd, log_stdout=True, log_stderr=True):
         'Stderr': stderr,
         'Stdout': stdout,
     }
+
+
+async def unit_run(unit, command, timeout=None):
+    """Help function to help support Juju 2.9 and Juju 3>.
+
+    :param unit: juju unit
+    :type unit: juju.unit.Unit
+    :param command: Command to execute
+    :type command: str
+    :param timeout: How long in seconds to wait for command to complete
+    :type timeout: int
+    :returns: completed Action object
+    :rtype: juju.action.Action
+    """
+    try:
+        # block supported in juju>=3.0
+        return await unit.run(command, timeout=timeout, block=True)
+    except TypeError:
+        # juju 2.9 fallback
+        return await unit.run(command, timeout=timeout)
