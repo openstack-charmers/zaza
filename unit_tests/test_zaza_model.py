@@ -117,8 +117,17 @@ class TestModel(ut_utils.BaseTestCase):
                             scp_opts=None):
             return
 
-        async def _run(command, timeout=None):
+        async def _run(command, timeout=None, block=False):
             return self.action
+
+        async def _run_juju2_x(command, timeout=None):
+            return self.action
+
+        async def _run_wrapper(*args, **kwargs):
+            if self.juju_version >= 3:
+                return await _run(*args, **kwargs)
+            else:
+                return await _run_juju2_x(*args, **kwargs)
 
         async def _run_action(command, **params):
             return self.run_action
@@ -146,6 +155,7 @@ class TestModel(ut_utils.BaseTestCase):
                 return leader
             return _inner_is_leader
 
+        self.juju_version = 3
         self.run_action = mock.MagicMock()
         self.run_action.wait.side_effect = _wait
         self.action = mock.MagicMock()
@@ -191,8 +201,8 @@ class TestModel(ut_utils.BaseTestCase):
         self.unit2.name = 'app/4'
         self.unit2.entity_id = 'app/4'
         self.unit2.machine = self.machine7
-        self.unit2.run.side_effect = _run
-        self.unit1.run.side_effect = _run
+        self.unit2.run.side_effect = _run_wrapper
+        self.unit1.run.side_effect = _run_wrapper
         self.unit1.scp_to.side_effect = _scp_to
         self.unit2.scp_to.side_effect = _scp_to
         self.unit1.scp_from.side_effect = _scp_from
@@ -785,17 +795,14 @@ class TestModel(ut_utils.BaseTestCase):
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
-        self.patch("inspect.isawaitable", name="isawaitable",
-                   return_value=True)
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', cmd),
-                         expected)
-        self.unit1.run.assert_called_once_with(cmd, timeout=None)
-        self.action.wait.assert_called_once()
+        self.assertEqual(model.run_on_unit('app/2', cmd), expected)
+        self.unit1.run.assert_called_once_with(cmd, timeout=None, block=True)
 
     def test_run_on_unit_juju2_x(self):
         del self.action.results
+        self.juju_version = 2
         self.patch_object(model, 'get_juju_model', return_value='mname')
         expected = {
             'Code': '0',
@@ -806,13 +813,12 @@ class TestModel(ut_utils.BaseTestCase):
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.patch_object(model, 'get_unit_from_name')
-        self.patch("inspect.isawaitable", name="isawaitable",
-                   return_value=False)
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', cmd),
-                         expected)
-        self.unit1.run.assert_called_once_with(cmd, timeout=None)
+        self.assertEqual(model.run_on_unit('app/2', cmd), expected)
+        self.unit1.run.assert_has_calls([
+            mock.call(cmd, timeout=None, block=True),
+            mock.call(cmd, timeout=None)])
         self.action.wait.assert_not_called()
 
     def test_run_on_unit_lc_keys(self):
@@ -832,12 +838,13 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', cmd),
-                         expected)
-        self.unit1.run.assert_called_once_with(cmd, timeout=None)
+        self.assertEqual(model.run_on_unit('app/2', cmd), expected)
+        self.unit1.run.assert_called_once_with(cmd, timeout=None, block=True)
+        self.action.wait.assert_not_called()
 
     def test_run_on_unit_lc_keys_juju2_x(self):
         del self.action.results
+        self.juju_version = 2
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.action.data['results'] = {
             'Code': '0',
@@ -854,9 +861,11 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', cmd),
-                         expected)
-        self.unit1.run.assert_called_once_with(cmd, timeout=None)
+        self.assertEqual(model.run_on_unit('app/2', cmd), expected)
+        self.unit1.run.assert_has_calls([
+            mock.call(cmd, timeout=None, block=True),
+            mock.call(cmd, timeout=None)])
+        self.action.wait.assert_not_called()
 
     def test_run_on_unit_missing_stderr(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -872,12 +881,13 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', cmd),
-                         expected)
-        self.unit1.run.assert_called_once_with(cmd, timeout=None)
+        self.assertEqual(model.run_on_unit('app/2', cmd), expected)
+        self.unit1.run.assert_called_once_with(cmd, timeout=None, block=True)
+        self.action.wait.assert_not_called()
 
     def test_run_on_unit_missing_stderr_juju2_x(self):
         del self.action.results
+        self.juju_version = 2
         self.patch_object(model, 'get_juju_model', return_value='mname')
         expected = {
             'Code': '0',
@@ -891,9 +901,11 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_unit_from_name')
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_unit('app/2', cmd),
-                         expected)
-        self.unit1.run.assert_called_once_with(cmd, timeout=None)
+        self.assertEqual(model.run_on_unit('app/2', cmd), expected)
+        self.unit1.run.assert_has_calls([
+            mock.call(cmd, timeout=None, block=True),
+            mock.call(cmd, timeout=None)])
+        self.action.wait.assert_not_called()
 
     def test_run_on_leader(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -906,14 +918,12 @@ class TestModel(ut_utils.BaseTestCase):
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        self.patch('inspect.isawaitable', return_value=True,
-                   name='isawaitable')
-        self.assertEqual(model.run_on_leader('app', cmd),
-                         expected)
-        self.unit2.run.assert_called_once_with(cmd, timeout=None)
+        self.assertEqual(model.run_on_leader('app', cmd), expected)
+        self.unit2.run.assert_called_once_with(cmd, timeout=None, block=True)
 
     def test_run_on_leader_juju2_x(self):
         del self.action.results
+        self.juju_version = 2
         self.patch_object(model, 'get_juju_model', return_value='mname')
         expected = {
             'Code': '0',
@@ -924,9 +934,11 @@ class TestModel(ut_utils.BaseTestCase):
         self.cmd = cmd = 'somecommand someargument'
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
-        self.assertEqual(model.run_on_leader('app', cmd),
-                         expected)
-        self.unit2.run.assert_called_once_with(cmd, timeout=None)
+        self.assertEqual(model.run_on_leader('app', cmd), expected)
+        self.unit2.run.assert_has_calls([
+            mock.call(cmd, timeout=None, block=True),
+            mock.call(cmd, timeout=None)])
+        self.action.wait.assert_not_called()
 
     def test_get_relation_id(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -1641,11 +1653,12 @@ class TestModel(ut_utils.BaseTestCase):
             '/tmp/src/myfile.txt',
             timeout=0.1)
         self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt', timeout=0.1)
+            'cat /tmp/src/myfile.txt', timeout=0.1, block=True)
         self.assertEqual('somestring', contents)
 
     def test_file_contents_success_juju2_x(self):
         del self.action.results
+        self.juju_version = 2
         self.action.data = {
             'results': {'Code': '0', 'Stderr': '', 'Stdout': 'somestring'}
         }
@@ -1657,8 +1670,9 @@ class TestModel(ut_utils.BaseTestCase):
             'app/2',
             '/tmp/src/myfile.txt',
             timeout=0.1)
-        self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt', timeout=0.1)
+        self.unit1.run.assert_has_calls([
+            mock.call('cat /tmp/src/myfile.txt', timeout=0.1, block=True),
+            mock.call('cat /tmp/src/myfile.txt', timeout=0.1)])
         self.assertEqual('somestring', contents)
 
     def test_file_contents_fault(self):
@@ -1674,11 +1688,12 @@ class TestModel(ut_utils.BaseTestCase):
         with self.assertRaises(model.RemoteFileError) as ctxtmgr:
             model.file_contents('app/2', '/tmp/src/myfile.txt', timeout=0.1)
         self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt', timeout=0.1)
+            'cat /tmp/src/myfile.txt', timeout=0.1, block=True)
         self.assertEqual(ctxtmgr.exception.args, ('fault',))
 
     def test_file_contents_fault_juju2_x(self):
         del self.action.results
+        self.juju_version = 2
         self.action.data = {
             'results': {'Code': '0', 'Stderr': 'fault', 'Stdout': ''}
         }
@@ -1688,8 +1703,9 @@ class TestModel(ut_utils.BaseTestCase):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         with self.assertRaises(model.RemoteFileError) as ctxtmgr:
             model.file_contents('app/2', '/tmp/src/myfile.txt', timeout=0.1)
-        self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt', timeout=0.1)
+        self.unit1.run.assert_has_calls([
+            mock.call('cat /tmp/src/myfile.txt', timeout=0.1, block=True),
+            mock.call('cat /tmp/src/myfile.txt', timeout=0.1)])
         self.assertEqual(ctxtmgr.exception.args, ('fault',))
 
     def test_block_until_file_has_contents(self):
@@ -1708,20 +1724,19 @@ class TestModel(ut_utils.BaseTestCase):
         _fileobj = mock.MagicMock()
         _fileobj.__enter__().read.return_value = "somestring"
         self._open.return_value = _fileobj
-        self.patch('inspect.isawaitable', return_value=True,
-                   name='isawaitable')
         model.block_until_file_has_contents(
             'app',
             '/tmp/src/myfile.txt',
             'somestring',
             timeout=0.1)
         self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+            'cat /tmp/src/myfile.txt', timeout=None, block=True)
         self.unit2.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+            'cat /tmp/src/myfile.txt', timeout=None, block=True)
 
     def test_block_until_file_has_contents_juju2_x(self):
         del self.action.results
+        self.juju_version = 2
         self.action.data = {
             'results': {'Code': '0', 'Stderr': '', 'Stdout': 'somestring'}
         }
@@ -1735,17 +1750,17 @@ class TestModel(ut_utils.BaseTestCase):
         _fileobj = mock.MagicMock()
         _fileobj.__enter__().read.return_value = "somestring"
         self._open.return_value = _fileobj
-        self.patch('inspect.isawaitable', return_value=False,
-                   name='isawaitable')
         model.block_until_file_has_contents(
             'app',
             '/tmp/src/myfile.txt',
             'somestring',
             timeout=0.1)
-        self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
-        self.unit2.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+        self.unit1.run.assert_has_calls([
+            mock.call('cat /tmp/src/myfile.txt', timeout=None, block=True),
+            mock.call('cat /tmp/src/myfile.txt', timeout=None)])
+        self.unit2.run.assert_has_calls([
+            mock.call('cat /tmp/src/myfile.txt', timeout=None, block=True),
+            mock.call('cat /tmp/src/myfile.txt', timeout=None)])
 
     def test_block_until_file_has_no_contents(self):
         self.action.results = {'return-code': '0', 'stderr': ''}
@@ -1765,12 +1780,13 @@ class TestModel(ut_utils.BaseTestCase):
             '',
             timeout=0.1)
         self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+            'cat /tmp/src/myfile.txt', timeout=None, block=True)
         self.unit2.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+            'cat /tmp/src/myfile.txt', timeout=None, block=True)
 
     def test_block_until_file_has_no_contents_juju2_x(self):
         del self.action.results
+        self.juju_version = 2
         self.action.data = {
             'results': {'Code': '0', 'Stderr': ''}
         }
@@ -1789,10 +1805,12 @@ class TestModel(ut_utils.BaseTestCase):
             '/tmp/src/myfile.txt',
             '',
             timeout=0.1)
-        self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
-        self.unit2.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+        self.unit1.run.assert_has_calls([
+            mock.call('cat /tmp/src/myfile.txt', timeout=None, block=True),
+            mock.call('cat /tmp/src/myfile.txt', timeout=None)])
+        self.unit2.run.assert_has_calls([
+            mock.call('cat /tmp/src/myfile.txt', timeout=None, block=True),
+            mock.call('cat /tmp/src/myfile.txt', timeout=None)])
 
     def test_block_until_file_has_contents_missing(self):
         self.patch_object(model, 'Model')
@@ -1810,34 +1828,37 @@ class TestModel(ut_utils.BaseTestCase):
                 '/tmp/src/myfile.txt',
                 'somestring',
                 timeout=0.1)
-        self.unit1.run.assert_called_once_with('cat /tmp/src/myfile.txt')
+        self.unit1.run.assert_called_once_with(
+            'cat /tmp/src/myfile.txt', timeout=None, block=True)
 
     def test_block_until_file_missing(self):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.action.results = {'stdout': "1"}
-        self.patch('inspect.isawaitable', return_value=True,
-                   name='isawaitable')
         model.block_until_file_missing(
             'app',
             '/tmp/src/myfile.txt',
             timeout=0.1)
         self.unit1.run.assert_called_once_with(
-            'test -e "/tmp/src/myfile.txt"; echo $?')
+            'test -e "/tmp/src/myfile.txt"; echo $?', timeout=None, block=True)
 
     def test_block_until_file_missing_juju2_x(self):
         self.patch_object(model, 'Model')
         self.Model.return_value = self.Model_mock
         self.patch_object(model, 'get_juju_model', return_value='mname')
         del self.action.results
+        self.juju_version = 2
         self.action.data['results']['Stdout'] = "1"
         model.block_until_file_missing(
             'app',
             '/tmp/src/myfile.txt',
             timeout=0.1)
-        self.unit1.run.assert_called_once_with(
-            'test -e "/tmp/src/myfile.txt"; echo $?')
+        self.unit1.run.assert_has_calls([
+            mock.call(
+                'test -e "/tmp/src/myfile.txt"; echo $?',
+                timeout=None, block=True),
+            mock.call('test -e "/tmp/src/myfile.txt"; echo $?', timeout=None)])
 
     def test_block_until_file_missing_isnt_missing(self):
         self.patch_object(model, 'Model')
@@ -1866,12 +1887,13 @@ class TestModel(ut_utils.BaseTestCase):
             's.*string',
             timeout=0.1)
         self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+            'cat /tmp/src/myfile.txt', timeout=None, block=True)
         self.unit2.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+            'cat /tmp/src/myfile.txt', timeout=None, block=True)
 
     def test_block_until_file_matches_re_juju2_x(self):
         del self.action.results
+        self.juju_version = 2
         self.action.data = {
             'results': {'Code': '0', 'Stderr': '', 'Stdout': 'somestring'}
         }
@@ -1884,10 +1906,12 @@ class TestModel(ut_utils.BaseTestCase):
             '/tmp/src/myfile.txt',
             's.*string',
             timeout=0.1)
-        self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
-        self.unit2.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+        self.unit1.run.assert_has_calls([
+            mock.call('cat /tmp/src/myfile.txt', timeout=None, block=True),
+            mock.call('cat /tmp/src/myfile.txt', timeout=None)])
+        self.unit2.run.assert_has_calls([
+            mock.call('cat /tmp/src/myfile.txt', timeout=None, block=True),
+            mock.call('cat /tmp/src/myfile.txt', timeout=None)])
 
     def test_async_block_until_all_units_idle(self):
 
@@ -2235,9 +2259,9 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
             file_contents,
             expected_contents)
         self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+            'cat /tmp/src/myfile.txt', timeout=None, block=True)
         self.unit2.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+            'cat /tmp/src/myfile.txt', timeout=None, block=True)
 
     def test_block_until_oslo_config_entries_match_fail(self):
         file_contents = """
@@ -2267,7 +2291,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
                 file_contents,
                 expected_contents)
         self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+            'cat /tmp/src/myfile.txt', timeout=None, block=True)
 
     def test_block_until_oslo_config_entries_match_missing_entry(self):
         file_contents = """
@@ -2296,7 +2320,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
                 file_contents,
                 expected_contents)
         self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+            'cat /tmp/src/myfile.txt', timeout=None, block=True)
 
     def test_block_until_oslo_config_entries_match_missing_section(self):
         file_contents = """
@@ -2320,7 +2344,7 @@ disk_formats = ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
                 file_contents,
                 expected_contents)
         self.unit1.run.assert_called_once_with(
-            'cat /tmp/src/myfile.txt')
+            'cat /tmp/src/myfile.txt', timeout=None, block=True)
 
     def block_until_services_restarted_base(self, gu_return=None,
                                             gu_raise_exception=False):

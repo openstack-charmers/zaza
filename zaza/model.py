@@ -569,9 +569,7 @@ async def async_run_on_unit(unit_name, command, model_name=None, timeout=None):
     """
     model = await get_model(model_name)
     unit = await async_get_unit_from_name(unit_name, model)
-    action = await unit.run(command, timeout=timeout)
-    if inspect.isawaitable(action):
-        await action.wait()
+    action = await generic_utils.unit_run(unit, command, timeout)
     action = _normalise_action_object(action)
     results = action.data.get('results')
     return _normalise_action_results(results)
@@ -598,9 +596,7 @@ async def async_run_on_leader(application_name, command, model_name=None,
     for unit in model.applications[application_name].units:
         is_leader = await unit.is_leader_from_status()
         if is_leader:
-            action = await unit.run(command, timeout=timeout)
-            if inspect.isawaitable(action):
-                await action.wait()
+            action = await generic_utils.unit_run(unit, command, timeout)
             action = _normalise_action_object(action)
             results = action.data.get('results')
             return _normalise_action_results(results)
@@ -2159,9 +2155,8 @@ async def async_block_until_file_ready(application_name, remote_file,
         units = model.applications[application_name].units
         for unit in units:
             try:
-                output = await unit.run('cat {}'.format(remote_file))
-                if inspect.isawaitable(output):
-                    await output.wait()
+                output = await generic_utils.unit_run(
+                    unit, 'cat {}'.format(remote_file))
                 results = {}
                 try:
                     results = output.results
@@ -2301,9 +2296,8 @@ async def async_block_until_file_missing(
         results = []
         for unit in units:
             try:
-                output = await unit.run('test -e "{}"; echo $?'.format(path))
-                if inspect.isawaitable(output):
-                    await output.wait()
+                output = await generic_utils.unit_run(
+                    unit, 'test -e "{}"; echo $?'.format(path))
                 output = _normalise_action_object(output)
                 output_result = _normalise_action_results(
                     output.data.get('results', {}))

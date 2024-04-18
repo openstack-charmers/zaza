@@ -38,6 +38,7 @@ jobs:
           # - 3.1/stable
           # - 3.2/stable
           # - 3.3/stable
+          - 3.4/stable
         bundle:
           - first
           - second
@@ -59,6 +60,10 @@ jobs:
           # - juju_channel: 3.3/stable
           #   snap_install_flags: ""
           #   pip_constraints: constraints-juju33.txt
+          - juju_channel: 3.4/stable
+            snap_install_flags: ""
+            pip_constraints: constraints-juju34.txt
+            juju3: 1
     env:
       TEST_ZAZA_BUG_LP1987332: "on"  # http://pad.lv/1987332
     needs: build
@@ -93,6 +98,7 @@ jobs:
         set -euxo pipefail
         mkdir logs
         export PIP_CONSTRAINTS=$(pwd)/${{ matrix.pip_constraints }}
+        export TEST_JUJU3=${{ matrix.juju3 }}
         tox -e func-target -- ${{ matrix.bundle }} | tee logs/tox-output.txt
     - name: crashdump on failure
       if: failure()
