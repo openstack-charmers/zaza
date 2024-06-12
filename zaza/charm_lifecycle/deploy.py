@@ -153,9 +153,15 @@ def get_template(target_file, template_dir=None):
     :param target_dir: Limit template loading to this directory.
     :type target_dir: str
     :returns: Template object used to generate target_file
-    :rtype: jinja2.Template
+    :rtype: Optional[jinja2.Template]
     """
     jinja2_env = get_jinja2_env(template_dir=template_dir)
+    # first see if the non .j2 extension exists; if so then use that
+    try:
+        template = jinja2_env.get_template(os.path.basename(target_file))
+        return template
+    except jinja2.exceptions.TemplateNotFound:
+        pass
     try:
         template = jinja2_env.get_template(get_template_name(target_file))
     except jinja2.exceptions.TemplateNotFound:
@@ -346,11 +352,6 @@ def deploy_bundle(bundle, model, model_ctxt=None, force=False, trust=False):
             bundle,
             template_dir=os.path.dirname(bundle))
         if bundle_template:
-            if os.path.exists(bundle):
-                raise zaza_exceptions.TemplateConflict(
-                    "Found bundle template ({}) and bundle ({})".format(
-                        bundle_template.filename,
-                        bundle))
             bundle_out = '{}/{}'.format(tmpdirname, os.path.basename(bundle))
             render_template(bundle_template, bundle_out, model_ctxt=model_ctxt)
             cmd.append(bundle_out)
