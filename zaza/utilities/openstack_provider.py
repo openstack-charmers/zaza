@@ -308,3 +308,31 @@ def clean_up_instances(model_name, machines):
                 # depite being in the list, so just ignore this error.
                 logging.info("Server {} already removed - race due to async."
                              " id:{}" .format(server.name, server.id))
+
+
+def report_machine_errors(model_name, machines):
+    """Display information about machines in an error state.
+
+    :param model_name: the model to destroy.
+    :type model_name: str
+    :param machines: List of machines in model.
+    :type machines: List
+    """
+    machine_ids = {v.instance_id: k for k, v in machines.items()}
+    session = get_undercloud_keystone_session()
+    nova_client = get_nova_session_client(session)
+    servers = [
+        s for s in nova_client.servers.list() if s.id in machine_ids.keys()]
+    for server in servers:
+        logging.info("Juju Machine {}. Openstack ID {}. Status {}".format(
+            machine_ids[server.id],
+            server.id,
+            server.status))
+        if server.status == 'ACTIVE':
+            logging.warning("Detected Error Status")
+            logging.warning(dir(server))
+            try:
+                logging.warning(server.fault)
+                logging.warning(dir(server.fault))
+            except Exception:
+                pass
