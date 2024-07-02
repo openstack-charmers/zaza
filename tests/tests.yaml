@@ -5,7 +5,6 @@ gate_bundles:
 # destruction
 - first
 - second
-- third
 target_deploy_status:
   magpie-bionic:
     workload-status: active
@@ -30,4 +29,3 @@ tests_options:
   force_deploy:
     first
     second
-    third

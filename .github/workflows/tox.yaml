@@ -42,7 +42,6 @@ jobs:
         bundle:
           - first
           - second
-          - third
         include:
           - juju_channel: 2.9/stable
             snap_install_flags: "--classic"
