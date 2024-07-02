@@ -36,13 +36,13 @@ class UpgradeCharmsToPath(object):
         :returns: Status of charm upgrade test
         :rtype: bool
         """
-        logging.info("Performing a charm upgrade on: {}".format(charms))
+        logging.info("Performing a charm upgrade on: %s", charms)
         cwd = os.getcwd()
         for charm in charms:
             charm_path = cwd + '/' + charm + '.charm'
-            logging.debug("Upgrading {} to {}".format(charm, charm_path))
+            logging.debug("Upgrading %s to %s", charm, charm_path)
             subprocess.check_call([
-                'juju', 'upgrade-charm',
+                'juju', 'refresh',
                 '--path', str(charm_path),
                 str(charm)
             ])
