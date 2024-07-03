@@ -5,8 +5,8 @@ applications:
     charm: ch:magpie
     channel: latest/edge
     num_units: 2
-  magpie-bionic:
-    series: bionic
+  magpie-jammy:
+    series: jammy
     charm: ch:magpie
     channel: latest/edge
     num_units: 2
