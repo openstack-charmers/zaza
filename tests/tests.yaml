@@ -5,15 +5,11 @@ gate_bundles:
 # destruction
 - first
 - second
-- third
 target_deploy_status:
-  magpie-bionic:
+  magpie-jammy:
     workload-status: active
     workload-status-message-prefix: icmp ok, local hostname ok
   magpie-focal:
-    workload-status: active
-    workload-status-message-prefix: icmp ok, local hostname ok
-  magpie-hirsute:
     workload-status: active
     workload-status-message-prefix: icmp ok, local hostname ok
   ubuntu:
@@ -30,4 +26,3 @@ tests_options:
   force_deploy:
     first
     second
-    third
