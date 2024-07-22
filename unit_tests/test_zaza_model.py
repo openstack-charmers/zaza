@@ -1453,7 +1453,7 @@ class TestModel(ut_utils.BaseTestCase):
                 model.wait_for_application_states('modelname', timeout=1,
                                                   max_resolve_count=3)
                 self.assertFalse(self.system_ready)
-            self.assertEquals(self.async_resolve_units.call_count, 3)
+            self.assertEqual(self.async_resolve_units.call_count, 3)
 
     def test_wait_for_application_states_retries_non_retryable(self):
         self.patch_object(model, 'check_model_for_hard_errors')
@@ -1512,7 +1512,7 @@ class TestModel(ut_utils.BaseTestCase):
         with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
             model.wait_for_application_states('modelname', timeout=500,
                                               max_resolve_count=3)
-        self.assertEquals(self.async_resolve_units.call_count, 2)
+        self.assertEqual(self.async_resolve_units.call_count, 2)
         self.async_block_until_unit_wl_status.assert_has_calls([
             mock.call('app/2', 'error', 'modelname', negate_match=True,
                       timeout=60),
@@ -2980,7 +2980,7 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
                     'fake-cred-name', 'fake-cred')
                 result = await model.async_get_cloud_data()
                 self.assertIsInstance(result, model.CloudData)
-                self.assertEquals(result.cloud_name, mock.ANY)
-                self.assertEquals(result.cloud, mock.ANY)
-                self.assertEquals(result.credential_name, 'fake-cred-name')
-                self.assertEquals(result.credential, 'fake-cred')
+                self.assertEqual(result.cloud_name, mock.ANY)
+                self.assertEqual(result.cloud, mock.ANY)
+                self.assertEqual(result.credential_name, 'fake-cred-name')
+                self.assertEqual(result.credential, 'fake-cred')
