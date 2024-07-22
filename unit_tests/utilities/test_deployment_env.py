@@ -72,6 +72,24 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
             get_options_mock.return_value = ro_types.resolve_immutable(config)
             self.assertEqual(deployment_env.get_overlay_ppas(), None)
 
+            config = collections.OrderedDict(
+                {
+                    'overlay_ppas': [
+                        {
+                            'source': "foo",
+                            'key': "bar",
+                        }
+                    ]
+                }
+            )
+            get_options_mock.return_value = ro_types.resolve_immutable(config)
+            self.assertEqual(
+                deployment_env.get_overlay_ppas(),
+                ro_types.ReadOnlyList([
+                    {'source': 'foo', 'key': 'bar'}
+                ])
+            )
+
     def test_get_cloudinit_userdata(self):
         with mock.patch.object(deployment_env, 'get_overlay_ppas',
                                return_value=None):
@@ -92,7 +110,10 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
                 deployment_env.get_cloudinit_userdata(),
                 cloudinit_userdata)
         with mock.patch.object(deployment_env, 'get_overlay_ppas',
-                               return_value=['ppa:ppa0', 'ppa:ppa1']):
+                               return_value=[
+                                   'ppa:ppa0',
+                                   {'source': 'foo', 'key': 'bar'},
+                               ]):
             preferences_file = "/etc/apt/preferences.d/proposed-updates"
             cloud_config = {
                 'apt': {
@@ -101,7 +122,8 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
                             'source': 'ppa:ppa0'
                         },
                         'overlay-ppa-1': {
-                            'source': 'ppa:ppa1'
+                            'source': 'foo',
+                            'key': 'bar',
                         }
                     }
                 },

@@ -105,6 +105,18 @@ def get_overlay_ppas(model_alias='default_alias'):
             overlay_ppas:
               - ppa:ubuntu-security-proposed/ppa
 
+    alternatively more complex sources can also be used (for
+    example when accessing a Private PPA):
+
+        tests_options:
+          model_alias:
+            overlay_ppas:
+              - source: "deb https://user:pass@private-ppa.launchpad"
+                key: |
+                  -----BEGIN PGP PUBLIC KEY BLOCK-----
+                  ....
+                  -----END PGP PUBLIC KEY BLOCK-----
+
     :param model: Name of model alias
     :type bundle: str
     :returns: List of overlay PPAs
@@ -145,9 +157,18 @@ def get_cloudinit_userdata(model_alias='default_alias'):
     overlay_ppas = get_overlay_ppas(model_alias)
     if overlay_ppas:
         for index, overlay_ppa in enumerate(overlay_ppas):
-            cloud_config['apt']['sources']["overlay-ppa-{}".format(index)] = {
-                'source': overlay_ppa
-            }
+            try:
+                # NOTE: support private PPAs with source and key keys.
+                cloud_config['apt']['sources']["overlay-ppa-{}".format(index)] = {  # noqa
+                    'source': overlay_ppa['source'],
+                    'key': overlay_ppa['key'],
+                }
+            except (KeyError, TypeError):
+                # NOTE: simple ppa:xxx/yyy format for backwards compatibility
+                cloud_config['apt']['sources']["overlay-ppa-{}".format(index)] = {  # noqa
+                    'source': overlay_ppa
+                }
+
     cloudinit_userdata = "#cloud-config\n{}".format(
         yaml.safe_dump(cloud_config))
     return cloudinit_userdata
