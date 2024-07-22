@@ -94,7 +94,7 @@ class TestUtilitiesMaas(ut_utils.BaseTestCase):
     def test_get_macs_from_cidr(self):
         try:
             self.maxDiff = None
-            self.assertEquals(
+            self.assertEqual(
                 maas.get_macs_from_cidr(self.maas_client, '192.0.2.0/24'),
                 [
                     maas.MachineInterfaceMac(
@@ -110,7 +110,7 @@ class TestUtilitiesMaas(ut_utils.BaseTestCase):
                         '192.0.2.0/24',
                         mock.ANY),
                 ])
-            self.assertEquals(
+            self.assertEqual(
                 maas.get_macs_from_cidr(self.maas_client, '192.0.2.0/24',
                                         link_mode=maas.LinkMode.LINK_UP),
                 [
@@ -121,7 +121,7 @@ class TestUtilitiesMaas(ut_utils.BaseTestCase):
                         '192.0.2.0/24',
                         maas.LinkMode.LINK_UP),
                 ])
-            self.assertEquals(
+            self.assertEqual(
                 maas.get_macs_from_cidr(self.maas_client, '192.0.2.0/24',
                                         link_mode=maas.LinkMode.AUTO),
                 [
@@ -132,7 +132,7 @@ class TestUtilitiesMaas(ut_utils.BaseTestCase):
                         '192.0.2.0/24',
                         maas.LinkMode.AUTO),
                 ])
-            self.assertEquals(
+            self.assertEqual(
                 maas.get_macs_from_cidr(self.maas_client, '198.51.100.0/24'),
                 [
                     maas.MachineInterfaceMac(
@@ -152,7 +152,7 @@ class TestUtilitiesMaas(ut_utils.BaseTestCase):
             async def fget(*args):
                 return self.machine2
             self.maas_client.machines.get.side_effect = fget
-            self.assertEquals(
+            self.assertEqual(
                 maas.get_macs_from_cidr(self.maas_client, '198.51.100.0/24',
                                         machine_id=self.machine2.system_id),
                 [

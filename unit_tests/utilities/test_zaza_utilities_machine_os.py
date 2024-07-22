@@ -72,7 +72,7 @@ class TestUtils(ut_utils.BaseTestCase):
         self.patch_object(machine_os_utils.zaza.utilities.juju, 'remote_run')
         result = machine_os_utils.add_netdevsim(
             'unit', 10, 2, model_name='model')
-        self.assertEquals(result, ['eni10np1', 'eni10np2'])
+        self.assertEqual(result, ['eni10np1', 'eni10np2'])
         self.install_modules_extra.assert_called_once_with(
             'unit', model_name='model')
         self.load_kernel_module.assert_called_once_with(
@@ -139,7 +139,7 @@ class TestUtils(ut_utils.BaseTestCase):
         self.get_config_options.return_value = {
             machine_os_utils.HV_APPLICATION_KEY: 'someApp'
         }
-        self.assertEquals(machine_os_utils.get_hv_application(), 'someApp')
+        self.assertEqual(machine_os_utils.get_hv_application(), 'someApp')
 
     def test_reboot_hvs(self):
         # No hv_application

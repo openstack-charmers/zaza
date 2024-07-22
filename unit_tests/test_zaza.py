@@ -55,9 +55,9 @@ class TestModel(ut_utils.BaseTestCase):
             return 4
 
         with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            self.assertEquals(zaza.run(one), 1)
-            self.assertEquals(zaza.run(one, two), 2)
-            self.assertEquals(zaza.run(one, two, add1(2)), 3)
-            self.assertEquals(zaza.run(), None)
-            self.assertEquals(zaza.run(num4), 4)
-            self.assertEquals(zaza.run(num4()), 4)
+            self.assertEqual(zaza.run(one), 1)
+            self.assertEqual(zaza.run(one, two), 2)
+            self.assertEqual(zaza.run(one, two, add1(2)), 3)
+            self.assertEqual(zaza.run(), None)
+            self.assertEqual(zaza.run(num4), 4)
+            self.assertEqual(zaza.run(num4()), 4)

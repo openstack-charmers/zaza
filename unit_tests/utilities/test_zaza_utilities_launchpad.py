@@ -27,7 +27,7 @@ class TestUtilitiesLaunchpad(ut_utils.BaseTestCase):
         r = unittest.mock.MagicMock()
         r.text = json.dumps(expect)
         self.get.return_value = r
-        self.assertEquals(
+        self.assertEqual(
             launchpad.get_ubuntu_series(),
             expect,
         )
@@ -40,7 +40,7 @@ class TestUtilitiesLaunchpad(ut_utils.BaseTestCase):
         self.get_ubuntu_series.return_value = {
             'entries': [{'version': 'fakeVersion'}]}
 
-        self.assertEquals(
+        self.assertEqual(
             launchpad.get_ubuntu_series_by_version(),
             {'fakeVersion': {'version': 'fakeVersion'}})
 
@@ -50,6 +50,6 @@ class TestUtilitiesLaunchpad(ut_utils.BaseTestCase):
         self.get_ubuntu_series.return_value = {
             'entries': [{'name': 'fakeName'}]}
 
-        self.assertEquals(
+        self.assertEqual(
             launchpad.get_ubuntu_series_by_name(),
             {'fakeName': {'name': 'fakeName'}})

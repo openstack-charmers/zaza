@@ -19,8 +19,8 @@ import zaza.utilities.networking as network_utils
 class TestUtils(unittest.TestCase):
 
     def test_format_addr(self):
-        self.assertEquals('1.2.3.4', network_utils.format_addr('1.2.3.4'))
-        self.assertEquals(
+        self.assertEqual('1.2.3.4', network_utils.format_addr('1.2.3.4'))
+        self.assertEqual(
             '[2001:db8::42]', network_utils.format_addr('2001:db8::42'))
         with self.assertRaises(ValueError):
             network_utils.format_addr('999.999.999.999')
