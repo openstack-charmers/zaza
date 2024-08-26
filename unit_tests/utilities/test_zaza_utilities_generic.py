@@ -213,7 +213,8 @@ class TestGenericUtils(ut_utils.BaseTestCase):
         generic_utils.juju_reboot(_unit)
         self.subprocess.check_call.assert_called_once_with(
             ['juju', 'ssh', _unit,
-             f'sudo juju-run -u {_unit} "juju-reboot --now"'])
+             f'sudo juju-run -u {_unit} "juju-reboot --now" || '
+             f'sudo juju-exec -u {_unit} "juju-reboot --now"'])
 
     def test_run_via_ssh(self):
         _unit = "app/2"
