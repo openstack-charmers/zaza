@@ -85,7 +85,7 @@ def parse_option_list_string(option_list, delimiter=None):
     return settings
 
 
-def get_overlay_ppas(model_alias='default_alias'):
+def get_overlay_ppas(model_alias='default_alias', application=None):
     """Get overlay_ppas from global_config.
 
     In the config file for the tests, the tests_options.overlay_ppa option
@@ -95,20 +95,45 @@ def get_overlay_ppas(model_alias='default_alias'):
     Please refer to docstring of parse_overlay_ppa function for more
     information.
 
+    When application is provided, additional grammar to constrain the
+    overlay PPA to specific applications is supported, for example:
+
+        overlay_ppas:
+            myapp:
+              - ppa:mylpuser/myppa
+            myotherapp:
+              - source: fakesource
+                key: fakekey
+
     :param model_alias: Name of model alias, defaults to 'default_alias'.
     :type model_alias: Option[str]
+    :param application: Name of application to retrieve config for.
+    :type application: Option[str]
     :returns: List of overlay PPAs.
     :rtype: Option[List[Any]]
     """
     config = zaza.global_options.get_options()
     try:
-        return config[model_alias].overlay_ppas
+        config_overlay_ppas = config[model_alias].overlay_ppas
     except KeyError:
         try:
-            return config.overlay_ppas
+            config_overlay_ppas = config.overlay_ppas
         except KeyError:
-            pass
-    return None
+            return None
+
+    if application:
+        try:
+            return config_overlay_ppas[application]
+        except (KeyError, TypeError):
+            return None
+
+    # Avoid returning application dictionary when overlay_ppas config is
+    # Dict-like object and application is not requested.
+    try:
+        config_overlay_ppas.get(None)
+        return None
+    except AttributeError:
+        return config_overlay_ppas
 
 
 def _parse_overlay_ppa_v1(overlay_ppa):
