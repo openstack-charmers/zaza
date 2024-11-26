@@ -16,6 +16,10 @@ keystoneauth1
 oslo.config
 python-novaclient
 tenacity>8.2.0
+# NOTE(freyes): Set upper bound for websockets until libjuju is compatible with
+# newer versions. See https://github.com/juju/python-libjuju/pull/1208
+websockets<13.0.0
+
 # To force the installation of an specific version of libjuju use a constraints
 # file, e.g.: `env PIP_CONSTRAINTS=./constraints-juju31.txt tox -e func-target`
 juju
