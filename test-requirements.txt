@@ -16,6 +16,10 @@ keystoneauth1
 oslo.config
 python-novaclient
 tenacity>8.2.0
+# NOTE(freyes): Set upper bound for websockets until libjuju is compatible with
+# newer versions. See https://github.com/juju/python-libjuju/pull/1208
+websockets<13.0.0
+
 # pinned until 3.0 regressions are handled: https://github.com/openstack-charmers/zaza/issues/545
 juju<3.0
 # https://github.com/go-macaroon-bakery/py-macaroon-bakery/issues/94

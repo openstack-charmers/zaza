@@ -80,7 +80,7 @@ jobs:
         juju crashdump -m $model -o logs/
     - name: upload logs on failure
       if: failure()
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: test-run-logs-and-crashdump
         path: logs/
