@@ -45,6 +45,13 @@ jobs:
     needs: build
     steps:
     - uses: actions/checkout@v1
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        large-packages: false
+        docker-images: false
+        swap-storage: false
     - name: Install dependencies
       run: |
         set -euxo pipefail
@@ -80,7 +87,7 @@ jobs:
         juju crashdump -m $model -o logs/
     - name: upload logs on failure
       if: failure()
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: test-run-logs-and-crashdump
         path: logs/
