@@ -43,6 +43,9 @@ install_require = [
 
     # https://github.com/go-macaroon-bakery/py-macaroon-bakery/issues/94
     'macaroonbakery != 1.3.3',
+    # NOTE(freyes): Set upper bound for websockets until libjuju is compatible
+    # with newer versions. See https://github.com/juju/python-libjuju/pull/1208
+    'websockets<13.0.0',
 ]
 if os.environ.get("TEST_JUJU3"):
     install_require.append('juju')
