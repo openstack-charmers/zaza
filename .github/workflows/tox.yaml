@@ -45,6 +45,13 @@ jobs:
     needs: build
     steps:
     - uses: actions/checkout@v1
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        large-packages: false
+        docker-images: false
+        swap-storage: false
     - name: Install dependencies
       run: |
         set -euxo pipefail
