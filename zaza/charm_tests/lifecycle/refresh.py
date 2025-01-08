@@ -19,6 +19,7 @@
 import glob
 import logging
 import os
+from pathlib import Path
 
 import zaza.model as model
 import subprocess
@@ -33,20 +34,17 @@ class CharmRefreshAll:
         """Upgrade all the charms found in a local path."""
         path = os.environ.get('CHARMS_ARTIFACT_DIR')
         if not path:
-            logging.info('charms path not found')
+            logging.info('CHARMS_ARTIFACT_DIR not set; skipping charm refresh')
             return True
 
-        path = os.path.realpath(path)
-        if path[-1] != '/':
-            path += '/'
-
-        charms = glob.glob(path + '*.charm')
+        path = Path(path).resolve()
+        charms = list(path.glob('*.charm'))
         if not charms:
-            logging.info('no charms found in path')
+            logging.info('no charms found in path: %s' % str(path))
             return True
 
         for charm in charms:
-            app_name = charm[len(path):].replace('.charm', '')
+            app_name = charm.stem
             try:
                 model.get_application(app_name)
             except KeyError:
@@ -55,7 +53,7 @@ class CharmRefreshAll:
 
             logging.info('refreshing charm %s' % app_name)
             subprocess.check_call([
-                'juju', 'refresh', '--path', charm, app_name
+                'juju', 'refresh', '--path', str(charm), app_name
             ])
 
         return True
