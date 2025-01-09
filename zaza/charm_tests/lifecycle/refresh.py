@@ -16,7 +16,6 @@
 
 """Code for managing various lifecycle functionality via Zaza."""
 
-import glob
 import logging
 import os
 from pathlib import Path
