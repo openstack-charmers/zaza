@@ -63,6 +63,10 @@ jobs:
             snap_install_flags: ""
             pip_constraints: constraints-juju34.txt
             juju3: 1
+          - juju_channel: 3.5/stable
+            snap_install_flags: ""
+            pip_constraints: constraints-juju35.txt
+            juju3: 1
     env:
       TEST_ZAZA_BUG_LP1987332: "on"  # http://pad.lv/1987332
     needs: build
