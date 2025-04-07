@@ -133,6 +133,8 @@ def _set_vfio_unsafe_noiommu_mode(unit, enable, model_name=None):
     :type model_name: Optional[str]
     :raises: AssertionError, zaza.model.CommandRunFailed
     """
+    load_kernel_module(unit.name, 'vfio', model_name=model_name)
+
     expected_result = 'Y' if enable else 'N'
     value = 1 if enable else 0
     cmd = (
