@@ -109,7 +109,6 @@ def get_plugin_manager(name="DEFAULT"):
     :returns: the conncheck plugin manager
     :rtype: LoggerPluginManager
     """
-    global _conncheck_plugin_managers
     try:
         return _conncheck_plugin_managers[name]
     except KeyError:
