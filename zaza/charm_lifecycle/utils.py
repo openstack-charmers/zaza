@@ -91,7 +91,6 @@ def get_base_test_dir():
     :returns: Path to test dir.
     :rtype: str
     """
-    global base_test_dir
     return base_test_dir
 
 
@@ -399,7 +398,6 @@ def get_charm_config(yaml_file=None, fatal=True, cached=True):
     :returns: Config dictionary
     :rtype: dict
     """
-    global _charm_config
     if not yaml_file:
         if get_base_test_dir():
             yaml_file = "{}/{}".format(

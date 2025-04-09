@@ -214,7 +214,6 @@ def get_logger(name="DEFAULT"):
     :returns: the logger instance
     :rtype: EventLogger
     """
-    global _loggers
     if name not in _loggers:
         _loggers[name] = EventLogger(name)
     return _loggers[name]
@@ -272,7 +271,6 @@ def get_plugin_manager(name="DEFAULT"):
     :returns:  the Logger plugin manager
     :rtype: LoggerPluginManager
     """
-    global _logger_plugin_managers
     try:
         return _logger_plugin_managers[name]
     except KeyError:

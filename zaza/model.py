@@ -93,7 +93,6 @@ def get_juju_model_aliases():
     :returns: Model alias map
     :rtype: dict
     """
-    global MODEL_ALIASES
     return MODEL_ALIASES
 
 
@@ -211,7 +210,6 @@ async def get_model_memo(model_name):
     :type model_name: str
     :returns: juju.model.Model
     """
-    global ModelRefs
     model = None
     if model_name in ModelRefs:
         model = ModelRefs[model_name]
@@ -257,7 +255,6 @@ async def remove_model_memo(model_name):
     :param model_name: the model name to remove a Model object.
     :type model_name: str
     """
-    global ModelRefs
     try:
         model = ModelRefs[model_name]
         del ModelRefs[model_name]

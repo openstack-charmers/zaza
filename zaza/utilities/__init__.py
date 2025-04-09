@@ -32,7 +32,6 @@ def deprecate():
 
         @wraps(f)
         def wrapped_f(*args, **kwargs):
-            global deprecations
             if f not in deprecations:
                 msg = "{} is deprecated. ".format(f.__name__)
                 logging.warning(msg)
@@ -109,7 +108,6 @@ def cached(func):
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
-        global cache
         key = json.dumps((func, args, kwargs), sort_keys=True, default=str)
         try:
             return cache[key]
