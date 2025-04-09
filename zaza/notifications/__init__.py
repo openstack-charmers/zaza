@@ -124,7 +124,6 @@ def subscribe(f, event=None, when=None):
     :param when: when the function should be called.
     :type when: str
     """
-    global _notify_map
     if event is None:
         events = NotifyEvents
     elif isinstance(event, Iterable):
@@ -163,7 +162,6 @@ def unsubscribe(f, event=None, when=None):
     :param when: when the function should be called.
     :type when: str
     """
-    global _notify_map
     if when is None or when == NotifyType.ALL:
         whens = (NotifyType.BEFORE, NotifyType.AFTER, NotifyType.EXCEPTION)
     elif when == NotifyType.BOTH:

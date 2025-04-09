@@ -64,7 +64,7 @@ def get_or_create_libjuju_thread():
     :returns: the thread that libjuju is running in.
     :rtype: threading.Thread
     """
-    global _libjuju_thread, _libjuju_loop, _libjuju_run
+    global _libjuju_thread, _libjuju_run
     if _libjuju_thread is None:
         _libjuju_run = True
         _libjuju_thread = threading.Thread(target=libjuju_thread_run)
@@ -103,7 +103,6 @@ def libjuju_thread_run():
     global _libjuju_loop
 
     async def looper():
-        global _libjuju_run
         while _libjuju_run:
             # short spinner to ensure that foreground tasks 'happen' so that
             # background tasks can complete (e.g. during model disconnection).
@@ -148,7 +147,7 @@ def libjuju_thread_run():
 
 def join_libjuju_thread():
     """Stop and cleanup the asyncio tasks on the loop, and then join it."""
-    global _libjuju_thread, _libjuju_loop, _libjuju_run
+    global _libjuju_thread, _libjuju_run
     if _libjuju_thread is not None:
         logging.debug("stopping the event loop")
         # remove the child watcher (that was for subprocess calls) when
@@ -203,7 +202,6 @@ def sync_wrapper(f, timeout=None):
     :rtype: function
     """
     def _wrapper(*args, **kwargs):
-        global _libjuju_loop
 
         async def _runner():
             return await f(*args, **kwargs)

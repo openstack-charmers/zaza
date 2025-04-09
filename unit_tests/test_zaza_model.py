@@ -1142,7 +1142,6 @@ class TestModel(ut_utils.BaseTestCase):
             'app/2': self.unit2}
 
         async def _async_get_unit_from_name(x, *args):
-            nonlocal units
             return units[x]
 
         self.async_get_unit_from_name.side_effect = _async_get_unit_from_name
