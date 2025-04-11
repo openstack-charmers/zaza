@@ -47,8 +47,6 @@ VALID_ENVIRONMENT_KEY_PREFIXES = [
 MODEL_DEFAULTS = {
     # Model defaults from charm-test-infra
     #   https://jujucharms.com/docs/2.1/models-config
-    'default-series': 'focal',
-    'image-stream': 'daily',
     'test-mode': 'true',
     'transmit-vendor-metrics': 'false',
     # https://bugs.launchpad.net/juju/+bug/1685351
