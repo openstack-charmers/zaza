@@ -122,7 +122,12 @@ def get_principle_applications(application_name, application_status=None,
     status = application_status or get_application_status(
         application_name,
         model_name=model_name)
-    return status.get("subordinate-to")
+    # A subodrinate application can be related to other
+    # subordinate applications, such that they both show up in
+    # each other's 'subordinate-to' list. We need to filter them out
+    # from the list that we are returning.
+    return [app for app in status.get("subordinate-to")
+            if not is_subordinate_application(app, model_name=model_name)]
 
 
 def get_machines_for_application(application, model_name=None):
@@ -142,8 +147,15 @@ def get_machines_for_application(application, model_name=None):
     # libjuju juju status no longer has units for subordinate charms
     # Use the application it is subordinate-to to find machines
     if is_subordinate_application(application, model_name=model_name):
+        principal = get_principle_applications(application,
+                                               model_name=model_name)
+        if not principal:
+            logging.warn(f"Suboridnate application {application} is not"
+                         " related to any principal application.")
+            return
+
         yield from get_machines_for_application(
-            status.get("subordinate-to")[0],
+            principal[0],
             model_name=model_name)
     else:
         for unit in status.get("units").keys():

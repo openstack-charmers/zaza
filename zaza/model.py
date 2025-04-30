@@ -40,6 +40,7 @@ from juju.model import Model
 
 from zaza import sync_wrapper
 import zaza.utilities.generic as generic_utils
+import zaza.utilities.juju as juju_utils
 import zaza.utilities.exceptions as zaza_exceptions
 from zaza.utilities import deprecate
 
@@ -2570,8 +2571,14 @@ async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
             # unit
             lead_app_name = subordinate_principal
             if not subordinate_principal:
-                lead_app_name = model_status.applications[app][
-                    'subordinate-to'][0]
+                for app_ in model_status.applications[app]['subordinate-to']:
+                    app_status = model_status.applications[app_]
+                    if not juju_utils.is_subordinate_application(app_,
+                                                                 app_status,
+                                                                 model_name):
+                        lead_app_name = app_
+                        break
+
             units = model_status.applications[lead_app_name]['units']
             for unit in units.values():
                 try:
@@ -2582,7 +2589,8 @@ async def async_block_until_unit_wl_status(unit_name, status, model_name=None,
                     pass
             else:  # pragma: no cover
                 raise ValueError('{} does not exist as a subordinate under a '
-                                 'principal'.format(unit_name))
+                                 'principal to {}'.format(unit_name,
+                                                          lead_app_name))
         if negate_match:
             return v != status
         else:
