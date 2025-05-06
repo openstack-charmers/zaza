@@ -19,6 +19,7 @@
 from __future__ import print_function
 
 import os
+import subprocess
 import sys
 from setuptools import setup, find_packages
 from setuptools.command.test import test as TestCommand
@@ -50,7 +51,22 @@ install_require = [
 if os.environ.get("TEST_JUJU3"):
     install_require.append('juju')
 else:
-    install_require.append('juju<3.0.0')
+    try:
+        version = subprocess.check_output(['juju', '--version'],
+                                          universal_newlines=True).strip()
+        print('juju --version ->', version)
+        if int(version.split(.)[0]) >= 3:
+            (major, minor) = version.split('.')[0:2]
+            major = int(major)
+            minor = int(minor)
+            juju_ver_n = "%s.%s" % (major, minor)
+            juju_ver_n1 = "%s.%s" % (major, minor + 1)
+            install_require.append('juju>=%s,<%s' % (juju_ver_n,
+                                                     juju_ver_n1))
+        else:
+            install_require.append('juju<3.0.0')
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        install_require.append('juju<3.0.0')
 
 tests_require = [
     'tox >= 2.3.1',
