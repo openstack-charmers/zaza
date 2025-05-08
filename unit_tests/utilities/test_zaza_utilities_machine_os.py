@@ -85,6 +85,7 @@ class TestUtils(ut_utils.BaseTestCase):
 
     def test__set_vfio_unsafe_noiommu_mode(self):
         self.patch_object(machine_os_utils.zaza.utilities.juju, 'remote_run')
+        self.patch_object(machine_os_utils, 'load_kernel_module')
         self.remote_run.return_value = 'Y'
         unit = mock.MagicMock()
         unit.name = 'aUnit'
@@ -97,6 +98,7 @@ class TestUtils(ut_utils.BaseTestCase):
         with self.assertRaises(AssertionError):
             machine_os_utils._set_vfio_unsafe_noiommu_mode(unit, True)
 
+        self.load_kernel_module.reset_mock()
         self.remote_run.reset_mock()
         self.remote_run.return_value = 'Y\n'
         expect = (
@@ -105,7 +107,10 @@ class TestUtils(ut_utils.BaseTestCase):
         machine_os_utils._set_vfio_unsafe_noiommu_mode(unit, True)
         self.remote_run.assert_called_once_with(
             'aUnit', expect, model_name=None, fatal=True)
+        self.load_kernel_module.assert_called_once_with(
+            'aUnit', 'vfio', model_name=None)
 
+        self.load_kernel_module.reset_mock()
         self.remote_run.reset_mock()
         self.remote_run.return_value = 'N\n'
         expect = (
@@ -114,6 +119,8 @@ class TestUtils(ut_utils.BaseTestCase):
         machine_os_utils._set_vfio_unsafe_noiommu_mode(unit, False)
         self.remote_run.assert_called_once_with(
             'aUnit', expect, model_name=None, fatal=True)
+        self.load_kernel_module.assert_called_once_with(
+            'aUnit', 'vfio', model_name=None)
 
     def test_enable_vfio_unsafe_noiommu_mode(self):
         self.patch_object(machine_os_utils, '_set_vfio_unsafe_noiommu_mode')

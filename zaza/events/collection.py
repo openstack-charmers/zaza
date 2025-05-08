@@ -69,7 +69,6 @@ def get_collection(name=None):
     :returns: the colection named, or creates a new one of that name.
     :rtype: Collection
     """
-    global _collections
     if name is None:
         name = get_option("zaza-events.collection-name", "DEFAULT")
     try:
