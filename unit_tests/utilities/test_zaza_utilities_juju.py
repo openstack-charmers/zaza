@@ -78,18 +78,39 @@ class TestJujuUtils(ut_utils.BaseTestCase):
         self.unit2_mock.data = {'machine-id': self.machine2}
 
         self.application = "app"
+
         self.subordinate_application = "subordinate_application"
         self.subordinate_application_unit = "subordinate_application/0"
         self.subordinate_application_data = {
             "subordinate-to": [self.application]}
+
+        # Second subordinate app is related both to the principal application
+        # and to the first subordinate application
+        self.second_subordinate_application = "second_subordinate"
+        self.second_subordinate_application_unit = "second_subordinate/0"
+        self.second_subordinate_application_data = {
+            "subordinate-to": [self.subordinate_application, self.application]}
+        # Update the suboridnate list on the first subordinate as well
+        self.subordinate_application_data['subordinate-to'].insert(
+            0,
+            self.second_subordinate_application
+        )
+
         self.application_data = {
             "units": {self.unit1: self.unit1_data},
-            "subordinates": {self.subordinate_application_unit: {}}}
+            "subordinates": {
+                self.subordinate_application_unit: {},
+                self.second_subordinate_application_unit: {},
+            }
+        }
         self.juju_status = mock.MagicMock()
         self.juju_status.name = "juju_status_object"
         self.juju_status.applications = {
             self.application: self.application_data,
-            self.subordinate_application: self.subordinate_application_data}
+            self.subordinate_application: self.subordinate_application_data,
+            self.second_subordinate_application:
+                self.second_subordinate_application_data,
+        }
         self.juju_status.machines = {
             self.machine0: self.machine0_mock,
             self.machine1: self.machine1_mock,

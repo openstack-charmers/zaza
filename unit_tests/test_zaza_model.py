@@ -245,6 +245,7 @@ class TestModel(ut_utils.BaseTestCase):
         self.machine_data = {self.key: self.key_data}
         self.unit = "app/1"
         self.application = "app"
+
         self.subordinate_application = "subordinate_application"
         self.subordinate_application_data = {
             "subordinate-to": [self.application],
@@ -252,18 +253,44 @@ class TestModel(ut_utils.BaseTestCase):
         self.subordinate_unit = "subordinate_application/1"
         self.subordinate_unit_data = {
             "workload-status": {"status": "active"}}
+
+        # Second subordinate app is related both to the principal application
+        # and to the first subordinate application
+        self.second_subordinate_application = "second_subordinate_application"
+        self.second_subordinate_application_data = {
+            "subordinate-to": [
+                self.subordinate_application,
+                self.application
+            ],
+            "units": None}
+        self.second_subordinate_unit = "second_subordinate_application/1"
+        self.second_subordinate_unit_data = {
+            "workload-status": {"status": "active"}}
+        # Update the suboridnate list on the first subordinate as well
+        self.subordinate_application_data["subordinate-to"].insert(
+            0,
+            self.second_subordinate_application,
+        )
+
         self.unit_data = {
             "workload-status": {"status": "active"},
             "machine": self.machine,
             "subordinates": {
-                self.subordinate_unit: self.subordinate_unit_data}}
+                self.subordinate_unit: self.subordinate_unit_data,
+                self.second_subordinate_unit:
+                    self.second_subordinate_unit_data,
+            }
+        }
         self.application_data = {"units": {
             self.unit1.name: self.subordinate_unit_data,
             self.unit: self.unit_data}}
         self.juju_status = mock.MagicMock()
         self.juju_status.applications = {
             self.application: self.application_data,
-            self.subordinate_application: self.subordinate_application_data}
+            self.subordinate_application: self.subordinate_application_data,
+            self.second_subordinate_application:
+                self.second_subordinate_application_data,
+        }
         self.juju_status.machines = self.machine_data
 
         async def _connect_model(model_name):
