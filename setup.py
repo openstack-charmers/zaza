@@ -36,18 +36,13 @@ install_require = [
 
     'hvac<0.7.0',
     'jinja2',
-    'juju-wait',
     'PyYAML',
     'tenacity>8.2.0',
     'python-libmaas',
-
     # https://github.com/go-macaroon-bakery/py-macaroon-bakery/issues/94
     'macaroonbakery != 1.3.3',
+    'jubilant',
 ]
-if os.environ.get("TEST_JUJU3"):
-    install_require.append('juju')
-else:
-    install_require.append('juju<3.0.0')
 
 tests_require = [
     'tox >= 2.3.1',

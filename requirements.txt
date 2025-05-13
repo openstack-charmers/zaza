@@ -1,7 +1,5 @@
 pyparsing<3.0.0  # pin for aodhclient which is held for py35
 async_generator
-kubernetes<18.0.0; python_version < '3.6' # pined, as juju uses kubernetes
-juju_wait
 PyYAML>=3.0
 pbr==5.6.0
 simplejson>=2.2.0
@@ -35,3 +33,4 @@ sphinx
 sphinxcontrib-asyncio
 # https://github.com/go-macaroon-bakery/py-macaroon-bakery/issues/94
 macaroonbakery!=1.3.3
+jubilant
