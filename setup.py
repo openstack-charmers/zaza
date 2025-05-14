@@ -29,7 +29,7 @@ install_require = [
     'oslo.config<6.12.0',  # pin at stable/train to retain Py3.5 support
     'async_generator',
     'cryptography',
-    'hvac<0.7.0',
+    'hvac',
     'jinja2',
     'juju-wait',
     'PyYAML',
