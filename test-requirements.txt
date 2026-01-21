@@ -1,8 +1,8 @@
 aiounittest
+pydocstyle<4.0.0
 flake8>=5  # Python 3.8 compatibility in pyflakes 2.1.0+
 flake8-docstrings
 flake8-per-file-ignores
-pydocstyle<4.0.0
 coverage
 mock>=1.2
 pytest
