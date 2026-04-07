@@ -8,7 +8,7 @@ gate_bundles:
 target_deploy_status:
   magpie-jammy:
     workload-status: active
-    workload-status-message-prefix: icmp ok, local hostname ok
+    workload-status-message-prefix: Ready, with 1 peer
   magpie-focal:
     workload-status: active
     workload-status-message-prefix: icmp ok, local hostname ok

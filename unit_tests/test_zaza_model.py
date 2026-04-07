@@ -1216,30 +1216,59 @@ class TestModel(ut_utils.BaseTestCase):
                 raise_on_failure=True,
                 action_params={'backup_dir': '/dev/null'})
 
+    def _make_jubilant_status(self, workload_status, workload_status_message,
+                              agent_status='idle', units=None):
+        """Build a mock jubilant Status object for use in wait tests.
+
+        :param workload_status: workload status string (e.g. 'active')
+        :param workload_status_message: workload status message string
+        :param agent_status: juju agent status (default 'idle')
+        :param units: dict of unit_name -> (wl_status, wl_msg, agent_status)
+                      overrides; if None, two units app/2 and app/4 are
+                      created with the supplied defaults.
+        :returns: mock Status object compatible with _JubilantModelAdapter
+        """
+        def _make_unit_status(wl_st, wl_msg, ag_st):
+            us = mock.MagicMock()
+            us.workload_status.current = wl_st
+            us.workload_status.message = wl_msg
+            us.juju_status.current = ag_st
+            return us
+
+        if units is None:
+            units = {
+                'app/2': _make_unit_status(
+                    workload_status, workload_status_message, agent_status),
+                'app/4': _make_unit_status(
+                    workload_status, workload_status_message, agent_status),
+            }
+
+        app_status = mock.MagicMock()
+        app_status.units = units
+
+        status = mock.MagicMock()
+        status.apps = {'app': app_status}
+        return status
+
     def _application_states_setup(self, setup, units_idle=True):
         self.system_ready = True
-        self._block_until_calls = 0
 
-        async def _block_until(f, timeout=0, model=None):
-            # Mimic timeouts
-            timeout = timeout + self._block_until_calls
-            self._block_until_calls += 1
-            if timeout == -1:
-                raise concurrent.futures._base.TimeoutError("Timeout", 1)
-            result = f()
-            if not result:
-                self.system_ready = False
-            return
+        workload_status = setup['workload-status']
+        workload_status_message = setup.get(
+            'workload-status-message-prefix',
+            setup.get('workload-status-message'))
+        agent_status = 'idle' if units_idle else setup.get(
+            'agent-status', 'executing')
 
-        async def _all_units_idle():
-            return units_idle
-        self.patch_object(model, 'block_until_auto_reconnect_model')
-        self.block_until_auto_reconnect_model.side_effect = _block_until
-        self.patch_object(model, 'Model')
-        self.Model.return_value = self.Model_mock
-        self.Model_mock.all_units_idle.return_value = _all_units_idle
-        p_mock_ws = mock.PropertyMock(
-            return_value=setup['workload-status'])
+        self._jubilant_status = self._make_jubilant_status(
+            workload_status, workload_status_message, agent_status)
+
+        self.patch_object(model, 'get_status_jubilant')
+        self.get_status_jubilant.return_value = self._jubilant_status
+
+        # Keep setting up the libjuju-style unit mocks so that the
+        # helper-function tests (check_unit_workload_status, etc.) still work.
+        p_mock_ws = mock.PropertyMock(return_value=workload_status)
         wsmsg = setup.get('workload-status-message-prefix',
                           setup.get('workload-status-message'))
         p_mock_wsmsg = mock.PropertyMock(return_value=wsmsg)
@@ -1254,9 +1283,7 @@ class TestModel(ut_utils.BaseTestCase):
             return now
 
         self.patch("time.time", name="mock_time", side_effect=mock_time)
-        self.patch("asyncio.sleep",
-                   name="mock_asyncio_sleep",
-                   new=mock.AsyncMock())
+        self.patch("time.sleep", name="mock_time_sleep")
         self.patch_object(model.logging, 'info', name="mock_logging_info")
         self.patch_object(
             model.logging, 'warning', name="mock_logging_warning")
@@ -1428,37 +1455,34 @@ class TestModel(ut_utils.BaseTestCase):
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Unit is ready'})
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            model.wait_for_application_states('modelname', timeout=1)
+        model.wait_for_application_states('modelname', timeout=1)
         self.assertTrue(self.system_ready)
 
     def test_wait_for_application_states_errored_unit(self):
         self._application_states_setup({
             'workload-status': 'error',
             'workload-status-message': 'Unit is ready'})
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            with self.assertRaises(model.UnitError):
-                model.wait_for_application_states('modelname', timeout=1)
-                self.assertFalse(self.system_ready)
+        with self.assertRaises(model.UnitError):
+            model.wait_for_application_states('modelname', timeout=1)
+            self.assertFalse(self.system_ready)
 
     def test_wait_for_application_states_errored_unit_ignore(self):
         self._application_states_setup({
             'workload-status': 'error',
             'workload-status-message': 'Unit is ready'})
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            # Expect a model timeout as the error state is not fatal
-            # but is not the required state.
-            with self.assertRaises(model.ModelTimeout):
-                model.wait_for_application_states(
-                    'modelname',
-                    timeout=1,
-                    ignore_hard_errors=True)
-                self.assertFalse(self.system_ready)
+        # Expect a model timeout as the error state is not fatal
+        # but is not the required state.
+        with self.assertRaises(model.ModelTimeout):
+            model.wait_for_application_states(
+                'modelname',
+                timeout=1,
+                ignore_hard_errors=True)
+            self.assertFalse(self.system_ready)
 
     def test_wait_for_application_states_retries_no_success(self):
         self.patch_object(model, 'check_model_for_hard_errors')
-        self.patch_object(model, 'async_resolve_units')
-        self.patch_object(model, 'async_block_until_unit_wl_status')
+        self.patch_object(model, 'resolve_units')
+        self.patch_object(model, 'block_until_unit_wl_status')
         self.patch_object(model, 'check_unit_workload_status')
 
         def unit_wl_status(_model, unit, states):
@@ -1472,19 +1496,21 @@ class TestModel(ut_utils.BaseTestCase):
         self._application_states_setup({
             'workload-status': 'error',
             'workload-status-message': 'hook failed: "install"'})
-        type(self.unit2).workload_status = 'active'
-        type(self.unit2).workload_status_message = 'Unit is ready'
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            with self.assertRaises(model.UnitError):
-                model.wait_for_application_states('modelname', timeout=1,
-                                                  max_resolve_count=3)
-                self.assertFalse(self.system_ready)
-            self.assertEqual(self.async_resolve_units.call_count, 3)
+        # Override unit app/4 to be active/ready so only app/2 is problematic
+        self._jubilant_status.apps['app'].units['app/4'].workload_status\
+            .current = 'active'
+        self._jubilant_status.apps['app'].units['app/4'].workload_status\
+            .message = 'Unit is ready'
+        with self.assertRaises(model.UnitError):
+            model.wait_for_application_states('modelname', timeout=1,
+                                              max_resolve_count=3)
+            self.assertFalse(self.system_ready)
+        self.assertEqual(self.resolve_units.call_count, 3)
 
     def test_wait_for_application_states_retries_non_retryable(self):
         self.patch_object(model, 'check_model_for_hard_errors')
-        self.patch_object(model, 'async_resolve_units')
-        self.patch_object(model, 'async_block_until_unit_wl_status')
+        self.patch_object(model, 'resolve_units')
+        self.patch_object(model, 'block_until_unit_wl_status')
         self.patch_object(model, 'check_unit_workload_status')
 
         def unit_wl_status(_model, unit, states):
@@ -1498,20 +1524,22 @@ class TestModel(ut_utils.BaseTestCase):
         self._application_states_setup({
             'workload-status': 'error',
             'workload-status-message': 'hook failed: "config-changed"'})
-        type(self.unit2).workload_status = 'active'
-        type(self.unit2).workload_status_message = 'Unit is ready'
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            with self.assertRaises(model.UnitError):
-                model.wait_for_application_states('modelname', timeout=1,
-                                                  max_resolve_count=3)
-                self.assertFalse(self.system_ready)
-        self.async_resolve_units.assert_not_called()
-        self.async_block_until_unit_wl_status.assert_not_called()
+        # Override unit app/4 to be active/ready so only app/2 is problematic
+        self._jubilant_status.apps['app'].units['app/4'].workload_status\
+            .current = 'active'
+        self._jubilant_status.apps['app'].units['app/4'].workload_status\
+            .message = 'Unit is ready'
+        with self.assertRaises(model.UnitError):
+            model.wait_for_application_states('modelname', timeout=1,
+                                              max_resolve_count=3)
+            self.assertFalse(self.system_ready)
+        self.resolve_units.assert_not_called()
+        self.block_until_unit_wl_status.assert_not_called()
 
     def test_wait_for_application_states_retries_with_success(self):
         self.patch_object(model, 'check_model_for_hard_errors')
-        self.patch_object(model, 'async_block_until_unit_wl_status')
-        self.patch_object(model, 'async_resolve_units')
+        self.patch_object(model, 'block_until_unit_wl_status')
+        self.patch_object(model, 'resolve_units')
         self.patch_object(model, 'check_unit_workload_status')
         count = 0
 
@@ -1523,23 +1551,26 @@ class TestModel(ut_utils.BaseTestCase):
                 count += 1
                 if count < 3:
                     raise model.UnitError([unit])
-                # Mutate the state for the desired behavior :-/
-                type(unit).workload_status = 'active'
-                type(unit).workload_status_message = 'Unit is ready'
+                # Mutate the mock status so subsequent calls see active
+                self._jubilant_status.apps['app'].units[
+                    'app/2'].workload_status.current = 'active'
+                self._jubilant_status.apps['app'].units[
+                    'app/2'].workload_status.message = 'Unit is ready'
             return True
 
         self.check_unit_workload_status.side_effect = unit_wl_status
         self._application_states_setup({
             'workload-status': 'error',
             'workload-status-message': 'hook failed: "install"'})
-        type(self.unit2).workload_status = 'active'
-        type(self.unit2).workload_status_message = 'Unit is ready'
+        self._jubilant_status.apps['app'].units['app/4'].workload_status\
+            .current = 'active'
+        self._jubilant_status.apps['app'].units['app/4'].workload_status\
+            .message = 'Unit is ready'
 
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            model.wait_for_application_states('modelname', timeout=500,
-                                              max_resolve_count=3)
-        self.assertEqual(self.async_resolve_units.call_count, 2)
-        self.async_block_until_unit_wl_status.assert_has_calls([
+        model.wait_for_application_states('modelname', timeout=500,
+                                          max_resolve_count=3)
+        self.assertEqual(self.resolve_units.call_count, 2)
+        self.block_until_unit_wl_status.assert_has_calls([
             mock.call('app/2', 'error', 'modelname', negate_match=True,
                       timeout=60),
             mock.call('app/2', 'error', 'modelname', negate_match=True,
@@ -1550,37 +1581,34 @@ class TestModel(ut_utils.BaseTestCase):
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Unit is ready'})
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            model.wait_for_application_states(
-                'modelname',
-                states={'app': {
-                    'workload-status': 'blocked'}},
-                timeout=1)
+        model.wait_for_application_states(
+            'modelname',
+            states={'app': {
+                'workload-status': 'blocked'}},
+            timeout=1)
         self.assertTrue(self.system_ready)
 
     def test_wait_for_application_states_bespoke_msg(self):
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Sure, I could do something'})
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            model.wait_for_application_states(
-                'modelname',
-                states={'app': {
-                    'workload-status-message': 'Sure, I could do something'}},
-                timeout=1)
+        model.wait_for_application_states(
+            'modelname',
+            states={'app': {
+                'workload-status-message': 'Sure, I could do something'}},
+            timeout=1)
         self.assertTrue(self.system_ready)
 
     def test_wait_for_application_states_bespoke_msg_blocked_ok(self):
         self._application_states_setup({
             'workload-status': 'blocked',
             'workload-status-message': 'Sure, I could do something'})
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            model.wait_for_application_states(
-                'modelname',
-                states={'app': {
-                    'workload-status': 'blocked',
-                    'workload-status-message': 'Sure, I could do something'}},
-                timeout=1)
+        model.wait_for_application_states(
+            'modelname',
+            states={'app': {
+                'workload-status': 'blocked',
+                'workload-status-message': 'Sure, I could do something'}},
+            timeout=1)
         self.assertTrue(self.system_ready)
 
     def test_wait_for_application_states_idle_timeout(self):
@@ -1588,9 +1616,8 @@ class TestModel(ut_utils.BaseTestCase):
             'agent-status': 'executing',
             'workload-status': 'blocked',
             'workload-status-message': 'Sure, I could do something'})
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            with self.assertRaises(model.ModelTimeout) as timeout:
-                model.wait_for_application_states('modelname', timeout=-2)
+        with self.assertRaises(model.ModelTimeout) as timeout:
+            model.wait_for_application_states('modelname', timeout=-2)
         self.assertEqual(
             timeout.exception.args[0],
             "Work state not achieved within timeout.")
@@ -1600,10 +1627,9 @@ class TestModel(ut_utils.BaseTestCase):
             'agent-status': 'executing',
             'workload-status': 'blocked',
             'workload-status-message': 'Sure, I could do something'})
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            with mock.patch.object(model, 'APPS_LEFT_INTERVAL', -1):
-                with self.assertRaises(model.ModelTimeout) as timeout:
-                    model.wait_for_application_states('modelname', timeout=-3)
+        with mock.patch.object(model, 'APPS_LEFT_INTERVAL', -1):
+            with self.assertRaises(model.ModelTimeout) as timeout:
+                model.wait_for_application_states('modelname', timeout=-3)
         self.assertEqual(
             timeout.exception.args[0],
             "Work state not achieved within timeout.")
@@ -1619,45 +1645,42 @@ class TestModel(ut_utils.BaseTestCase):
             'workload-status': 'active',
             'workload-status-message': 'Unit is ready'})
         # override to zero units
-        self.mymodel.applications['app'].units = []
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            model.wait_for_application_states(
-                'modelname',
-                states={
-                    'app': {
-                        'num-expected-units': 0,
-                    }
-                },
-                timeout=-1)
+        self._jubilant_status.apps['app'].units = {}
+        model.wait_for_application_states(
+            'modelname',
+            states={
+                'app': {
+                    'num-expected-units': 0,
+                }
+            },
+            timeout=-1)
 
     def test_wait_for_application_states_zero_units_expect_one(self):
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Unit is ready'})
         # override to zero units
-        self.mymodel.applications['app'].units = []
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            with self.assertRaises(model.ModelTimeout):
-                model.wait_for_application_states(
-                    'modelname',
-                    states={
-                        'app': {
-                            'num-expected-units': 1,
-                        }
-                    },
-                    timeout=-1)
+        self._jubilant_status.apps['app'].units = {}
+        with self.assertRaises(model.ModelTimeout):
+            model.wait_for_application_states(
+                'modelname',
+                states={
+                    'app': {
+                        'num-expected-units': 1,
+                    }
+                },
+                timeout=-1)
 
     def test_wait_for_application_states_zero_units_none_set(self):
         self._application_states_setup({
             'workload-status': 'active',
             'workload-status-message': 'Unit is ready'})
         # override to zero units
-        self.mymodel.applications['app'].units = []
-        with mock.patch.object(zaza, 'RUN_LIBJUJU_IN_THREAD', new=False):
-            with self.assertRaises(model.ModelTimeout):
-                model.wait_for_application_states(
-                    'modelname',
-                    timeout=1)
+        self._jubilant_status.apps['app'].units = {}
+        with self.assertRaises(model.ModelTimeout):
+            model.wait_for_application_states(
+                'modelname',
+                timeout=1)
 
     def test_get_current_model(self):
         self.patch_object(model, 'Model')

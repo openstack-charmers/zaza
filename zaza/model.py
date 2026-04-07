@@ -22,6 +22,7 @@ mostly via libjuju. Async function also provice a non-async alternative via
 import asyncio
 from async_generator import async_generator, yield_, asynccontextmanager
 import collections
+import dataclasses
 import datetime
 import inspect
 import logging
@@ -43,7 +44,7 @@ from typing import (
 import jubilant
 from jubilant.statustypes import (
     AppStatus,
-    ModelInfo,
+    ModelStatus,
     UnitStatus
 ) 
 from zaza import sync_wrapper
@@ -141,7 +142,7 @@ def get_juju_model():
 
 
 
-def deployed(model_name=None: Optional[str]) -> List[str]:
+def deployed(model_name: Optional[str] = None) -> List[str]:
     """List deployed applications.
 
     :param model_name: Name of the model to list applications from
@@ -158,8 +159,8 @@ sync_deployed = deployed
 # TODO(freyes): drop model_name in favor of model, since now we operate only on
 # a model name as a string.
 def get_unit_from_name(unit_name: str,
-                       model=None: Optional[str],
-                       model_name=None: Optional[str]) -> UnitStatus:
+                       model: Optional[str] = None,
+                       model_name: Optional[str] = None) -> UnitStatus:
     """Return the units that corresponds to the name in the given model.
 
     :param unit_name: Name of unit to match
@@ -202,7 +203,7 @@ class ZazaJujuModel(jubilant.Juju):
         return self.status().apps
 
 
-def get_model(model_name=None: Optional[str]):
+def get_model(model_name: Optional[str] = None):
     """Get (or create) the current model for `model_name`.
 
     If None is passed, or there is no model_name param, then the current model
@@ -295,7 +296,7 @@ def block_until_auto_reconnect_model(*conditions,
             )
 
 
-def get_model_info(model_name=None) -> ModelInfo:
+def get_model_info(model_name=None) -> ModelStatus:
     """Get information about the model.
 
     Useful keys in the ModelInfo object include:
@@ -312,7 +313,7 @@ def get_model_info(model_name=None) -> ModelInfo:
 
 
 def scp_to_unit(unit_name, source, destination, model_name=None,
-                scp_opts=[]: List[str]):
+                scp_opts: List[str] = []):
     """Transfer files to unit_name in model_name.
 
     :param model_name: Name of model unit is in
@@ -597,8 +598,14 @@ async def async_get_units(application_name, model_name=None):
     :returns: List of juju units
     :rtype: [juju.unit.Unit, juju.unit.Unit,...]
     """
-    model = await get_model(model_name)
-    return model.applications[application_name].units
+    status = get_status_jubilant(model_name)
+    app_status = status.apps.get(application_name)
+    if app_status is None:
+        return []
+    return [
+        _JubilantUnitAdapter(unit_name, unit_status)
+        for unit_name, unit_status in app_status.units.items()
+    ]
 
 get_units = sync_wrapper(async_get_units)
 
@@ -645,11 +652,12 @@ async def async_get_lead_unit(application_name, model_name=None):
     :returns: Name of unit with leader status
     :raises: zaza.utilities.exceptions.JujuError
     """
-    model = await get_model(model_name)
-    for unit in model.applications[application_name].units:
-        is_leader = await unit.is_leader_from_status()
-        if is_leader:
-            return unit
+    status = get_status_jubilant(model_name)
+    app_status = status.apps.get(application_name)
+    if app_status is not None:
+        for unit_name, unit_status in app_status.units.items():
+            if unit_status.leader:
+                return _JubilantUnitAdapter(unit_name, unit_status)
     raise zaza_exceptions.JujuError("No leader found for application {}"
                                     .format(application_name))
 
@@ -723,7 +731,7 @@ async def async_get_unit_public_address__libjuju(unit, model_name=None):
 
 
 async def async_get_unit_public_address__fallback(unit, model_name=None):
-    """Get the public address of a unit via juju status shell command.
+    """Get the public address of a unit via jubilant status.
 
     Due to bug [1], this function calls juju status and extracts the public
     address as provided by the juju go client, as libjuju is unreliable.
@@ -732,23 +740,19 @@ async def async_get_unit_public_address__fallback(unit, model_name=None):
 
     [1]: https://github.com/juju/python-libjuju/issues/615
 
-    :param unit: The libjuju unit object to get the public address for.
-    :type unit: juju.Unit
+    :param unit: The unit object to get the public address for.
+    :type unit: _JubilantUnitAdapter or similar
     :returns: the IP address of the unit.
     :rtype: Optional[str]
     """
     if model_name is None:
-        model_name = await async_get_juju_model()
-    cmd = "juju status --format=yaml -m {}".format(model_name)
-    result = await generic_utils.check_output(
-        cmd.split(), log_stderr=False, log_stdout=False)
-    status = yaml.safe_load(result['Stdout'])
+        model_name = get_juju_model()
+    status = get_status_jubilant(model_name)
     try:
         app = unit.name.split('/')[0]
-        return (
-            status['applications'][app]['units'][unit.name]['public-address'])
+        return status.apps[app].units[unit.name].public_address or None
     except KeyError:
-        logging.warn("Public address not found for %s", unit.name)
+        logging.warning("Public address not found for %s", unit.name)
         return None
 
 
@@ -879,37 +883,42 @@ async def async_get_status(model_name=None, interval=4.0, refresh=True):
     :rtype: dict
     """
     key = str(model_name)
-    model = None
 
-    async def _update_status_result(key):
-        nonlocal model
-        if model is None:
-            model = await get_model(model_name)
-        status = StatusResult(time.time(), await model.get_status())
+    def _update_status_result(key):
+        status = StatusResult(time.time(), get_status_jubilant(model_name))
         _GET_STATUS_TIMES[key] = status
         return status.result
 
     try:
         last = _GET_STATUS_TIMES[key]
     except KeyError:
-        return await _update_status_result(key)
+        return _update_status_result(key)
     now = time.time()
     if last.time + interval <= now:
-        # we need to refresh the status time, so let's do that.
-        return await _update_status_result(key)
-    # otherwise, if we need a refreshed version, then we have to wait;
+        return _update_status_result(key)
     if refresh:
-        # wait until the min interval is exceeded, and then grab a copy.
         await asyncio.sleep((last.time + interval) - now)
-        # now get the status.
-        # By passing refresh=False, this WILL return a cached status if another
-        # co-routine has already refreshed it.
-        return await async_get_status(model_name, interval, refresh=False)
-    # Not refreshing, so return the cached version
+        return _update_status_result(key)
     return last.result
 
 
 get_status = sync_wrapper(async_get_status)
+
+
+def get_status(model_name=None, **_kwargs):
+    """Return a libjuju-compatible status wrapper backed by jubilant.
+
+    Returns a :class:`_LibjujuStatusCompat` object which exposes
+    ``status.applications[app].status.status`` and
+    ``status.applications[app].units`` as expected by callers that were
+    written against the libjuju status shape (e.g. ``failure_report``).
+
+    :param model_name: Name of model to query.
+    :type model_name: Optional[str]
+    :returns: libjuju-compatible status wrapper
+    :rtype: _LibjujuStatusCompat
+    """
+    return _LibjujuStatusCompat(get_status_jubilant(model_name))
 
 
 class ActionFailed(Exception):
@@ -1373,12 +1382,10 @@ wait_for_agent_status = sync_wrapper(async_wait_for_agent_status)
 def is_unit_idle(unit):
     """Return True if the unit is in the idle state.
 
-    Note: the unit only makes progress (in terms of updating it's idle status)
-    if this function is called as part of an asyncio loop as the status is
-    updated in a co-routine/future.
-
-    :param unit: the unit to test
-    :type unit: :class:'juju.unit.Unit'
+    :param unit: the unit to test.  Can be a libjuju Unit (with
+        ``unit.data['agent-status']['current']``) or a
+        :class:`_JubilantUnitAdapter` (with ``unit.data['agent-status']``).
+    :type unit: object
     :returns: True if the unit is in the idle state
     :rtype: bool
     """
@@ -1393,7 +1400,7 @@ def is_unit_errored_from_install_hook(unit):
     """Return True if the unit is in error state from the install hook.
 
     :param unit: the unit to test
-    :type unit: :class:'juju.unit.Unit'
+    :type unit: object
     :returns: True if the unit is in the failed state and the workload status
               message indicates the install hook failed.
     :rtype: bool
@@ -1402,9 +1409,235 @@ def is_unit_errored_from_install_hook(unit):
         unit.workload_status_message == 'hook failed: "install"'
 
 
-async def async_wait_for_application_states(model_name=None, states=None,
-                                            timeout=2700, max_resolve_count=0,
-                                            ignore_hard_errors=False):
+class _JubilantUnitAdapter:
+    """Adapt a jubilant UnitStatus to look like a libjuju Unit.
+
+    Provides the ``workload_status``, ``workload_status_message``,
+    ``entity_id``, ``name``, ``application``, and ``data`` attributes
+    expected by the helper functions (``check_unit_workload_status``,
+    ``is_unit_idle``, etc.).
+    """
+
+    def __init__(self, unit_name: str, unit_status: UnitStatus):
+        self._name = unit_name
+        self._status = unit_status
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def entity_id(self) -> str:
+        return self._name
+
+    @property
+    def application(self) -> str:
+        return self._name.split('/')[0]
+
+    @property
+    def workload_status(self) -> str:
+        return self._status.workload_status.current
+
+    @property
+    def workload_status_message(self) -> str:
+        return self._status.workload_status.message
+
+    @property
+    def machine(self):
+        # jubilant UnitStatus.machine is a machine-id string; there is no
+        # per-unit machine status object like libjuju exposes.  Return None
+        # so that machines_in_state() skips machine-error checks.
+        return None
+
+    @property
+    def data(self) -> dict:
+        return {
+            'agent-status': {
+                'current': self._status.juju_status.current,
+            }
+        }
+
+
+class _JubilantModelAdapter:
+    """Adapt a jubilant Status to look like a libjuju Model.
+
+    Provides the ``units`` and ``applications`` attributes required by
+    ``check_model_for_hard_errors``, ``units_with_wl_status_state``, etc.
+    """
+
+    def __init__(self, status):
+        self._status = status
+
+    @property
+    def units(self) -> dict:
+        """Return a flat dict of unit_name -> _JubilantUnitAdapter."""
+        result = {}
+        for app_name, app_status in self._status.apps.items():
+            if not app_status.units:
+                continue
+            for unit_name, unit_status in app_status.units.items():
+                result[unit_name] = _JubilantUnitAdapter(unit_name,
+                                                         unit_status)
+        return result
+
+    @property
+    def applications(self) -> dict:
+        """Return a dict of app_name -> _JubilantAppAdapter."""
+        return {
+            app_name: _JubilantAppAdapter(app_name, app_status)
+            for app_name, app_status in self._status.apps.items()
+        }
+
+
+class _JubilantAppAdapter:
+    """Adapt a jubilant AppStatus to look like a libjuju Application."""
+
+    def __init__(self, app_name: str, app_status):
+        self._name = app_name
+        self._status = app_status
+
+    @property
+    def units(self) -> list:
+        """Return a list of _JubilantUnitAdapter for each unit."""
+        if not self._status.units:
+            return []
+        return [
+            _JubilantUnitAdapter(unit_name, unit_status)
+            for unit_name, unit_status in self._status.units.items()
+        ]
+
+
+class _LibjujuAppCompat:
+    """Thin wrapper over jubilant AppStatus exposing the libjuju attribute
+    shape used by external callers (e.g. ``failure_report``,
+    ``get_subordinate_units``):
+
+      - ``.status.status``           — workload status string
+      - ``.units``                   — dict of unit_name -> _LibjujuUnitCompat
+      - ``['units'][name].get('subordinates')`` — subordinate unit names dict
+    """
+
+    class _StatusInfo:
+        def __init__(self, current):
+            self.status = current  # libjuju uses .status not .current
+
+    class _LibjujuUnitCompat:
+        def __init__(self, unit_name, unit_status):
+            self.entity_id = unit_name
+            self.name = unit_name
+            self._unit_status = unit_status
+
+        @property
+        def workload_status(self):
+            return self._unit_status.workload_status.current
+
+        @property
+        def workload_status_message(self):
+            return self._unit_status.workload_status.message
+
+        @property
+        def agent_status(self):
+            return self._unit_status.juju_status.current
+
+        def get(self, key, default=None):
+            """Support dict-style .get() used by get_subordinate_units."""
+            if key == 'subordinates':
+                subs = self._unit_status.subordinates
+                if not subs:
+                    return default
+                # Return {sub_unit_name: {'charm': app_name}} as libjuju did.
+                return {
+                    sub_name: {'charm': sub_name.split('/')[0]}
+                    for sub_name in subs
+                }
+            return getattr(self, key, default)
+
+        def __getitem__(self, key):
+            result = self.get(key)
+            if result is None:
+                raise KeyError(key)
+            return result
+
+    def __init__(self, app_name, app_status):
+        self._app_name = app_name
+        self._app_status = app_status
+        self.status = self._StatusInfo(app_status.app_status.current)
+        self._units = {
+            unit_name: self._LibjujuUnitCompat(unit_name, unit_status)
+            for unit_name, unit_status in app_status.units.items()
+        }
+
+    @property
+    def units(self):
+        return self._units
+
+    def __getitem__(self, key):
+        if key == 'units':
+            return self._units
+        raise KeyError(key)
+
+
+class _LibjujuStatusCompat:
+    """Wrap a jubilant Status so that callers expecting the libjuju status
+    shape (``status.applications[app].status.status``) continue to work.
+    """
+
+    def __init__(self, jubilant_status):
+        self._status = jubilant_status
+
+    @property
+    def applications(self):
+        return {
+            app_name: _LibjujuAppCompat(app_name, app_status)
+            for app_name, app_status in self._status.apps.items()
+        }
+
+
+def get_status_jubilant(model_name=None):
+    """Return a jubilant Status for the given model.
+
+    Subordinate charms have no ``units`` in the raw jubilant output; instead
+    their unit statuses are nested under the principal unit's ``.subordinates``
+    dict.  This function collects those subordinate unit statuses and injects
+    them back into the matching subordinate ``AppStatus.units`` dict, so that
+    callers can treat principal and subordinate apps uniformly.
+
+    :param model_name: Name of model to query.
+    :type model_name: Optional[str]
+    :returns: jubilant Status object with subordinate units populated
+    :rtype: jubilant.statustypes.Status
+    """
+    juju = jubilant.Juju(model=model_name)
+    status = juju.status()
+
+    # Collect subordinate unit statuses scattered across principal units.
+    # subordinate_units maps  app_name -> {unit_name: UnitStatus}
+    subordinate_units: dict = {}
+    for app_status in status.apps.values():
+        for unit_status in app_status.units.values():
+            for sub_unit_name, sub_unit_status in unit_status.subordinates.items():
+                sub_app_name = sub_unit_name.split('/')[0]
+                subordinate_units.setdefault(sub_app_name, {})[
+                    sub_unit_name] = sub_unit_status
+
+    if not subordinate_units:
+        return status
+
+    # Rebuild the apps dict, replacing empty-units subordinate AppStatus
+    # objects with copies that carry the collected units.
+    new_apps = {}
+    for app_name, app_status in status.apps.items():
+        if app_name in subordinate_units and not app_status.units:
+            app_status = dataclasses.replace(
+                app_status, units=subordinate_units[app_name])
+        new_apps[app_name] = app_status
+
+    return dataclasses.replace(status, apps=new_apps)
+
+
+def wait_for_application_states(model_name=None, states=None,
+                                 timeout=2700, max_resolve_count=0,
+                                 ignore_hard_errors=False):
     """Wait for model to achieve the desired state.
 
     Check the workload status and workload status message for every unit of
@@ -1434,9 +1667,9 @@ async def async_wait_for_application_states(model_name=None, states=None,
        string passed.
      - "workload-status-message-regex" - the entire string matches if the regex
        matches.
-     - "workloaed-status-message" - DEPRECATED; use
+     - "workload-status-message" - DEPRECATED; use
        "workload-status-message-prefix" instead.
-     - "num-expected-units' - the number of units to be 'ready'.
+     - "num-expected-units" - the number of units to be 'ready'.
 
     To match an empty string, use:
 
@@ -1460,39 +1693,29 @@ async def async_wait_for_application_states(model_name=None, states=None,
         failures and is considered a temporary hack to work around underlying
         provider networking issues.
     :type max_resolve_count: int
-    :param ignore_hard_deploy_error: Whether to ignore charms going into an
-                                     error.
-    :type ignore_hard_deploy_error: Boolean
+    :param ignore_hard_errors: Whether to ignore charms going into an error.
+    :type ignore_hard_errors: bool
     """
     logging.info("Waiting for application states to reach targeted states.")
-    # Implementation note: model.block_until() can throw
-    # websockets.exceptions.ConnectionClosed if it detects that the connection
-    # is closed.  What we want to do then, is re-open the connection, and try
-    # again, hence this function uses block_until_auto_reconnect_model
     approved_message_prefixes = ['ready', 'Ready', 'Unit is ready']
     approved_statuses = ['active']
 
     if not states:
         states = {}
-    model = await get_model(model_name)
+
+    # Get initial status to discover applications present in the model.
+    status = get_status_jubilant(model_name)
+    model_adapter = _JubilantModelAdapter(status)
+
     if not ignore_hard_errors:
-        check_model_for_hard_errors(model)
-    logging.info("Waiting for an application to be present")
-    await block_until_auto_reconnect_model(
-        lambda: len(model.units) > 0,
-        model=model)
+        check_model_for_hard_errors(model_adapter)
 
     timeout_msg = (
         "Timed out waiting for '{unit_name}'. The {gate_attr} "
         "is '{unit_state}' which is not one of '{approved_states}'")
-    # Loop checking status every few seconds, waiting on applications to
-    # reach the approved states.  `applications_left` are the applications
-    # still to check.  If the timeout is exceeded we fail.  Note that there
-    # are other async futures in libjuju that make progress when this
-    # future sleeps.  We also need to check if the model has disconnected,
-    # and if so, clean up and reconnect.
+
     start = time.time()
-    applications_left = set(model.applications.keys())
+    applications_left = set(model_adapter.applications.keys())
 
     # print deprecation notices for apps that use "workload-status-message"
     for application in applications_left:
@@ -1511,17 +1734,32 @@ async def async_wait_for_application_states(model_name=None, states=None,
     # then this will fail hard.
     resolve_counts = collections.defaultdict(int)
     last_report = time.time()
-    while True:
-        # now we sleep to allow progress to be made in the libjuju futures
-        await asyncio.sleep(0.5)
 
-        await ensure_model_connected(model)
+    # Silence jubilant's per-call INFO log ("cli: juju status ...") while
+    # polling; it would flood the log on every iteration.
+    jubilant_logger = logging.getLogger('jubilant')
+    orig_jubilant_level = jubilant_logger.level
+
+    while True:
+        time.sleep(1.0)
+
+        # Refresh status on every iteration, suppressing the jubilant CLI
+        # log line to DEBUG so it doesn't flood at INFO level.
+        jubilant_logger.setLevel(logging.WARNING)
+        try:
+            status = get_status_jubilant(model_name)
+        finally:
+            jubilant_logger.setLevel(orig_jubilant_level)
+        model_adapter = _JubilantModelAdapter(status)
+
         timed_out = int(time.time() - start) > timeout
         issues = []
         for application in applications_left.copy():
             check_info = states.get(application, {})
-            app_data = model.applications.get(application, None)
-            units = list(app_data.units)
+            app_adapter = model_adapter.applications.get(application, None)
+            if app_adapter is None:
+                continue
+            units = app_adapter.units
 
             # if there are no units then the application may not be ready.
             # However, if the caller explicitly allows that situation then
@@ -1571,7 +1809,7 @@ async def async_wait_for_application_states(model_name=None, states=None,
 
                 try:
                     ok = check_unit_workload_status(
-                        model, unit, check_wl_statuses)
+                        model_adapter, unit, check_wl_statuses)
                     all_okay = all_okay and ok
                     if not ok and timed_out:
                         issues.append(
@@ -1581,7 +1819,8 @@ async def async_wait_for_application_states(model_name=None, states=None,
                                 unit_state=unit.workload_status,
                                 approved_states=check_wl_statuses))
                     ok = check_unit_workload_status_message(
-                        model, unit, prefixes=prefixes, regex=check_regex)
+                        model_adapter, unit, prefixes=prefixes,
+                        regex=check_regex)
                     all_okay = all_okay and ok
                     if not ok and timed_out:
                         issues.append(
@@ -1615,13 +1854,13 @@ async def async_wait_for_application_states(model_name=None, states=None,
                             logging.warning("Unit %s is in error state. "
                                             "Attempt number %d to resolve" %
                                             (u.name, resolve_counts[u.name]))
-                            await async_resolve_units(
+                            resolve_units(
                                 application_name=unit.application,
                                 erred_hook='install'
                             )
                             # wait until the unit is executing. 60 seconds
                             # seems like a reasonable timeout
-                            await async_block_until_unit_wl_status(
+                            block_until_unit_wl_status(
                                 u.name, 'error', model_name, negate_match=True,
                                 timeout=60
                             )
@@ -1656,7 +1895,9 @@ async def async_wait_for_application_states(model_name=None, states=None,
             raise ModelTimeout("Work state not achieved within timeout.")
 
 
-wait_for_application_states = sync_wrapper(async_wait_for_application_states)
+# Backward-compat alias: downstream code that calls async_wait_for_application_states
+# directly (e.g. via sync_wrapper) will still work.
+async_wait_for_application_states = wait_for_application_states
 
 
 async def async_block_until_all_units_idle(model_name=None, timeout=2700,
@@ -1675,18 +1916,27 @@ async def async_block_until_all_units_idle(model_name=None, timeout=2700,
                                      error state.
     :type ignore_hard_deploy_error: Boolean
     """
-    model = await get_model(model_name)
-    await block_until_auto_reconnect_model(
-        lambda: units_with_wl_status_state(
-            model, 'error') or model.all_units_idle(),
-        model=model,
-        timeout=timeout)
-    errored_units = units_with_wl_status_state(model, 'error')
-    if errored_units:
-        if ignore_hard_errors:
-            logging.warning("Units {} in error state. ".format(errored_units))
-        else:
-            raise UnitError(errored_units)
+    start = time.time()
+    while True:
+        status = get_status_jubilant(model_name)
+        model_adapter = _JubilantModelAdapter(status)
+        errored_units = units_with_wl_status_state(model_adapter, 'error')
+        if errored_units:
+            if ignore_hard_errors:
+                logging.warning(
+                    "Units {} in error state. ".format(errored_units))
+            else:
+                raise UnitError(errored_units)
+        non_idle = [
+            u for u in model_adapter.units.values()
+            if not is_unit_idle(u)
+        ]
+        if not non_idle:
+            return
+        if int(time.time() - start) > timeout:
+            raise ModelTimeout(
+                "Timed out waiting for all units to become idle.")
+        time.sleep(1.0)
 
 block_until_all_units_idle = sync_wrapper(async_block_until_all_units_idle)
 
