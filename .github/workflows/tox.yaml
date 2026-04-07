@@ -113,11 +113,14 @@ jobs:
         model=$(juju models --format yaml|grep "^- name:.*zaza"|cut -f2 -d/)
         juju status -m $model | tee logs/juju-status.txt
         juju-crashdump -m $model -o logs/
+    - name: sanitize juju_channel for artifact name
+      if: failure()
+      run: echo "SAFE_JUJU_CHANNEL=$(echo '${{ matrix.juju_channel }}' | tr '/' '-')" >> $GITHUB_ENV
     - name: upload logs on failure
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test-run-logs-and-crashdump
+        name: test-run-logs-and-crashdump-${{ matrix.bundle }}-${{ env.SAFE_JUJU_CHANNEL }}
         path: logs/
     - name: consider debugging
       uses: lhotari/action-upterm@v1
