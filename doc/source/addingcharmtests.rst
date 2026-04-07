@@ -173,6 +173,38 @@ In the above case, focal-ussuri will be deployed using the --force parameter.
 i.e. the `tests_options.force_deploy['focal-ussuri']` option applies to the
 `focal-ussuri` bundle whether it appears in any of the bundle sections.
 
+Skipping the post-deploy wait
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, after deploying a bundle zaza waits for all applications to reach
+the states specified in ``target_deploy_status`` (or active/idle if not
+configured). This wait can be skipped on a per-bundle basis using the
+``tests_options.no_wait_deploy`` option.
+
+This is useful when a charm requires post-deploy configuration before it can
+reach its target state, or when you want to proceed immediately to the
+configure step without waiting.
+
+In the ``tests.yaml`` the option is added as a list item::
+
+    charm_name: vault
+    gate_bundles:
+    - focal-ussuri
+
+    target_deploy_status:
+      vault:
+        workload-status: blocked
+        workload-status-message: Vault needs to be initialized
+
+    tests_options:
+      no_wait_deploy:
+        - focal-ussuri
+
+In the above case, zaza will deploy the ``focal-ussuri`` bundle and immediately
+proceed to the configure step without waiting for vault to enter the blocked
+state or for the model to settle (the additional post-deploy
+``block_until_all_units_idle`` wait is also skipped).
+
 Augmenting behaviour of configure steps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

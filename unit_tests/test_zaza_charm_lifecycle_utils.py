@@ -304,6 +304,40 @@ class TestCharmLifecycleUtils(ut_utils.BaseTestCase):
         }
         self.assertTrue(lc_utils.is_config_deploy_trusted_for_bundle('x'))
 
+    def test_no_wait_deploy(self):
+        self.patch_object(lc_utils, 'get_charm_config')
+        # test that no options at all returns False
+        self.get_charm_config.return_value = {}
+        self.assertFalse(lc_utils.no_wait_deploy('x'))
+        # test that if options exist but no bundle
+        self.get_charm_config.return_value = {
+            'tests_options': {}
+        }
+        self.assertFalse(lc_utils.no_wait_deploy('x'))
+        self.get_charm_config.return_value = {
+            'tests_options': {
+                'no_wait_deploy': []
+            }
+        }
+        self.assertFalse(lc_utils.no_wait_deploy('x'))
+        # verify that it returns True if the bundle is mentioned
+        self.get_charm_config.return_value = {
+            'tests_options': {
+                'no_wait_deploy': ['x']
+            }
+        }
+        self.assertTrue(lc_utils.no_wait_deploy('x'))
+        # verify that a prefixed bundle 'security:x' does not match 'x'
+        self.assertFalse(lc_utils.no_wait_deploy('security:x'))
+        # verify that listing 'security:x' does not match plain 'x'
+        self.get_charm_config.return_value = {
+            'tests_options': {
+                'no_wait_deploy': ['security:x']
+            }
+        }
+        self.assertFalse(lc_utils.no_wait_deploy('x'))
+        self.assertTrue(lc_utils.no_wait_deploy('security:x'))
+
     def test_get_class(self):
         self.assertEqual(
             type(lc_utils.get_class('unit_tests.'
