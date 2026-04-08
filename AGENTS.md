@@ -10,6 +10,7 @@ deploying and testing Juju charms.
 - **Automation:** tox
 - **Testing:** `tox -e py3`
 - **Linting:** `tox -e pep8`
+- **Python interpreter** `.tox/py3/bin/python`
 
 ## Environment Rules
 - **DO NOT** use `pip install` directly to modify the local environment.
@@ -21,6 +22,7 @@ deploying and testing Juju charms.
 - **Run all tests:** `tox`
 - **Run specific environment:** `tox -e py3`
 - **Run linting:** `tox -e pep8`
+- **Run linting for one or more files** `tox -e pep8 -- <FILES>`
 - **Build docs:** `tox -e docs`
 - **Recreate environments:** `tox --recreate`
 
