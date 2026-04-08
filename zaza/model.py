@@ -249,7 +249,7 @@ class ZazaJujuModel(jubilant.Juju):
     """Thin subclass of jubilant.Juju with convenience properties."""
 
     @property
-    def applications(self) -> dict[str, AppStatus]:
+    def applications(self) -> Dict[str, AppStatus]:
         """Return a dict of application name to AppStatus."""
         return self.status().apps
 
