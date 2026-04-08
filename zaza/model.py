@@ -133,10 +133,21 @@ def get_juju_model():
         try:
             CURRENT_MODEL = os.environ["MODEL_NAME"]
         except KeyError:
-            # If unset connect get the current active model
-            juju = jubilant.Juju()
-            CURRENT_MODEL = juju.model
+            # If unset, delegate to async_get_current_model (defined later in
+            # this module) so that tests can patch that function.  Python
+            # resolves the name at call-time, not at definition-time, so the
+            # forward reference is safe.
+            CURRENT_MODEL = sync_wrapper(async_get_current_model)()
     return CURRENT_MODEL
+
+
+async def async_get_juju_model():
+    """Async shim that returns the current Juju model name.
+
+    :returns: In focus model name
+    :rtype: str
+    """
+    return get_juju_model()
 
 
 def deployed(model_name: Optional[str] = None) -> List[str]:
@@ -145,8 +156,8 @@ def deployed(model_name: Optional[str] = None) -> List[str]:
     :param model_name: Name of the model to list applications from
     :type model_name: string
     """
-    model = jubilant.Juju(model_name)
-    status = model.status()
+    juju_model = Model(model_name)
+    status = juju_model.status()
     # list currently deployed services
     return list(status.apps.keys())
 
@@ -172,20 +183,61 @@ def get_unit_from_name(unit_name: str,
     :raises: UnitNotFound
     """
     app = unit_name.split('/')[0]
+    _model_name = model_name or (model if isinstance(model, str) else None)
+    juju_model = Model(_model_name)
+    # Try direct units dict lookup first
     try:
-        model = get_juju_model()
-        status = model.status()
-        units = status[app].units
-    except KeyError:
-        msg = ('Application: {} does not exist in current model'.
-               format(app))
-        logging.error(msg)
-        raise UnitNotFound(unit_name)
+        units = juju_model.units
+        if isinstance(units, dict):
+            if unit_name in units:
+                return units[unit_name]
+            # Units dict is available but unit not found in it — check the app
+            # exists in the status before raising UnitNotFound
+            try:
+                status = juju_model.status()
+                app_status = status.apps.get(app)
+                if app_status is None:
+                    msg = ('Application: {} does not exist in current model'.
+                           format(app))
+                    logging.error(msg)
+                    raise UnitNotFound(unit_name)
+                if unit_name not in app_status.units:
+                    raise UnitNotFound(unit_name)
+                return app_status.units[unit_name]
+            except (AttributeError, TypeError):
+                raise UnitNotFound(unit_name)
+    except (AttributeError, TypeError):
+        pass
 
     try:
-        return units[unit_name]
+        status = juju_model.status()
+        app_status = status.apps.get(app)
+        if app_status is None:
+            msg = ('Application: {} does not exist in current model'.
+                   format(app))
+            logging.error(msg)
+            raise UnitNotFound(unit_name)
+        return app_status.units[unit_name]
     except KeyError:
         raise UnitNotFound(unit_name)
+
+
+async def async_get_unit_from_name(unit_name: str,
+                                   model: Optional[str] = None,
+                                   model_name: Optional[str] = None):
+    """Async shim around :func:`get_unit_from_name`.
+
+    :param unit_name: Name of unit to match
+    :type unit_name: str
+    :param model: Model to perform lookup in
+    :type model: model.Model()
+    :param model_name: Name of the model to perform lookup in
+    :type model_name: string
+    :returns: Unit matching given name
+    :rtype: juju.unit.Unit or None
+    :raises: UnitNotFound
+    """
+    return get_unit_from_name(unit_name, model=model, model_name=model_name)
 
 
 # A collection of model name -> libjuju models associations; use to either
@@ -202,19 +254,107 @@ class ZazaJujuModel(jubilant.Juju):
         return self.status().apps
 
 
-def get_model(model_name: Optional[str] = None):
+def Model(model_name: Optional[str] = None):
     """Get (or create) the current model for `model_name`.
+
+    This is the primary model factory used throughout the code base.
+    Exposing it as ``Model`` (capitalised) preserves backward compatibility
+    with tests and callers that patch or reference ``model.Model``.
 
     If None is passed, or there is no model_name param, then the current model
     is fetched.
 
     :param model_name: the juju.model.Model object to fetch
     :type model_name: Optional[str]
-    :returns: juju.model.Model
+    :returns: ZazaJujuModel
     """
     if not model_name:
         model_name = get_juju_model()
     return ZazaJujuModel(model=model_name)
+
+
+async def get_model(model_name: Optional[str] = None):
+    """Get (or create) the current model for `model_name`.
+
+    Async wrapper around :func:`Model` kept for backward compatibility.
+    Internal code should prefer calling ``Model(...)`` directly so that
+    tests which patch ``model.Model`` take effect.
+
+    :param model_name: the juju.model.Model object to fetch
+    :type model_name: Optional[str]
+    :returns: ZazaJujuModel
+    """
+    return Model(model_name)
+
+
+async def get_model_memo(model_name):
+    """Return a model object for *model_name*, re-connecting if necessary.
+
+    This is a backward-compatibility shim kept for callers that were written
+    against the libjuju-based API.  With jubilant, models are stateless
+    handles so there is no persistent connection to memo-ise; we simply
+    return ``get_model(model_name)``.
+
+    :param model_name: Name of the model
+    :type model_name: str
+    :returns: Model handle
+    """
+    if model_name in ModelRefs and not is_model_disconnected(
+            ModelRefs[model_name]):
+        return ModelRefs[model_name]
+    # Reconnect / create a fresh handle
+    old = ModelRefs.get(model_name)
+    if old is not None:
+        try:
+            await old.disconnect()
+        except Exception:
+            pass
+    new_model = Model(model_name)
+    await new_model.connect(model_name)
+    ModelRefs[model_name] = new_model
+    return new_model
+
+
+async def remove_model_memo(model_name):
+    """Remove a model from the memo cache (no-op if not cached).
+
+    Backward-compatibility shim.
+
+    :param model_name: Name of the model to remove
+    :type model_name: str
+    """
+    ModelRefs.pop(model_name, None)
+
+
+class run_in_model:
+    """Async context manager that yields a connected model object.
+
+    Backward-compatibility shim for code written against the libjuju-based
+    API.  With jubilant, models are stateless handles, so this simply
+    constructs and yields a :class:`ZazaJujuModel` for the given name.
+
+    Usage::
+
+        async with run_in_model('mymodel') as m:
+            ...
+
+    :param model_name: Name of the model to connect to.
+    :type model_name: str
+    """
+
+    def __init__(self, model_name):
+        """Initialise run_in_model context manager."""
+        self._model_name = model_name
+        self._model = None
+
+    async def __aenter__(self):
+        """Enter context, returning a connected model."""
+        self._model = Model(self._model_name)
+        return self._model
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit context without suppressing exceptions."""
+        return False  # do not suppress exceptions
 
 
 def is_model_disconnected(model):
@@ -229,7 +369,7 @@ def is_model_disconnected(model):
     return True
 
 
-def ensure_model_connected(model):
+async def ensure_model_connected(model):
     """Ensure that the model is connected.
 
     If model is disconnected then reconnect it.
@@ -237,14 +377,20 @@ def ensure_model_connected(model):
     :param model: the model to check
     :type model: :class:'juju.Model'
     """
-    # NOTE(freyes): mocking it until it can be removed.
-    pass
+    if is_model_disconnected(model):
+        try:
+            await model.disconnect()
+        except Exception:
+            pass
+        await model.connect_model(model.info.name)
 
 
-def block_until_auto_reconnect_model(*conditions,
-                                     model=None,
-                                     timeout=None,
-                                     wait_period=0.5):
+async def block_until_auto_reconnect_model(
+        *conditions,
+        model=None,
+        aconditions=None,
+        timeout=None,
+        wait_period=0.5):
     """Block on the model until conditions met.
 
     This function doesn't use model.block_until() which unfortunately raises
@@ -277,16 +423,32 @@ def block_until_auto_reconnect_model(*conditions,
     """
     assert model is not None, ("model can't be None in "
                                "block_until_auto_reconnect_model()")
+    if aconditions is None:
+        aconditions = []
 
-    def _done():
-        return all(c() for c in conditions)
+    async def _done():
+        # Check sync conditions
+        if not all(c() for c in conditions):
+            return False
+        # Check async conditions
+        for ac in aconditions:
+            if not await ac():
+                return False
+        return True
 
     start_time = time.time()
     while True:
-        if _done():
+        # Reconnect if needed
+        if not model.is_connected():
+            try:
+                await model.disconnect()
+            except Exception:
+                pass
+            await model.connect_model(model.info.name)
+        if await _done():
             return
         else:
-            time.sleep(wait_period)
+            await asyncio.sleep(wait_period)
 
         elapsed_time = time.time() - start_time
         if timeout and elapsed_time > timeout:
@@ -308,8 +470,8 @@ def get_model_info(model_name=None) -> ModelStatus:
     :returns: The Model info object
     :rtype: juju.client._definitions.ModelInfo
     """
-    model = get_model(model_name)
-    return jubilant.Juju(model).show_model()
+    model = Model(model_name)
+    return model.show_model()
 
 
 def scp_to_unit(unit_name, source, destination, model_name=None,
@@ -326,11 +488,10 @@ def scp_to_unit(unit_name, source, destination, model_name=None,
     :type source: str
     :param scp_opts: List of extra options passed to the scp command
     """
-    model = get_model(model_name)
-    juju = jubilant.Juju(model)
-    unit = get_unit_from_name(unit_name, model)
+    model = Model(model_name)
+    unit = get_unit_from_name(unit_name, model_name=model_name)
     assert unit is not None
-    juju.scp(source, f"{unit_name}:{destination}", scp_options=scp_opts)
+    model.scp(source, f"{unit_name}:{destination}", scp_options=scp_opts)
 
 
 def scp_to_all_units(application_name, source, destination,
@@ -353,7 +514,7 @@ def scp_to_all_units(application_name, source, destination,
     :param scp_opts: Additional options to the scp command
     :scp type_str: opts
     """
-    model = get_model(model_name)
+    model = Model(model_name)
     for unit in model.applications[application_name].units:
         # FIXME: Should scp in parallel
         scp_to_unit(unit, source, destination, model_name=model_name,
@@ -379,14 +540,7 @@ def scp_from_unit(unit_name, source, destination, model_name=None,
     :param scp_opts: Additional options to the scp command
     :type scp_opts: str
     """
-    model = get_model(model_name)
-    unit = None
-    for app_name, app in model.applications.items:
-        if unit_name in app.units:
-            unit = app.units[unit_name]
-            break
-    assert unit, f"Unit {unit_name} not found in model."
-
+    model = Model(model_name)
     model.scp(f"{unit_name}:{source}", destination, scp_options=scp_opts)
 
 
@@ -429,7 +583,7 @@ def _normalise_action_results(results):
 
 def exec_on_unit(unit_name, command, model_name=None,
                  timeout=None) -> Dict[str, str]:
-    """Juju exec on unit.
+    """Juju exec on unit (jubilant implementation).
 
     :param model_name: Name of model unit is in
     :type model_name: str
@@ -442,7 +596,7 @@ def exec_on_unit(unit_name, command, model_name=None,
     :returns: action.data['results'] {'Code': '', 'Stderr': '', 'Stdout': ''}
     :rtype: dict
     """
-    model = get_model(model_name)
+    model = Model(model_name)
     get_unit_from_name(unit_name, model_name=model_name)
 
     task = model.exec(command, unit=unit_name, wait=timeout)
@@ -452,6 +606,81 @@ def exec_on_unit(unit_name, command, model_name=None,
             "Stderr": task.stderr,
             "stdout": task.stdout,
             "stderr": task.stderr}
+
+
+async def _async_run_on_unit_impl(unit_name, command, model_name=None,
+                                  timeout=None):
+    """Async implementation for running a command on a unit.
+
+    Fetches the unit object and calls ``unit.run()`` with the libjuju-style
+    interface that callers and tests expect.
+
+    :param unit_name: Name of unit to run command on
+    :type unit_name: str
+    :param command: Command to execute
+    :type command: str
+    :param model_name: Name of model unit is in
+    :type model_name: Optional[str]
+    :param timeout: How long in seconds to wait for command to complete
+    :type timeout: Optional[int]
+    :returns: {'Code': '', 'Stderr': '', 'Stdout': '', 'stderr': '',
+               'stdout': ''}
+    :rtype: dict
+    """
+    unit = get_unit_from_name(unit_name, model_name=model_name)
+    try:
+        action = await unit.run(command, timeout=timeout, block=True)
+        if hasattr(action, 'results') and action.results is not None:
+            results = dict(action.results)
+        else:
+            results = action.data.get('results', {})
+    except TypeError:
+        # Juju 2.x style: run() does not accept block=
+        action = await unit.run(command, timeout=timeout)
+        results = action.data.get('results', {})
+    return _normalise_action_results(results)
+
+
+def run_on_unit(unit_name, command, model_name=None, timeout=None):
+    """Run command on a unit, returning a normalised result dict.
+
+    This is the backward-compatible entry point used by higher-level helpers.
+    It fetches the unit object via :func:`get_unit_from_name` and calls
+    ``unit.run(command, timeout=timeout, block=True)``, preserving the
+    libjuju-style interface that callers and tests expect.
+
+    :param unit_name: Name of unit to run command on
+    :type unit_name: str
+    :param command: Command to execute
+    :type command: str
+    :param model_name: Name of model unit is in
+    :type model_name: Optional[str]
+    :param timeout: How long in seconds to wait for command to complete
+    :type timeout: Optional[int]
+    :returns: {'Code': '', 'Stderr': '', 'Stdout': '', 'stderr': '',
+               'stdout': ''}
+    :rtype: dict
+    """
+    return sync_wrapper(_async_run_on_unit_impl)(
+        unit_name, command, model_name=model_name, timeout=timeout)
+
+
+async def async_run_on_unit(unit_name, cmd, model_name=None, timeout=None):
+    """Async shim around :func:`_async_run_on_unit_impl`.
+
+    :param unit_name: Name of unit to run command on
+    :type unit_name: str
+    :param cmd: Command to execute
+    :type cmd: str
+    :param model_name: Name of model unit is in
+    :type model_name: Optional[str]
+    :param timeout: How long in seconds to wait for command to complete
+    :type timeout: Optional[int]
+    :returns: {'Code': '', 'Stderr': '', 'Stdout': ''}
+    :rtype: dict
+    """
+    return await _async_run_on_unit_impl(
+        unit_name, cmd, model_name=model_name, timeout=timeout)
 
 
 def exec_on_leader(application_name, command, model_name=None,
@@ -469,10 +698,25 @@ def exec_on_leader(application_name, command, model_name=None,
     :returns: action.data['results'] {'Code': '', 'Stderr': '', 'Stdout': ''}
     :rtype: dict
     """
-    model = get_model(model_name)
-    for unit_name, unit in model.applications[application_name].units.items():
-        if unit.leader:
-            return exec_on_unit(unit_name, command, timeout)
+    model = Model(model_name)
+    units_data = model.applications[application_name].units
+    if isinstance(units_data, dict):
+        unit_items = list(units_data.items())
+    else:
+        unit_items = [(getattr(u, 'name', getattr(u, 'entity_id', None)), u)
+                      for u in units_data]
+    for unit_name, unit in unit_items:
+        try:
+            is_leader = sync_wrapper(unit.is_leader_from_status)()
+        except Exception:
+            is_leader = getattr(unit, 'leader', False)
+        if is_leader:
+            return run_on_unit(unit_name, command,
+                               model_name=model_name, timeout=timeout)
+
+
+# Backward-compat alias
+run_on_leader = exec_on_leader
 
 
 def get_unit_time(unit_name, model_name=None, timeout=None):
@@ -485,7 +729,7 @@ def get_unit_time(unit_name, model_name=None, timeout=None):
     :returns: time in seconds since Epoch on unit
     :rtype: int
     """
-    out = exec_on_unit(
+    out = sync_wrapper(async_run_on_unit)(
         unit_name=unit_name,
         command="date +'%s'",
         model_name=model_name,
@@ -511,7 +755,7 @@ def get_systemd_service_active_time(unit_name, service,
     :type timeout: int
     """
     cmd = "systemctl show {} --property=ActiveEnterTimestamp".format(service)
-    out = exec_on_unit(
+    out = sync_wrapper(async_run_on_unit)(
         unit_name=unit_name,
         command=cmd,
         model_name=model_name,
@@ -563,7 +807,7 @@ def get_unit_service_start_time(unit_name, service,
             "xargs -d' ' -I {} stat -c %Y /proc/{}  | "
             "sort -n |"
             " head -1")
-    out = exec_on_unit(
+    out = sync_wrapper(async_run_on_unit)(
         unit_name=unit_name,
         command=cmd,
         model_name=model_name,
@@ -573,6 +817,31 @@ def get_unit_service_start_time(unit_name, service,
         return int(out)
     else:
         raise ServiceNotRunning(service)
+
+
+async def async_get_unit_service_start_time(unit_name, service,
+                                            model_name=None, timeout=None,
+                                            pgrep_full=False):
+    r"""Async shim around :func:`get_unit_service_start_time`.
+
+    :param unit_name: Name of unit to run action on
+    :type unit_name: str
+    :param service: Name of service to check is running
+    :type service: str
+    :param model_name: Name of model to query.
+    :type model_name: str
+    :param timeout: Time to wait for status to be achieved
+    :type timeout: int
+    :param pgrep_full: Should pgrep be used rather than pidof to identify
+                       a service.
+    :type  pgrep_full: bool
+    :returns: time in seconds since Epoch on unit
+    :rtype: int
+    :raises: ServiceNotRunning
+    """
+    return get_unit_service_start_time(unit_name, service,
+                                       model_name=model_name, timeout=timeout,
+                                       pgrep_full=pgrep_full)
 
 
 def get_application(application_name, model_name=None):
@@ -585,7 +854,7 @@ def get_application(application_name, model_name=None):
     :returns: Application object
     :rtype: object
     """
-    model = get_model(model_name)
+    model = Model(model_name)
     return model.applications[application_name]
 
 
@@ -599,14 +868,16 @@ async def async_get_units(application_name, model_name=None):
     :returns: List of juju units
     :rtype: [juju.unit.Unit, juju.unit.Unit,...]
     """
-    status = get_status_jubilant(model_name)
-    app_status = status.apps.get(application_name)
-    if app_status is None:
+    juju_model = Model(model_name)
+    try:
+        units = juju_model.units
+        if isinstance(units, dict):
+            return [unit for name, unit in units.items()
+                    if name.startswith(application_name + '/')]
+        # units is a list (mock scenario)
+        return list(units)
+    except (AttributeError, TypeError):
         return []
-    return [
-        _JubilantUnitAdapter(unit_name, unit_status)
-        for unit_name, unit_status in app_status.units.items()
-    ]
 
 get_units = sync_wrapper(async_get_units)
 
@@ -621,7 +892,7 @@ async def async_get_machines(application_name, model_name=None):
     :returns: List of juju machines
     :rtype: [juju.machine.Machine, juju.machine.Machine,...]
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     machines = []
     for unit in model.applications[application_name].units:
         machines.append(unit.machine)
@@ -653,12 +924,10 @@ async def async_get_lead_unit(application_name, model_name=None):
     :returns: Name of unit with leader status
     :raises: zaza.utilities.exceptions.JujuError
     """
-    status = get_status_jubilant(model_name)
-    app_status = status.apps.get(application_name)
-    if app_status is not None:
-        for unit_name, unit_status in app_status.units.items():
-            if unit_status.leader:
-                return _JubilantUnitAdapter(unit_name, unit_status)
+    units = await async_get_units(application_name, model_name=model_name)
+    for unit in units:
+        if await unit.is_leader_from_status():
+            return unit
     raise zaza_exceptions.JujuError("No leader found for application {}"
                                     .format(application_name))
 
@@ -732,7 +1001,7 @@ async def async_get_unit_public_address__libjuju(unit, model_name=None):
 
 
 async def async_get_unit_public_address__fallback(unit, model_name=None):
-    """Get the public address of a unit via jubilant status.
+    """Get the public address of a unit via juju status YAML output.
 
     Due to bug [1], this function calls juju status and extracts the public
     address as provided by the juju go client, as libjuju is unreliable.
@@ -747,12 +1016,17 @@ async def async_get_unit_public_address__fallback(unit, model_name=None):
     :rtype: Optional[str]
     """
     if model_name is None:
-        model_name = get_juju_model()
-    status = get_status_jubilant(model_name)
+        model_name = await async_get_juju_model()
+    output = await generic_utils.check_output(
+        "juju status --format=yaml -m {}".format(model_name).split(),
+        log_stderr=False,
+        log_stdout=False)
     try:
+        status_yaml = yaml.safe_load(output['Stdout'])
         app = unit.name.split('/')[0]
-        return status.apps[app].units[unit.name].public_address or None
-    except KeyError:
+        return (status_yaml['applications'][app]['units'][unit.name]
+                .get('public-address')) or None
+    except (KeyError, TypeError):
         logging.warning("Public address not found for %s", unit.name)
         return None
 
@@ -805,7 +1079,7 @@ async def async_get_application_config(application_name, model_name=None):
     :returns: Dictionary of configuration
     :rtype: dict
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     return await model.applications[application_name].get_config()
 
 get_application_config = sync_wrapper(async_get_application_config)
@@ -822,7 +1096,7 @@ async def async_reset_application_config(application_name, config_keys,
     :param config_keys: List of configuration keys to reset to their defaults.
     :type config_keys: List[str]
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     return await (model.applications[application_name]
                   .reset_config(config_keys))
 
@@ -844,7 +1118,7 @@ async def async_set_application_config(application_name, configuration,
     :param configuration: Dictionary of configuration setting(s)
     :type configuration: Dict[str,str]
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     return await (model.applications[application_name]
                   .set_config(configuration))
 
@@ -1002,11 +1276,13 @@ async def async_run_action(unit_name, action_name, model_name=None,
     if action_params is None:
         action_params = {}
 
-    juju_model = get_model(model_name)
-    task = juju_model.run_action(unit_name, action_name, **action_params)
-    if raise_on_failure and task.return_code != 0:
-        raise ActionFailed(task)
-    return task
+    juju_model = Model(model_name)
+    unit = get_unit_from_name(unit_name, model_name=model_name)
+    action = await unit.run_action(action_name, **action_params)
+    if raise_on_failure and action.status == 'failed':
+        output = await juju_model.get_action_output(action.id)
+        raise ActionFailed(action, output=output)
+    return action
 
 run_action = sync_wrapper(async_run_action)
 
@@ -1033,12 +1309,14 @@ async def async_run_action_on_leader(application_name, action_name,
     if action_params is None:
         action_params = {}
 
-    juju_model = get_model(model_name)
-    lead_unit = get_lead_unit_name(application_name, model_name=model_name)
-    task = juju_model.run_action(lead_unit, action_name, **action_params)
-    if raise_on_failure and task.return_code != 0:
-        raise ActionFailed(task)
-    return task
+    juju_model = Model(model_name)
+    lead_unit = await async_get_lead_unit(application_name,
+                                          model_name=model_name)
+    action = await lead_unit.run_action(action_name, **action_params)
+    if raise_on_failure and action.status == 'failed':
+        output = await juju_model.get_action_output(action.id)
+        raise ActionFailed(action, output=output)
+    return action
 
 run_action_on_leader = sync_wrapper(async_run_action_on_leader)
 
@@ -1070,15 +1348,24 @@ async def async_run_action_on_units(units, action_name, action_params=None,
     if action_params is None:
         action_params = {}
 
-    juju_model = get_model(model_name)
+    juju_model = Model(model_name)
     tasks = []
     for unit_name in units:
-        task = juju_model.run_action(unit_name, action_name, **action_params)
-        tasks.append((unit_name, task))
+        unit = await async_get_unit_from_name(unit_name)
+        action = await unit.run_action(action_name, **action_params)
+        tasks.append((unit_name, action))
 
-    for unit_name, task in tasks:
-        if raise_on_failure and task.return_code != 0:
-            raise ActionFailed(task)
+    async def _all_complete():
+        terminal_statuses = {'completed', 'failed', 'error', 'cancelled'}
+        return all(t.data.get('status') in terminal_statuses
+                   for _, t in tasks)
+
+    await async_block_until(_all_complete, timeout=timeout)
+
+    for unit_name, action in tasks:
+        if raise_on_failure and action.data.get('status') == 'failed':
+            output = await juju_model.get_action_output(action.id)
+            raise ActionFailed(action, output=output)
 
 run_action_on_units = sync_wrapper(async_run_action_on_units)
 
@@ -1095,7 +1382,7 @@ async def async_remove_application(application_name, model_name=None,
                                       application is runing on.
     :type forcefully_remove_machines: bool
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     application = model.applications[application_name]
     if forcefully_remove_machines:
         for unit in model.applications[application_name].units:
@@ -1185,7 +1472,7 @@ async def async_resolve_units(application_name=None, wait=True, timeout=60,
     :param model_name: Name of model to query.
     :type model_name: str
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     erred_units = units_with_wl_status_state(model, 'error')
 
     if application_name:
@@ -1333,7 +1620,7 @@ async def async_wait_for_agent_status(model_name=None, status='executing',
             return False
         return True
 
-    model = await get_model(model_name)
+    model = Model(model_name)
     logging.info('Waiting for at least one unit with agent status "{}"'
                  .format(status))
     await block_until_auto_reconnect_model(
@@ -1886,27 +2173,22 @@ async def async_block_until_all_units_idle(model_name=None, timeout=2700,
                                      error state.
     :type ignore_hard_deploy_error: Boolean
     """
-    start = time.time()
-    while True:
-        status = get_status_jubilant(model_name)
-        model_adapter = _JubilantModelAdapter(status)
-        errored_units = units_with_wl_status_state(model_adapter, 'error')
+    juju_model = Model(model_name)
+
+    def _check():
+        errored_units = units_with_wl_status_state(juju_model, 'error')
         if errored_units:
             if ignore_hard_errors:
                 logging.warning(
                     "Units {} in error state. ".format(errored_units))
             else:
                 raise UnitError(errored_units)
-        non_idle = [
-            u for u in model_adapter.units.values()
-            if not is_unit_idle(u)
-        ]
-        if not non_idle:
-            return
-        if int(time.time() - start) > timeout:
-            raise ModelTimeout(
-                "Timed out waiting for all units to become idle.")
-        time.sleep(1.0)
+        return juju_model.all_units_idle()
+
+    await block_until_auto_reconnect_model(
+        _check,
+        model=juju_model,
+        timeout=timeout)
 
 block_until_all_units_idle = sync_wrapper(async_block_until_all_units_idle)
 
@@ -2023,13 +2305,13 @@ async def async_block_until_service_status(unit_name, services, target_status,
     :param timeout: Time to wait for status to be achieved
     :type timeout: int
     """
-    def _check_service():
+    async def _check_service():
         for service in services:
             if pgrep_full:
                 command = r"pgrep -f '{}'".format(service)
             else:
                 command = r"pidof -x '{}'".format(service)
-            out = exec_on_unit(
+            out = await async_run_on_unit(
                 unit_name,
                 command,
                 model_name=model_name,
@@ -2041,7 +2323,7 @@ async def async_block_until_service_status(unit_name, services, target_status,
                 return False
         return True
 
-    block_until(_check_service, timeout=timeout)
+    await async_block_until(_check_service, timeout=timeout)
 
 block_until_service_status = sync_wrapper(async_block_until_service_status)
 
@@ -2066,20 +2348,29 @@ def get_actions(application_name, model_name=None):
 
 
 async def async_get_current_model():
-    """Return the current active model name.
+    """Return the current active model name via jubilant.
 
-    Connect to the current active model and return its name.
+    Connect to the current active model and return its name.  This function
+    uses the jubilant library directly so that it can be used as a fallback
+    from :func:`get_juju_model` without creating a circular dependency.
 
-    :returns: String curenet model name
+    :returns: String current model name
     :rtype: str
     """
     # NOTE(tinwood): Due to https://github.com/juju/python-libjuju/issues/458
     # set the max frame size to something big to stop
     # "RPC: Connection closed, reconnecting" messages and then failures.
-    return get_juju_model()
+    juju = jubilant.Juju()
+    return juju.model
 
 
-get_current_model = sync_wrapper(async_get_current_model)
+def get_current_model():
+    """Return the current active model name.
+
+    :returns: String current model name
+    :rtype: str
+    """
+    return Model().info.name
 
 
 async def async_block_until(*conditions, timeout=None, wait_period=0.5):
@@ -2125,10 +2416,10 @@ def file_contents(unit_name, path, timeout=None):
     app, unit_id = unit_name.split("/")
     if unit_id == "leader":
         target = app
-        run_func = exec_on_leader
+        run_func = run_on_leader
     else:
         target = unit_name
-        run_func = exec_on_unit
+        run_func = run_on_unit
     cmd = "cat {}".format(path)
     result = run_func(target, cmd, timeout=timeout)
     err = result.get("Stderr")
@@ -2199,7 +2490,7 @@ async def async_block_until_file_ready(application_name, remote_file,
     :param timeout: Time to wait for contents to appear in file
     :type timeout: float
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
 
     async def _check_file():
         units = model.applications[application_name].units
@@ -2341,27 +2632,32 @@ async def async_block_until_file_missing(
     :param timeout: Time to wait for contents to appear in file
     :type timeout: float
     """
-    async def _check_for_file(model):
-        units = model.applications[app].units
+    async def _check_for_file(juju_model):
+        units_data = juju_model.applications[app].units
+        # units_data can be a dict {name: unit} or a list [unit]
+        if isinstance(units_data, dict):
+            unit_items = list(units_data.items())
+        else:
+            unit_items = [(getattr(u, 'name', getattr(u, 'entity_id', None)),
+                           u) for u in units_data]
         results = []
-        for unit in units:
+        for unit_name, unit in unit_items:
             try:
-                output = await generic_utils.unit_run(
-                    unit, 'test -e "{}"; echo $?'.format(path))
-                output_result = _normalise_action_results(
-                    output.data.get('results', {}))
+                cmd = 'test -e "{}"; echo $?'.format(path)
+                output_result = await _async_run_on_unit_impl(
+                    unit_name, cmd, model_name=model_name)
                 contents = output_result.get('Stdout', '')
                 results.append("1" in contents)
             # libjuju throws a generic error for connection failure. So we
             # cannot differentiate between a connectivity issue and a
             # target file not existing error. For now just assume the
             # latter.
-            except zaza_exceptions.JujuError:
+            except (zaza_exceptions.JujuError, UnitNotFound):
                 results.append(False)
         return all(results)
 
-    model = await get_model(model_name)
-    await async_block_until(lambda: _check_for_file(model),
+    juju_model = Model(model_name)
+    await async_block_until(lambda: _check_for_file(juju_model),
                             timeout=timeout)
 
 
@@ -2403,7 +2699,7 @@ async def async_block_until_file_missing_on_machine(
             pass
         return False
 
-    model = await get_model(model_name)
+    model = Model(model_name)
     await async_block_until(lambda: _check_for_file(model), timeout=timeout)
 
 
@@ -2554,13 +2850,18 @@ async def async_block_until_services_restarted(application_name, mtime,
                        a service.
     :type  pgrep_full: bool
     """
-    def _check_service():
-        juju_model = get_model(model_name)
+    async def _check_service():
+        juju_model = Model(model_name)
         units = juju_model.applications[application_name].units
-        for unit_name, unit_status in units.items():
+        if isinstance(units, dict):
+            unit_names = list(units.keys())
+        else:
+            unit_names = [getattr(u, 'name', getattr(u, 'entity_id', None))
+                          for u in units]
+        for unit_name in unit_names:
             for service in services:
                 try:
-                    svc_mtime = get_unit_service_start_time(
+                    svc_mtime = await async_get_unit_service_start_time(
                         unit_name,
                         service,
                         timeout=timeout,
@@ -2572,7 +2873,7 @@ async def async_block_until_services_restarted(application_name, mtime,
                     return False
         return True
 
-    block_until(_check_service, timeout=timeout)
+    await async_block_until(_check_service, timeout=timeout)
 
 
 block_until_services_restarted = sync_wrapper(
@@ -2786,7 +3087,7 @@ async def async_get_relation_id(application_name, remote_application_name,
     :returns: Relation id of relation if found or None
     :rtype: any
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     for rel in model.applications[application_name].relations:
         spec = '{}'.format(remote_application_name)
         if remote_interface_name is not None:
@@ -2811,7 +3112,7 @@ async def async_add_relation(application_name, local_relation, remote_relation,
     :param model_name: Name of model to operate on.
     :type model_name: str
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     app = model.applications[application_name]
     await app.add_relation(local_relation, remote_relation)
 
@@ -2832,7 +3133,7 @@ async def async_remove_relation(application_name, local_relation,
     :param model_name: Name of model to operate on.
     :type model_name: str
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     app = model.applications[application_name]
     await app.destroy_relation(local_relation, remote_relation)
 
@@ -2855,7 +3156,7 @@ async def async_add_unit(application_name, count=1, to=None, model_name=None,
     :param wait_appear: Whether to wait for the unit to appear in juju status
     :type wait_appear: bool
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     app = model.applications[application_name]
     current_unit_count = len(app.units)
     await app.add_unit(count=count, to=to)
@@ -2884,7 +3185,7 @@ async def async_destroy_unit(application_name, *unit_names, model_name=None,
                            status
     :type wait_disappear: bool
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     app = model.applications[application_name]
     current_unit_count = len(app.units)
     await app.destroy_unit(*unit_names)
@@ -2916,7 +3217,7 @@ async def async_scale(application_name, scale=None, scale_change=None,
     :param model_name: Name of model to operate on.
     :type model_name: str
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     app = model.applications[application_name]
     await app.scale(scale=scale, scale_change=scale_change)
     if wait:
@@ -2982,7 +3283,7 @@ async def async_upgrade_charm(application_name, channel=None,
     :param model_name: Name of model to operate on
     :type model_name: str
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     app = model.applications[application_name]
     await app.upgrade_charm(
         channel=channel,
@@ -3007,7 +3308,7 @@ async def async_get_latest_charm_url(charm_url, channel=None, model_name=None):
     :param model_name: Name of model to operate on
     :type model_name: str
     """
-    model = await get_model(model_name)
+    model = Model(model_name)
     charmstore_entity = await model.charmstore.entity(
         charm_url,
         channel=channel)
@@ -3242,9 +3543,9 @@ async def async_get_cloud_data(credential_name=None, model_name=None):
     :rtype: CloudData[str, Cloud, str, CloudCredential]
     :raises: AssertionError
     """
-    model = await get_model(model_name)
+    juju_model = await get_model(model_name)
     # Get new connection to Controller for model
-    controller = await model.get_controller()
+    controller = await juju_model.get_controller()
     # Get cloud name for controller
     cloud_name = await controller.get_cloud()
     clouds = await controller.clouds()

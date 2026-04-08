@@ -381,21 +381,21 @@ class TestModel(ut_utils.BaseTestCase):
 
     def test_deployed_no_model_name(self):
         self.patch_object(model, 'Model')
+        self.Model_mock.status.return_value.apps = {'app': mock.MagicMock()}
         self.Model.return_value = self.Model_mock
 
         self.assertEqual(model.sync_deployed(), ['app'])
-        self.Model_mock.connect_current.assert_called_once_with()
-        self.Model_mock.connect_model.assert_not_called()
-        self.Model_mock.disconnect.assert_called_once_with()
+        self.Model.assert_called_once_with(None)
+        self.Model_mock.status.assert_called_once_with()
 
     def test_deployed_with_model_name(self):
         self.patch_object(model, 'Model')
+        self.Model_mock.status.return_value.apps = {'app': mock.MagicMock()}
         self.Model.return_value = self.Model_mock
 
         self.assertEqual(model.sync_deployed('a-model'), ['app'])
-        self.Model_mock.connect_current.assert_not_called()
-        self.Model_mock.connect_model.assert_called_once_with('a-model')
-        self.Model_mock.disconnect.assert_called_once_with()
+        self.Model.assert_called_once_with('a-model')
+        self.Model_mock.status.assert_called_once_with()
 
     def test_set_juju_model_aliases(self):
         model.set_juju_model_aliases({'alias1': 'model1', 'alias2': 'model2'})
@@ -572,8 +572,8 @@ class TestModel(ut_utils.BaseTestCase):
 
     def test_get_model_info(self):
         model_info = mock.Mock()
-        self.Model_mock.info = model_info
         self.patch_object(model, 'Model')
+        self.Model_mock.show_model.return_value = model_info
         self.Model.return_value = self.Model_mock
         self.assertEqual(model.get_model_info(), model_info)
 
@@ -584,18 +584,23 @@ class TestModel(ut_utils.BaseTestCase):
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
         model.scp_to_unit('app/2', '/tmp/src', '/tmp/dest')
-        self.unit1.scp_to.assert_called_once_with(
-            '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
+        self.Model_mock.scp.assert_called_once_with(
+            '/tmp/src', 'app/2:/tmp/dest', scp_options=[])
 
     def test_scp_to_all_units(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
         self.patch_object(model, 'Model')
+        self.patch_object(model, 'scp_to_unit')
         self.Model.return_value = self.Model_mock
+        self.Model_mock.applications = {
+            'app': mock.MagicMock(units={'app/2': self.unit1,
+                                         'app/4': self.unit2})
+        }
         model.scp_to_all_units('app', '/tmp/src', '/tmp/dest')
-        self.unit1.scp_to.assert_called_once_with(
-            '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
-        self.unit2.scp_to.assert_called_once_with(
-            '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
+        self.scp_to_unit.assert_any_call(
+            'app/2', '/tmp/src', '/tmp/dest', model_name=None, scp_opts='')
+        self.scp_to_unit.assert_any_call(
+            'app/4', '/tmp/src', '/tmp/dest', model_name=None, scp_opts='')
 
     def test_scp_from_unit(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -604,8 +609,8 @@ class TestModel(ut_utils.BaseTestCase):
         self.get_unit_from_name.return_value = self.unit1
         self.Model.return_value = self.Model_mock
         model.scp_from_unit('app/2', '/tmp/src', '/tmp/dest')
-        self.unit1.scp_from.assert_called_once_with(
-            '/tmp/src', '/tmp/dest', proxy=False, scp_opts='', user='ubuntu')
+        self.Model_mock.scp.assert_called_once_with(
+            'app/2:/tmp/src', '/tmp/dest', scp_options='')
 
     def test_get_units(self):
         self.patch_object(model, 'get_juju_model', return_value='mname')
@@ -2864,10 +2869,12 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
 
     async def test_update_unknown_action_status_invalid_params(self):
         """Test update unknown action status invalid params."""
-        self.assertRaises(ValueError, model.update_unknown_action_status,
-                          None, mock.MagicMock())
-        self.assertRaises(ValueError, model.update_unknown_action_status,
-                          mock.MagicMock(), None)
+        with self.assertRaises(ValueError):
+            await model.async_update_unknown_action_status(
+                None, mock.MagicMock())
+        with self.assertRaises(ValueError):
+            await model.async_update_unknown_action_status(
+                mock.MagicMock(), None)
 
     async def test_update_unknown_action_status_not_unknown(self):
         """Test update unknown action status with status not unknown."""
@@ -3023,7 +3030,8 @@ class AsyncModelTests(aiounittest.AsyncTestCase):
     async def test_async_get_cloud_data(self):
         with mock.patch.object(
                 model.juju.client.jujudata, 'FileJujuData') as juju_data:
-            with mock.patch.object(model, 'get_model'):
+            with mock.patch.object(model, 'get_model',
+                                   return_value=mock.AsyncMock()):
                 juju_data().load_credential.return_value = (
                     'fake-cred-name', 'fake-cred')
                 result = await model.async_get_cloud_data()
