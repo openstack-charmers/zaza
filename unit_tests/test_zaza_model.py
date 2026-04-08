@@ -30,7 +30,6 @@ except ImportError:
 
 import copy
 import collections
-import concurrent
 import datetime
 import mock
 import pytest
