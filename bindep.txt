@@ -1,0 +1,6 @@
+libffi-dev [platform:dpkg]
+python3-dev [platform:dpkg]
+pkg-config [platform:dpkg]
+libssl-dev [platform:dpkg]
+rustc [platform:dpkg]
+cargo [platform:dpkg]

@@ -12,109 +12,115 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import mock
-import pytest
-import unittest
 
 import unit_tests.utils as ut_utils
 
 import zaza.controller as controller
-import zaza
 
 
-def tearDownModule():
-    zaza.clean_up_libjuju_thread()
-
-
-@pytest.mark.asyncio
-class TestController(ut_utils.BaseTestCase):
+class TestAddModel(ut_utils.BaseTestCase):
 
     def setUp(self):
-        super(TestController, self).setUp()
+        super().setUp()
+        self.patch_object(controller, 'jubilant')
+        self.juju_mock = mock.MagicMock()
+        self.jubilant.Juju.return_value = self.juju_mock
 
-        async def _disconnect():
-            return
+    def test_add_model_basic(self):
+        controller.add_model('mymodel')
+        self.juju_mock.add_model.assert_called_once_with(
+            'mymodel', None, config=None, credential=None)
 
-        async def _connect():
-            return
+    def test_add_model_with_config(self):
+        controller.add_model('mymodel', config={'run-faster': 'true'})
+        self.juju_mock.add_model.assert_called_once_with(
+            'mymodel', None, config={'run-faster': 'true'}, credential=None)
 
-        async def _list_models():
-            return self.models
+    def test_add_model_with_cloud_and_region(self):
+        controller.add_model('mymodel', cloud_name='aws', region='us-east-1')
+        self.juju_mock.add_model.assert_called_once_with(
+            'mymodel', 'aws/us-east-1', config=None, credential=None)
 
-        async def _add_model(model_name, config=None):
-            return self.model1
+    def test_add_model_with_region_only(self):
+        controller.add_model('mymodel', region='us-east-1')
+        self.juju_mock.add_model.assert_called_once_with(
+            'mymodel', 'us-east-1', config=None, credential=None)
 
-        async def _destroy_model(model_name, destroy_storage=False,
-                                 force=False, max_wait=None):
-            if model_name in self.models:
-                self.models.remove(model_name)
-            return
+    def test_add_model_with_credential(self):
+        controller.add_model('mymodel', credential_name='mycred')
+        self.juju_mock.add_model.assert_called_once_with(
+            'mymodel', None, config=None, credential='mycred')
 
-        async def _get_cloud():
-            return self.cloud
 
-        # Cloud
-        self.cloud = "FakeCloud"
+class TestDestroyModel(ut_utils.BaseTestCase):
 
-        # Model
-        self.Model_mock = mock.MagicMock()
-        self.Model_mock.connect.side_effect = _connect
-        self.Model_mock.disconnect.side_effect = _disconnect
-        self.Model_mock.disconnect.side_effect = _disconnect
-        self.model1 = self.Model_mock
-        self.model2 = mock.MagicMock()
-        self.model1.info.name = "model1"
-        self.model2.info.name = "model2"
-        self.models = [self.model1.info.name, self.model2.info.name]
-
-        # Controller
-        self.Controller_mock = mock.MagicMock()
-        self.Controller_mock.connect.side_effect = _connect
-        self.Controller_mock.disconnect.side_effect = _disconnect
-        self.Controller_mock.add_model.side_effect = _add_model
-        self.Controller_mock.destroy_model.side_effect = _destroy_model
-        self.Controller_mock.list_models.side_effect = _list_models
-        self.Controller_mock.get_cloud.side_effect = _get_cloud
-        self.controller_name = "testcontroller"
-        self.Controller_mock.info.name = self.controller_name
-        self.patch_object(controller, 'Controller')
-        self.Controller.return_value = self.Controller_mock
-
-    @unittest.skip("Skipping unti libjuju issue 333 is resolved")
-    def test_add_model(self):
-        controller.add_model(self.model1.info.name)
-        self.Controller_mock.add_model.assert_called_once_with(
-            self.model1.info.name,
-            config=None)
-
-    @unittest.skip("Skipping unti libjuju issue 333 is resolved")
-    def test_add_model_config(self):
-        controller.add_model(self.model1.info.name,
-                             {'run-faster': 'true'})
-        self.Controller_mock.add_model.assert_called_once_with(
-            self.model1.info.name,
-            config={'run-faster': 'true'})
+    def setUp(self):
+        super().setUp()
+        self.patch_object(controller, 'jubilant')
+        self.juju_mock = mock.MagicMock()
+        self.jubilant.Juju.return_value = self.juju_mock
+        # list_models is called inside destroy_model to poll for removal.
+        self.patch_object(controller, 'list_models')
+        self.list_models.return_value = []
 
     def test_destroy_model(self):
-        controller.destroy_model(self.model1.info.name)
-        self.Controller_mock.destroy_model.assert_called_once_with(
-            self.model1.info.name, destroy_storage=True,
-            force=True, max_wait=600)
+        controller.destroy_model('mymodel')
+        self.juju_mock.destroy_model.assert_called_once_with(
+            'mymodel', destroy_storage=True, force=True, timeout=600)
 
-    def test_get_cloud(self):
-        self.assertEqual(
-            controller.get_cloud(),
-            self.cloud)
-        self.Controller_mock.get_cloud.assert_called_once()
+    def test_destroy_model_raises_on_timeout(self):
+        # Simulate the model never disappearing.
+        self.list_models.return_value = ['mymodel']
+        self.patch_object(controller, 'time')
+        self.time.sleep = mock.MagicMock()
+        with self.assertRaises(
+                zaza.utilities.exceptions.DestroyModelFailed):
+            controller.destroy_model('mymodel')
+
+
+class TestListModels(ut_utils.BaseTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.patch_object(controller, 'jubilant')
+        self.juju_mock = mock.MagicMock()
+        self.jubilant.Juju.return_value = self.juju_mock
 
     def test_list_models(self):
-        self.assertEqual(
-            controller.list_models(),
-            self.models)
-        self.Controller_mock.list_models.assert_called_once()
+        self.juju_mock.cli.return_value = json.dumps(
+            {'models': [{'name': 'admin/model1'}, {'name': 'admin/model2'}]})
+        result = controller.list_models()
+        self.assertEqual(result, ['model1', 'model2'])
+        self.juju_mock.cli.assert_called_once_with(
+            'models', '--format', 'json', include_model=False)
+
+
+class TestGetCloud(ut_utils.BaseTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.patch_object(controller, 'jubilant')
+        self.juju_mock = mock.MagicMock()
+        self.jubilant.Juju.return_value = self.juju_mock
+
+    def test_get_cloud(self):
+        self.juju_mock.cli.return_value = json.dumps(
+            {'myctrl': {'details': {'cloud': 'lxd'}}})
+        result = controller.get_cloud()
+        self.assertEqual(result, 'lxd')
+        self.juju_mock.cli.assert_called_once_with(
+            'show-controller', '--format', 'json', include_model=False)
+
+
+class TestGoListModels(ut_utils.BaseTestCase):
 
     def test_go_list_models(self):
         self.patch_object(controller, 'subprocess')
         controller.go_list_models()
-        self.subprocess.check_call.assert_called_once_with([
-            "juju", "models"])
+        self.subprocess.check_call.assert_called_once_with(["juju", "models"])
+
+
+# Make zaza.utilities.exceptions available after the import of controller.
+import zaza.utilities.exceptions  # noqa: E402

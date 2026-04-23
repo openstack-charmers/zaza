@@ -1,4 +1,4 @@
-series: focal
+series: noble
 applications:
   magpie-focal:
     series: focal

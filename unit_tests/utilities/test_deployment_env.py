@@ -204,9 +204,17 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
             self.assertEqual(deployment_env.get_model_constraints(), expect)
 
     def test_get_model_constraints_no_config(self):
+        self.patch_object(
+            deployment_env,
+            'get_setup_file_section',
+            return_value={})
         self.base_get_model_constraints({}, self.MODEL_DEFAULT_CONSTRAINTS)
 
     def test_get_model_constraints_multiple_values_override(self):
+        self.patch_object(
+            deployment_env,
+            'get_setup_file_section',
+            return_value={})
         expect_config = copy.deepcopy(self.MODEL_DEFAULT_CONSTRAINTS)
         expect_config.update({'mem': 'from-env'})
         self.base_get_model_constraints(
