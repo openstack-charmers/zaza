@@ -14,6 +14,8 @@
 """Module for interacting with Launchpad API."""
 
 import json
+import logging
+import os
 import requests
 import typing
 from requests.adapters import HTTPAdapter
@@ -35,6 +37,14 @@ def get_ubuntu_series(
         allowed_methods=["GET"]
     )
     s = requests.Session()
+
+    proxies = {}
+    for ptype in ['http', 'https']:
+        proxies[ptype] = os.environ.get(f"TEST_{ptype.upper()}_PROXY")
+
+    proxies['no_proxy'] = os.environ.get('TEST_NO_PROXY')
+    logging.info(f"using proxies: {proxies}")
+    s.proxies.update(proxies)
     s.mount("https://", HTTPAdapter(max_retries=retries))
 
     try:
