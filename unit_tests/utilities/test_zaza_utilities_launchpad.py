@@ -22,7 +22,7 @@ import zaza.utilities.launchpad as launchpad
 class TestUtilitiesLaunchpad(ut_utils.BaseTestCase):
 
     def test_get_ubuntu_series(self):
-        self.patch_object(launchpad.requests, 'get')
+        self.patch_object(launchpad.requests.Session, 'get')
         expect = {'entries': {}}
         r = unittest.mock.MagicMock()
         r.text = json.dumps(expect)
