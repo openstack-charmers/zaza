@@ -14,8 +14,12 @@
 """Module for interacting with Launchpad API."""
 
 import json
+import logging
+import os
 import requests
 import typing
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 
 def get_ubuntu_series(
@@ -26,8 +30,29 @@ def get_ubuntu_series(
     https://launchpad.net/+apidoc/devel.html#distribution
     https://launchpad.net/+apidoc/devel.html#distro_series
     """
-    r = requests.get('https://api.launchpad.net/devel/ubuntu/series')
-    return json.loads(r.text)
+    retries = Retry(
+        total=10,
+        backoff_factor=2,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"]
+    )
+    s = requests.Session()
+
+    proxies = {}
+    for ptype in ['http', 'https']:
+        proxies[ptype] = os.environ.get(f"TEST_{ptype.upper()}_PROXY")
+
+    proxies['no_proxy'] = os.environ.get('TEST_NO_PROXY')
+    logging.info(f"using proxies: {proxies}")
+    s.proxies.update(proxies)
+    s.mount("https://", HTTPAdapter(max_retries=retries))
+
+    try:
+        r = s.get('https://api.launchpad.net/devel/ubuntu/series')
+        r.raise_for_status()
+        return json.loads(r.text)
+    finally:
+        s.close()
 
 
 def get_ubuntu_series_by_version() -> typing.Dict[str, typing.Dict[str, any]]:
