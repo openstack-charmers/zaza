@@ -14,7 +14,6 @@
 
 """Run destroy phase."""
 import argparse
-import asyncio
 import sys
 
 import zaza.controller
@@ -68,4 +67,4 @@ def main():
         destroy(args.model_name)
     finally:
         zaza.clean_up_libjuju_thread()
-        asyncio.get_event_loop().close()
+        zaza.close_local_event_loop()

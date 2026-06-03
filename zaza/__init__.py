@@ -58,6 +58,43 @@ _libjuju_run = False
 LOOP_CLOSE_TIMEOUT = 30.0
 
 
+def _get_or_create_event_loop():
+    """Return a usable event loop for the current thread."""
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    if loop.is_closed():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    return loop
+
+
+def _attach_child_watcher(loop):
+    """Attach the child watcher to a loop when the API is available."""
+    get_child_watcher = getattr(asyncio, "get_child_watcher", None)
+    if get_child_watcher is None:
+        return
+    try:
+        get_child_watcher().attach_loop(loop)
+    except (RuntimeError, NotImplementedError, AttributeError):
+        # Child watcher management is platform and policy specific.
+        return
+
+
+def close_local_event_loop():
+    """Close the current thread event loop if one exists."""
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        return
+    if not loop.is_closed():
+        loop.close()
+
+
 def get_or_create_libjuju_thread():
     """Get (or Create) the thread that libjuju asyncio is running in.
 
@@ -80,7 +117,7 @@ def get_or_create_libjuju_thread():
             if time.time() > now + 5.0:
                 raise RuntimeError("Async thread didn't start!")
         # enable async subprocess calls in the libjuju thread to work
-        asyncio.get_child_watcher().attach_loop(_libjuju_loop)
+        _attach_child_watcher(_libjuju_loop)
     return _libjuju_thread
 
 
@@ -152,7 +189,7 @@ def join_libjuju_thread():
         logging.debug("stopping the event loop")
         # remove the child watcher (that was for subprocess calls) when
         # dropping the thread.
-        asyncio.get_child_watcher().attach_loop(None)
+        _attach_child_watcher(None)
         _libjuju_run = False
         # wait up to 30 seconds for loop to close.
         now = time.time()
@@ -208,11 +245,7 @@ def sync_wrapper(f, timeout=None):
 
         if not RUN_LIBJUJU_IN_THREAD:
             # run it in this thread's event loop:
-            loop = asyncio.get_event_loop()
-            # create a new loop if the existing one is closed
-            if loop.is_closed():
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+            loop = _get_or_create_event_loop()
             return loop.run_until_complete(_runner())
 
         # ensure that the thread is created

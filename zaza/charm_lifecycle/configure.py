@@ -14,7 +14,6 @@
 
 """Run configuration phase."""
 import argparse
-import asyncio
 import sys
 
 import zaza.model
@@ -101,4 +100,4 @@ def main():
         run_report.output_event_report()
     finally:
         zaza.clean_up_libjuju_thread()
-        asyncio.get_event_loop().close()
+        zaza.close_local_event_loop()
