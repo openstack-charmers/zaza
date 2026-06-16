@@ -18,12 +18,14 @@ import logging
 import os
 import functools
 import yaml
+from os.path import expandvars
 
 import zaza.global_options
 import zaza.model
 
 ZAZA_SETUP_FILE_LOCATIONS = [
-    '{home}/.zaza.yaml']
+    expandvars('$HOME/.zaza.yaml'),
+]
 
 SECRETS = 'secrets'
 RUNTIME_CONFIG = 'runtime_config'
@@ -35,14 +37,14 @@ DEPLOYMENT_CONTEXT_SECTIONS = [
 MODEL_SETTINGS_SECTION = 'model_settings'
 MODEL_CONSTRAINTS_SECTION = 'model_constraints'
 
-VALID_ENVIRONMENT_KEY_PREFIXES = [
+VALID_ENVIRONMENT_KEY_PREFIXES = (
     'OS_',
     'TEST_',
     'MOJO_',
     'JUJU_',
     'CHARM_',
     'MODEL_',
-]
+)
 
 MODEL_DEFAULTS = {
     # Model defaults from charm-test-infra
@@ -253,12 +255,7 @@ def is_valid_env_key(key):
     :returns: Whether key is a valid environment variable name
     :rtype: bool
     """
-    valid = False
-    for _k in VALID_ENVIRONMENT_KEY_PREFIXES:
-        if key.startswith(_k):
-            valid = True
-            break
-    return valid
+    return key.startswith(VALID_ENVIRONMENT_KEY_PREFIXES)
 
 
 def find_setup_file():
@@ -267,11 +264,9 @@ def find_setup_file():
     :returns: Location of zaza config file or None if not found.
     :rtype: str or None
     """
-    ctxt = {
-        'home': os.environ.get('HOME')}
     for setup_file in ZAZA_SETUP_FILE_LOCATIONS:
-        if os.path.isfile(setup_file.format(**ctxt)):
-            return setup_file.format(**ctxt)
+        if os.path.isfile(setup_file):
+            return setup_file
 
 
 def get_setup_file_contents():
@@ -282,16 +277,13 @@ def get_setup_file_contents():
     :rtype: dict
     """
     setup_file = find_setup_file()
-    setup_file_data = {}
     if setup_file:
         with open(setup_file, 'r') as stream:
             try:
-                _file_data = yaml.safe_load(stream)
-                if _file_data:
-                    setup_file_data.update(_file_data)
+                return yaml.safe_load(stream) or {}
             except yaml.YAMLError:
                 logging.warn("Unable to load data from {}".format(setup_file))
-    return setup_file_data
+    return {}
 
 
 def get_setup_file_section(section_name):
