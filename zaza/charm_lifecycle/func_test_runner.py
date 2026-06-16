@@ -375,6 +375,10 @@ def main():
     """Execute full test run."""
     args = parse_args(sys.argv[1:])
 
+    tmp_path = os.environ.get('TEST_TMPPATH')
+    if tmp_path:
+        os.environ['TMP'] = os.environ['TEMP'] = tmp_path
+
     cli_utils.setup_logging(log_level=args.loglevel.upper())
 
     if (
