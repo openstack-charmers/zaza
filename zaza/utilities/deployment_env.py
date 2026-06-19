@@ -17,6 +17,7 @@ import copy
 import logging
 import os
 import functools
+import tempfile
 import yaml
 
 import zaza.global_options
@@ -332,7 +333,7 @@ def get_tmpdir(model_name=None):
     :type model_name: str
     """
     model_name = model_name or zaza.model.get_juju_model()
-    tmp_dir = '/tmp/{}'.format(model_name)
+    tmp_dir = os.path.join(tempfile.gettempdir(), model_name)
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
     return tmp_dir
