@@ -43,7 +43,7 @@ def parse_arg(options, arg, multiargs=False):
 def setup_logging(log_level='INFO'):
     """Do setup for logging.
 
-    :returns: Nothing: This fucntion is executed for its sideffect
+    :returns: Nothing: This function is executed for its sideffect
     :rtype: None
     """
     level = getattr(logging, log_level.upper(), None)
