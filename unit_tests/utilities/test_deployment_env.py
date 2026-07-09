@@ -90,6 +90,31 @@ class TestUtilitiesDeploymentEnv(ut_utils.BaseTestCase):
                 ])
             )
 
+            config = collections.OrderedDict(
+                {
+                    'overlay_ppas': {
+                        'application': [
+                            'ppa:app-ppav1',
+                            {
+                                'source': 'app-ppav2',
+                                'key': 'app-bar',
+                            },
+                        ]
+                    },
+                }
+            )
+            get_options_mock.return_value = ro_types.resolve_immutable(config)
+            self.assertIsNone(
+                deployment_env.get_overlay_ppas()
+            )
+            self.assertEqual(
+                deployment_env.get_overlay_ppas(application='application'),
+                ro_types.ReadOnlyList([
+                    'ppa:app-ppav1',
+                    {'source': 'app-ppav2', 'key': 'app-bar'},
+                ])
+            )
+
     def test_get_cloudinit_userdata(self):
         with mock.patch.object(deployment_env, 'get_overlay_ppas',
                                return_value=None):

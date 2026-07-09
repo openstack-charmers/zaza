@@ -85,12 +85,92 @@ def parse_option_list_string(option_list, delimiter=None):
     return settings
 
 
-def get_overlay_ppas(model_alias='default_alias'):
+def get_overlay_ppas(model_alias='default_alias', application=None):
     """Get overlay_ppas from global_config.
 
     In the config file for the tests, the tests_options.overlay_ppa option
     may be used to specify one or more PPAs that will be enabled for all
     units in the model.
+
+    Please refer to docstring of parse_overlay_ppa function for more
+    information.
+
+    When application is provided, additional grammar to constrain the
+    overlay PPA to specific applications is supported, for example:
+
+        overlay_ppas:
+            myapp:
+              - ppa:mylpuser/myppa
+            myotherapp:
+              - source: fakesource
+                key: fakekey
+
+    :param model_alias: Name of model alias, defaults to 'default_alias'.
+    :type model_alias: Option[str]
+    :param application: Name of application to retrieve config for.
+    :type application: Option[str]
+    :returns: List of overlay PPAs.
+    :rtype: Option[List[Any]]
+    """
+    config = zaza.global_options.get_options()
+    try:
+        config_overlay_ppas = config[model_alias].overlay_ppas
+    except KeyError:
+        try:
+            config_overlay_ppas = config.overlay_ppas
+        except KeyError:
+            return None
+
+    if application:
+        try:
+            return config_overlay_ppas[application]
+        except (KeyError, TypeError):
+            return None
+
+    # Avoid returning application dictionary when overlay_ppas config is
+    # Dict-like object and application is not requested.
+    try:
+        config_overlay_ppas.get(None)
+        return None
+    except AttributeError:
+        return config_overlay_ppas
+
+
+def _parse_overlay_ppa_v1(overlay_ppa):
+    """Parse simple ppa:xxx/yyy formatted overlay_ppa config.
+
+    Example YAML excerpt:
+        overlay_ppas:
+          - ppa:ubuntu-security-proposed/ppa
+
+    :param overlay_ppa: Element of overlay_ppas configuration.
+    :type overlay_ppa: str
+    """
+    return {'source': overlay_ppa}
+
+
+def _parse_overlay_ppa_v2(overlay_ppa):
+    """Parse advanced format overlay_ppa config.
+
+    Example YAML excerpt:
+        overlay_ppas:
+          - source: "deb https://user:pass@private-ppa.launchpad"
+            key: |
+              -----BEGIN PGP PUBLIC KEY BLOCK-----
+              ....
+              -----END PGP PUBLIC KEY BLOCK-----
+    :param overlay_ppa: Element of overlay_ppas configuration.
+    :type overlay_ppa: Dict[str,str]
+    :returns: Parsed PPA configuration.
+    :rtype: Dict[str,str]
+    :raises: TypeError
+    """
+    return {'source': overlay_ppa['source'],
+            'key': overlay_ppa['key']}
+
+
+def parse_overlay_ppa(overlay_ppa):
+    """Parse multiple versions of overlay_ppas elements.
 
     The tests_options section needs to look like:
 
@@ -117,20 +197,15 @@ def get_overlay_ppas(model_alias='default_alias'):
                   ....
                   -----END PGP PUBLIC KEY BLOCK-----
 
-    :param model: Name of model alias
-    :type bundle: str
-    :returns: List of overlay PPAs
-    :rtype: list[str]
+    :param overlay_ppa: Element of overlay_ppas configuration.
+    :type overlay_ppa: Any
+    :returns: Parsed overlay configuration.
+    :rtype: Dict[str,str]
     """
-    config = zaza.global_options.get_options()
     try:
-        return config[model_alias].overlay_ppas
-    except KeyError:
-        try:
-            return config.overlay_ppas
-        except KeyError:
-            pass
-    return None
+        return _parse_overlay_ppa_v2(overlay_ppa)
+    except (TypeError):
+        return _parse_overlay_ppa_v1(overlay_ppa)
 
 
 def get_cloudinit_userdata(model_alias='default_alias'):
@@ -157,17 +232,9 @@ def get_cloudinit_userdata(model_alias='default_alias'):
     overlay_ppas = get_overlay_ppas(model_alias)
     if overlay_ppas:
         for index, overlay_ppa in enumerate(overlay_ppas):
-            try:
-                # NOTE: support private PPAs with source and key keys.
-                cloud_config['apt']['sources']["overlay-ppa-{}".format(index)] = {  # noqa
-                    'source': overlay_ppa['source'],
-                    'key': overlay_ppa['key'],
-                }
-            except (KeyError, TypeError):
-                # NOTE: simple ppa:xxx/yyy format for backwards compatibility
-                cloud_config['apt']['sources']["overlay-ppa-{}".format(index)] = {  # noqa
-                    'source': overlay_ppa
-                }
+            cloud_config["apt"]["sources"][
+                "overlay-ppa-{}".format(index)
+            ] = parse_overlay_ppa(overlay_ppa)
 
     cloudinit_userdata = "#cloud-config\n{}".format(
         yaml.safe_dump(cloud_config))
