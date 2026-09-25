@@ -142,21 +142,30 @@ def run_env_deployment(env_deployment, keep_model=DESTROY_MODEL, force=False,
                 deployment.bundle)
             errors_ = (ignore_hard_deploy_errors or
                        utils.ignore_hard_deploy_errors(deployment.bundle))
+            no_wait_ = utils.no_wait_deploy(deployment.bundle)
             deploy.deploy(
                 os.path.join(
                     utils.get_bundle_dir(),
                     '{}.yaml'.format(deployment.bundle)),
                 deployment.model_name,
                 model_ctxt=model_aliases,
+                wait=not no_wait_,
                 force=force_,
                 trust=trust_,
                 test_directory=test_directory,
                 ignore_hard_deploy_errors=errors_)
 
         # When deploying bundles with cross model relations, hooks may be
-        # triggered in already deployedi models so wait for all models to
-        # settle.
+        # triggered in already deployed models so wait for all models to
+        # settle. Bundles with no_wait_deploy set intentionally skip this
+        # settle wait to allow immediate progression to the configure step.
         for deployment in env_deployment.model_deploys:
+            if utils.no_wait_deploy(deployment.bundle):
+                logging.info(
+                    "Skipping post-deploy wait for {} "
+                    "(no_wait_deploy is set)".format(
+                        deployment.model_name))
+                continue
             logging.info("Waiting for {} to settle".format(
                 deployment.model_name))
             errors_ = (ignore_hard_deploy_errors or

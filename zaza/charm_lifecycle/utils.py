@@ -526,6 +526,40 @@ def ignore_hard_deploy_errors(
     return False
 
 
+def no_wait_deploy(
+        bundle_name, yaml_file=None, fatal=True):
+    """Ask if the deploy wait/settle steps should be skipped for a bundle.
+
+    Setting no_wait_deploy for a bundle means that zaza will not:
+      * wait for the applications to reach the states defined in
+        target_deploy_status (or active/idle) after deploying the bundle; or
+      * perform the post-deploy block_until_all_units_idle "settle" wait.
+
+    The tests_options section needs to look like:
+
+        tests_options:
+          no_wait_deploy:
+            - focal-ussuri
+
+    :param bundle_name: bundle to check in the no_wait_deploy list
+    :type bundle_name: str
+    :param yaml_file: the YAML file that contains the tests specification
+    :type yaml_file: Optional[str]
+    :param fatal: whether any errors cause an exception or are just logged.
+    :type fatal: bool
+    :returns: True if the config option is set for the bundle
+    :rtype: bool
+    :raises: OSError if the YAML file doesn't exist and fatal=True
+    """
+    config = get_charm_config(yaml_file, fatal)
+    try:
+        return bundle_name in config['tests_options']['no_wait_deploy']
+    # Type error is if no_wait_deploy is present, but with no list
+    except (KeyError, TypeError):
+        pass
+    return False
+
+
 def get_class(class_str):
     """Get the class represented by the given string.
 

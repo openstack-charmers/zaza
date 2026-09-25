@@ -85,11 +85,11 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         deploy_calls = [
             mock.call(cwd + '/tests/bundles/bundle1.yaml', 'newmodel',
                       model_ctxt={'default_alias': 'newmodel'},
-                      force=True, test_directory=None, trust=False,
+                      wait=True, force=True, test_directory=None, trust=False,
                       ignore_hard_deploy_errors=False),
             mock.call(cwd + '/tests/bundles/bundle2.yaml', 'newmodel',
                       model_ctxt={'default_alias': 'newmodel'},
-                      force=True, test_directory=None, trust=False,
+                      wait=True, force=True, test_directory=None, trust=False,
                       ignore_hard_deploy_errors=False)]
         configure_calls = [
             mock.call('newmodel', [
@@ -164,24 +164,24 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         cwd = os.getcwd()
         deploy_calls = [
             mock.call(cwd + '/tests/bundles/bundle1.yaml', 'm1',
-                      model_ctxt={'default_alias': 'm1'}, force=False,
-                      test_directory=None, trust=False,
+                      model_ctxt={'default_alias': 'm1'}, wait=True,
+                      force=False, test_directory=None, trust=False,
                       ignore_hard_deploy_errors=False),
             mock.call(cwd + '/tests/bundles/bundle2.yaml', 'm2',
-                      model_ctxt={'default_alias': 'm2'}, force=False,
-                      test_directory=None, trust=False,
+                      model_ctxt={'default_alias': 'm2'}, wait=True,
+                      force=False, test_directory=None, trust=False,
                       ignore_hard_deploy_errors=False),
             mock.call(
                 cwd + '/tests/bundles/bundle5.yaml',
                 'm3',
                 model_ctxt={'model_alias_5': 'm3', 'model_alias_6': 'm4'},
-                force=False, test_directory=None, trust=False,
+                wait=True, force=False, test_directory=None, trust=False,
                 ignore_hard_deploy_errors=False),
             mock.call(
                 cwd + '/tests/bundles/bundle6.yaml',
                 'm4',
                 model_ctxt={'model_alias_5': 'm3', 'model_alias_6': 'm4'},
-                force=False, test_directory=None, trust=False,
+                wait=True, force=False, test_directory=None, trust=False,
                 ignore_hard_deploy_errors=False)]
         configure_calls = [
             mock.call('m1', [
@@ -256,12 +256,12 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
             mock.call('newmodel', 'default_alias', test_directory=None)]
         deploy_calls = [
             mock.call(cwd + '/tests/bundles/bundle1.yaml', 'newmodel',
-                      model_ctxt={'default_alias': 'newmodel'}, force=False,
-                      test_directory=None, trust=False,
+                      model_ctxt={'default_alias': 'newmodel'}, wait=True,
+                      force=False, test_directory=None, trust=False,
                       ignore_hard_deploy_errors=False),
             mock.call(cwd + '/tests/bundles/bundle2.yaml', 'newmodel',
-                      model_ctxt={'default_alias': 'newmodel'}, force=False,
-                      test_directory=None, trust=False,
+                      model_ctxt={'default_alias': 'newmodel'}, wait=True,
+                      force=False, test_directory=None, trust=False,
                       ignore_hard_deploy_errors=False)]
         before_deploy_calls = [
             mock.call('newmodel', [
@@ -319,7 +319,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         deploy_calls = [
             mock.call(cwd + '/tests/bundles/bundle2.yaml', 'newmodel',
                       model_ctxt={'default_alias': 'newmodel'},
-                      force=False,
+                      wait=True, force=False,
                       test_directory=None, trust=False,
                       ignore_hard_deploy_errors=False)]
         self.deploy.assert_has_calls(deploy_calls)
@@ -352,12 +352,12 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
         cwd = os.getcwd()
         deploy_calls = [
             mock.call(cwd + '/tests/bundles/bundle3.yaml', 'newmodel',
-                      model_ctxt={'default_alias': 'newmodel'}, force=False,
-                      test_directory=None, trust=False,
+                      model_ctxt={'default_alias': 'newmodel'}, wait=True,
+                      force=False, test_directory=None, trust=False,
                       ignore_hard_deploy_errors=False),
             mock.call(cwd + '/tests/bundles/bundle4.yaml', 'newmodel',
-                      model_ctxt={'default_alias': 'newmodel'}, force=False,
-                      test_directory=None, trust=False,
+                      model_ctxt={'default_alias': 'newmodel'}, wait=True,
+                      force=False, test_directory=None, trust=False,
                       ignore_hard_deploy_errors=False)]
         self.deploy.assert_has_calls(deploy_calls)
 
@@ -392,7 +392,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                 cwd + '/tests/bundles/maveric-filebeat.yaml',
                 'newmodel',
                 model_ctxt={'default_alias': 'newmodel'},
-                force=False,
+                wait=True, force=False,
                 test_directory=None, trust=False,
                 ignore_hard_deploy_errors=False)]
         self.deploy.assert_has_calls(deploy_calls)
@@ -429,7 +429,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                 cwd + '/tests/bundles/maveric-filebeat.yaml',
                 'newmodel',
                 model_ctxt={'alias': 'newmodel'},
-                force=False,
+                wait=True, force=False,
                 test_directory=None, trust=False,
                 ignore_hard_deploy_errors=False)]
         self.deploy.assert_has_calls(deploy_calls)
@@ -459,7 +459,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                 cwd + '/tests/bundles/maveric-filebeat.yaml',
                 'newmodel',
                 model_ctxt={'alias': 'newmodel'},
-                force=False,
+                wait=True, force=False,
                 test_directory=None, trust=False,
                 ignore_hard_deploy_errors=False)]
         self.deploy.assert_has_calls(deploy_calls)
@@ -498,7 +498,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                 'newmodel1',
                 model_ctxt={'alias': 'newmodel1',
                             'another_alias': 'newmodel2'},
-                force=False,
+                wait=True, force=False,
                 test_directory=None, trust=False,
                 ignore_hard_deploy_errors=False),
             mock.call(
@@ -506,7 +506,7 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
                 'newmodel2',
                 model_ctxt={'alias': 'newmodel1',
                             'another_alias': 'newmodel2'},
-                force=False,
+                wait=True, force=False,
                 test_directory=None, trust=False,
                 ignore_hard_deploy_errors=False)]
         self.deploy.assert_has_calls(deploy_calls)
@@ -604,3 +604,41 @@ class TestCharmLifecycleFuncTestRunner(ut_utils.BaseTestCase):
 
     def test_main_bundle_keep_model_ambiguous_case3(self):
         self.__keep_model_ambiguous(False, True, True)
+
+    def test_func_test_runner_no_wait_deploy(self):
+        self.patch_object(lc_func_test_runner.utils, 'get_charm_config')
+        self.patch_object(lc_func_test_runner.utils, 'generate_model_name')
+        self.patch_object(lc_func_test_runner.prepare, 'prepare')
+        self.patch_object(lc_func_test_runner.before_deploy, 'before_deploy')
+        self.patch_object(lc_func_test_runner.deploy, 'deploy')
+        self.patch_object(lc_func_test_runner.configure, 'configure')
+        self.patch_object(lc_func_test_runner.test, 'test')
+        self.patch_object(lc_func_test_runner.destroy, 'destroy')
+        self.patch_object(
+            lc_func_test_runner.zaza.model,
+            'block_until_all_units_idle')
+        self.generate_model_name.return_value = 'newmodel'
+        self.get_charm_config.return_value = {
+            'charm_name': 'mycharm',
+            'gate_bundles': ['bundle1', 'bundle2'],
+            'tests': [
+                'zaza.charm_tests.mycharm.tests.SmokeTest'],
+            'tests_options': {
+                'no_wait_deploy': ['bundle1']
+            }}
+        lc_func_test_runner.func_test_runner()
+        cwd = os.getcwd()
+        deploy_calls = [
+            mock.call(cwd + '/tests/bundles/bundle1.yaml', 'newmodel',
+                      model_ctxt={'default_alias': 'newmodel'},
+                      wait=False, force=False, test_directory=None,
+                      trust=False, ignore_hard_deploy_errors=False),
+            mock.call(cwd + '/tests/bundles/bundle2.yaml', 'newmodel',
+                      model_ctxt={'default_alias': 'newmodel'},
+                      wait=True, force=False, test_directory=None,
+                      trust=False, ignore_hard_deploy_errors=False)]
+        self.deploy.assert_has_calls(deploy_calls)
+        # block_until_all_units_idle should only be called for bundle2
+        # (bundle1 has no_wait_deploy set)
+        self.block_until_all_units_idle.assert_called_once_with(
+            ignore_hard_errors=False, model_name='newmodel')
