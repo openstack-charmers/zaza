@@ -14,7 +14,6 @@
 
 """Run prepare phase."""
 import argparse
-import asyncio
 import logging
 import sys
 
@@ -85,4 +84,4 @@ def main():
         run_report.output_event_report()
     finally:
         zaza.clean_up_libjuju_thread()
-        asyncio.get_event_loop().close()
+        zaza.close_local_event_loop()

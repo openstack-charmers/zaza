@@ -14,7 +14,7 @@
 
 """Run full test lifecycle."""
 import argparse
-import asyncio
+import asyncio  # noqa: F401 - kept for unit test monkeypatch compatibility
 import logging
 import os
 import sys
@@ -424,4 +424,4 @@ def main():
         run_report.output_event_report()
     finally:
         zaza.clean_up_libjuju_thread()
-        asyncio.get_event_loop().close()
+        zaza.close_local_event_loop()
